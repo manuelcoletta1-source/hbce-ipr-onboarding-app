@@ -37,6 +37,7 @@ const WARNING_STATUSES = new Set<string>([
   "started",
   "in_progress",
   "pending",
+  "pending_access",
   "submitted",
   "in_review",
   "manual_review",
@@ -44,7 +45,6 @@ const WARNING_STATUSES = new Set<string>([
   "needs_more_information",
   "not_created",
   "not_issued",
-  "not_created",
   "under_review"
 ]);
 
@@ -61,6 +61,7 @@ const DANGER_STATUSES = new Set<string>([
 
 export function formatStatusLabel(status: string): string {
   return status
+    .trim()
     .split("_")
     .filter(Boolean)
     .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
@@ -86,6 +87,10 @@ export function getStatusTone(status: SupportedStatus | string): StatusTone {
 export function formatAccessDecision(decision: AccessDecision): string {
   if (decision === "allow_governed_access") {
     return "Allow Governed Access";
+  }
+
+  if (decision === "pending_access") {
+    return "Pending Access";
   }
 
   return "Deny Access";
@@ -127,8 +132,9 @@ export function formatMaskedIdentifier(value: string): string {
 
   const prefix = trimmed.slice(0, 3);
   const suffix = trimmed.slice(-3);
+  const hiddenLength = Math.max(trimmed.length - 6, 4);
 
-  return `${prefix}${"*".repeat(Math.max(trimmed.length - 6, 4))}${suffix}`;
+  return `${prefix}${"*".repeat(hiddenLength)}${suffix}`;
 }
 
 export function formatRouteLabel(route: string): string {
@@ -149,11 +155,13 @@ export function formatBooleanState(value: boolean): string {
 }
 
 export function formatHashReference(value: string): string {
-  if (value.length <= 18) {
-    return value;
+  const trimmed = value.trim();
+
+  if (trimmed.length <= 18) {
+    return trimmed;
   }
 
-  return `${value.slice(0, 12)}…${value.slice(-6)}`;
+  return `${trimmed.slice(0, 12)}…${trimmed.slice(-6)}`;
 }
 
 export function getBadgeClassName(status: SupportedStatus | string): string {
