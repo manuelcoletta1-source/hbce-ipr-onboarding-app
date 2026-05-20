@@ -10,9 +10,14 @@ type StatusBadgeProps = {
 
 export function StatusBadge({ status, label, title }: StatusBadgeProps) {
   const visibleLabel = label ?? formatStatusLabel(status);
+  const accessibleTitle = title ?? visibleLabel;
 
   return (
-    <span className={getBadgeClassName(status)} title={title ?? visibleLabel}>
+    <span
+      aria-label={accessibleTitle}
+      className={getBadgeClassName(status)}
+      title={accessibleTitle}
+    >
       {visibleLabel}
     </span>
   );
