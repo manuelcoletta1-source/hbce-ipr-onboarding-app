@@ -6,29 +6,71 @@ import { BoundaryNotice } from "@/components/BoundaryNotice";
 import { OnboardingStepper } from "@/components/OnboardingStepper";
 import { StatusBadge } from "@/components/StatusBadge";
 
+const PHOTO_VIDEO_STATE_ITEMS = [
+  {
+    label: "Photo verification",
+    status: "submitted"
+  },
+  {
+    label: "Video verification",
+    status: "submitted"
+  },
+  {
+    label: "Liveness state",
+    status: "manual_review"
+  },
+  {
+    label: "JOKER-C2 access",
+    status: "denied"
+  }
+] as const;
+
+const PHOTO_VIDEO_BOUNDARIES = [
+  "Real photos must not be committed to this repository.",
+  "Real videos must not be committed to this repository.",
+  "Biometric templates must not be stored in public routes.",
+  "Liveness recordings must remain in protected processing environments.",
+  "Photo/video verification does not directly issue IPR Verified status.",
+  "JOKER-C2 access remains denied by default."
+] as const;
+
+const PHOTO_VIDEO_EVIDENCE_ITEMS = [
+  "Protected photo reference",
+  "Protected video reference",
+  "Photo hash",
+  "Video hash",
+  "Photo verification status",
+  "Video verification status",
+  "Liveness status"
+] as const;
+
 export default function OnboardingPhotoVideoPage() {
   return (
     <div className="hbce-container">
       <section className="hbce-hero">
         <p className="hbce-kicker">Step 05 · Photo / Video</p>
 
-        <h1 className="hbce-title">Prepare photo and video verification state.</h1>
+        <h1 className="hbce-title">
+          Prepare photo and video verification state.
+        </h1>
 
         <p className="hbce-lead">
           This MVP page simulates the subject-document coherence and liveness
           verification stage. It does not process real photos, real videos,
-          biometric templates or liveness recordings.
+          biometric templates, face templates or liveness recordings.
         </p>
       </section>
 
       <section className="hbce-section">
         <div className="hbce-grid hbce-grid--2">
           <div className="hbce-card">
-            <h2>Photo / video verification placeholder</h2>
+            <p className="hbce-kicker">Verification evidence</p>
+            <h2>Prepare photo/video verification metadata</h2>
+
             <p>
               In production, this step may connect to protected storage,
               verification providers and lawful identity verification workflows.
-              In the MVP, it only represents the operational status required
+              In the MVP, it only represents the operational state required
               before review.
             </p>
 
@@ -38,6 +80,7 @@ export default function OnboardingPhotoVideoPage() {
                   Protected photo reference
                 </label>
                 <input
+                  autoComplete="off"
                   className="hbce-input hbce-mono"
                   id="photo_reference"
                   name="photo_reference"
@@ -51,6 +94,7 @@ export default function OnboardingPhotoVideoPage() {
                   Protected video reference
                 </label>
                 <input
+                  autoComplete="off"
                   className="hbce-input hbce-mono"
                   id="video_reference"
                   name="video_reference"
@@ -65,6 +109,7 @@ export default function OnboardingPhotoVideoPage() {
                     Photo hash
                   </label>
                   <input
+                    autoComplete="off"
                     className="hbce-input hbce-mono"
                     id="photo_hash"
                     name="photo_hash"
@@ -78,6 +123,7 @@ export default function OnboardingPhotoVideoPage() {
                     Video hash
                   </label>
                   <input
+                    autoComplete="off"
                     className="hbce-input hbce-mono"
                     id="video_hash"
                     name="video_hash"
@@ -159,42 +205,42 @@ export default function OnboardingPhotoVideoPage() {
           </div>
 
           <div className="hbce-card hbce-card--soft">
-            <h2>Verification state</h2>
+            <p className="hbce-kicker">Verification state</p>
+            <h2>Photo/video verification prepares review, not access.</h2>
+
             <p>
               Photo and video verification prepare the onboarding case for
-              review. They do not directly issue IPR Verified status and do not
-              directly unlock JOKER-C2.
+              review. They do not directly issue IPR Verified status, issue an
+              IPR Card, activate a certificate or unlock JOKER-C2.
             </p>
 
             <div className="hbce-card-preview__meta">
-              <div className="hbce-meta">
-                <span className="hbce-meta__label">Photo verification</span>
-                <span className="hbce-meta__value">
-                  <StatusBadge status="submitted" />
-                </span>
-              </div>
-
-              <div className="hbce-meta">
-                <span className="hbce-meta__label">Video verification</span>
-                <span className="hbce-meta__value">
-                  <StatusBadge status="submitted" />
-                </span>
-              </div>
-
-              <div className="hbce-meta">
-                <span className="hbce-meta__label">Liveness state</span>
-                <span className="hbce-meta__value">
-                  <StatusBadge status="manual_review" />
-                </span>
-              </div>
-
-              <div className="hbce-meta">
-                <span className="hbce-meta__label">JOKER-C2 access</span>
-                <span className="hbce-meta__value">
-                  <StatusBadge status="denied" />
-                </span>
-              </div>
+              {PHOTO_VIDEO_STATE_ITEMS.map((item) => (
+                <div className="hbce-meta" key={item.label}>
+                  <span className="hbce-meta__label">{item.label}</span>
+                  <span className="hbce-meta__value">
+                    <StatusBadge status={item.status} />
+                  </span>
+                </div>
+              ))}
             </div>
+
+            <div className="hbce-divider" />
+
+            <h3>Expected evidence layer</h3>
+            <ul className="hbce-list">
+              {PHOTO_VIDEO_EVIDENCE_ITEMS.map((item) => (
+                <li key={item}>{item}</li>
+              ))}
+            </ul>
+
+            <div className="hbce-divider" />
+
+            <ul className="hbce-list">
+              {PHOTO_VIDEO_BOUNDARIES.map((boundary) => (
+                <li key={boundary}>{boundary}</li>
+              ))}
+            </ul>
 
             <div className="hbce-divider" />
 
