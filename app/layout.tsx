@@ -5,16 +5,40 @@ import type { ReactNode } from "react";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "HBCE IPR Onboarding App",
+  title: {
+    default: "HBCE IPR Onboarding App",
+    template: "%s | HBCE IPR Onboarding App"
+  },
   description:
-    "Bank-grade operational identity onboarding for IPR Verified, IPR Card issuance and governed JOKER-C2 access.",
+    "Bank-grade operational identity onboarding for IPR Verified status, IPR Card issuance, operational certificate activation and governed JOKER-C2 access.",
   applicationName: "HBCE IPR Onboarding App",
   authors: [{ name: "HERMETICUM B.C.E. S.r.l." }],
   creator: "HERMETICUM B.C.E. S.r.l.",
   publisher: "HERMETICUM B.C.E. S.r.l.",
+  keywords: [
+    "HBCE",
+    "HERMETICUM B.C.E.",
+    "IPR",
+    "Identity Primary Record",
+    "IPR Onboarding",
+    "IPR Card",
+    "JOKER-C2",
+    "governed AI",
+    "operational identity",
+    "AI governance",
+    "fail-closed access"
+  ],
   robots: {
     index: true,
     follow: true
+  },
+  openGraph: {
+    title: "HBCE IPR Onboarding App",
+    description:
+      "Operational identity onboarding for IPR Verified status, IPR Card issuance and governed JOKER-C2 access.",
+    siteName: "HBCE IPR Onboarding App",
+    type: "website",
+    locale: "en_US"
   }
 };
 
@@ -44,7 +68,7 @@ export default function RootLayout({
                   HBCE IPR Onboarding App
                 </span>
                 <span className="hbce-brand__subtitle">
-                  Operational identity onboarding for governed AI access
+                  Identity verified first. Governed AI access after.
                 </span>
               </Link>
 
@@ -66,6 +90,10 @@ export default function RootLayout({
                 <strong>HERMETICUM B.C.E. S.r.l.</strong>
                 <div className="hbce-small">
                   HERMETICUM - BLINDATA · COMPUTABILE · EVOLUTIVA
+                </div>
+                <div className="hbce-small">
+                  IPR Onboarding Gateway · IPR Card · Operational Certificate ·
+                  JOKER-C2 Access Gate
                 </div>
               </div>
 
