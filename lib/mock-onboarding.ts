@@ -224,7 +224,7 @@ export const revokedOnboardingRecord: OnboardingRecord = {
   fiscalIdentifierStatus: "approved",
   photoVerificationStatus: "approved",
   videoVerificationStatus: "approved",
-  reviewStatus: "approved",
+  reviewStatus: "revoked",
   iprStatus: "revoked",
   iprCardStatus: "revoked",
   certificateStatus: "revoked",
