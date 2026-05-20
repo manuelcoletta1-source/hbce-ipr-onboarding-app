@@ -251,6 +251,22 @@ export function isHbceIprCertificate(
     return false;
   }
 
+  if (typeof value.phase.code !== "string") {
+    return false;
+  }
+
+  if (typeof value.phase.number !== "number") {
+    return false;
+  }
+
+  if (typeof value.phase.status !== "string") {
+    return false;
+  }
+
+  if (typeof value.phase.next_required_phase !== "string") {
+    return false;
+  }
+
   if (!isPlainRecord(value.hash_integrity)) {
     return false;
   }
@@ -282,11 +298,54 @@ export function isHbceIprCertificate(
     return false;
   }
 
+  if (value.payload.jurisdiction !== "EU") {
+    return false;
+  }
+
+  if (!isPlainRecord(value.payload.policy)) {
+    return false;
+  }
+
+  if (!isPlainRecord(value.payload.phase_data)) {
+    return false;
+  }
+
   if (!isPlainRecord(value.registry)) {
     return false;
   }
 
+  if (
+    value.registry.kind !== "HASH_ONLY_PUBLIC_ENTRY" &&
+    value.registry.kind !== "HASH_ONLY_PRIVATE_OR_PUBLIC_ENTRY"
+  ) {
+    return false;
+  }
+
+  if (!isPlainRecord(value.registry.public_entry)) {
+    return false;
+  }
+
+  if (typeof value.registry.public_entry.payload_sha256 !== "string") {
+    return false;
+  }
+
+  if (typeof value.registry.public_entry.phase !== "string") {
+    return false;
+  }
+
+  if (typeof value.registry.public_entry.timestamp !== "string") {
+    return false;
+  }
+
   if (!isPlainRecord(value.next)) {
+    return false;
+  }
+
+  if (typeof value.next.upload_required !== "boolean") {
+    return false;
+  }
+
+  if (typeof value.next.next_phase !== "string") {
     return false;
   }
 
