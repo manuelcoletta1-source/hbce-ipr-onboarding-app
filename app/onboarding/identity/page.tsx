@@ -6,6 +6,33 @@ import { BoundaryNotice } from "@/components/BoundaryNotice";
 import { OnboardingStepper } from "@/components/OnboardingStepper";
 import { StatusBadge } from "@/components/StatusBadge";
 
+const IDENTITY_STATE_ITEMS = [
+  {
+    label: "Identity data",
+    status: "submitted"
+  },
+  {
+    label: "Document status",
+    status: "not_started"
+  },
+  {
+    label: "Review status",
+    status: "not_started"
+  },
+  {
+    label: "JOKER-C2 access",
+    status: "denied"
+  }
+] as const;
+
+const IDENTITY_BOUNDARIES = [
+  "Identity data alone does not create IPR Verified status.",
+  "Official document evidence is still required.",
+  "Fiscal or national identifier linkage is still required.",
+  "Photo/video verification is still required.",
+  "JOKER-C2 access remains denied by default."
+] as const;
+
 export default function OnboardingIdentityPage() {
   return (
     <div className="hbce-container">
@@ -16,20 +43,23 @@ export default function OnboardingIdentityPage() {
 
         <p className="hbce-lead">
           This step collects the minimum identity information required to build
-          the internal operational identity record. It does not issue public
-          identity, state identity, CIE, SPID, EUDI Wallet or qualified eIDAS
-          credentials.
+          the internal operational identity profile. It does not issue public
+          identity, state identity, CIE, SPID, EUDI Wallet credentials or
+          qualified eIDAS certificates.
         </p>
       </section>
 
       <section className="hbce-section">
         <div className="hbce-grid hbce-grid--2">
           <div className="hbce-card">
-            <h2>Identity data</h2>
+            <p className="hbce-kicker">Identity profile</p>
+            <h2>Prepare the operational identity record</h2>
+
             <p>
-              Use synthetic or demonstration data in the MVP. Real identity data
-              must not be committed to the repository or exposed in public
-              routes.
+              Use synthetic or demonstration data in the MVP. Real identity
+              data, real documents, real fiscal identifiers and biometric
+              material must not be committed to the repository or exposed in
+              public routes.
             </p>
 
             <form className="hbce-form">
@@ -39,6 +69,7 @@ export default function OnboardingIdentityPage() {
                     First name
                   </label>
                   <input
+                    autoComplete="given-name"
                     className="hbce-input"
                     id="first_name"
                     name="first_name"
@@ -52,6 +83,7 @@ export default function OnboardingIdentityPage() {
                     Last name
                   </label>
                   <input
+                    autoComplete="family-name"
                     className="hbce-input"
                     id="last_name"
                     name="last_name"
@@ -67,6 +99,7 @@ export default function OnboardingIdentityPage() {
                     Date of birth
                   </label>
                   <input
+                    autoComplete="bday"
                     className="hbce-input"
                     id="date_of_birth"
                     name="date_of_birth"
@@ -79,10 +112,11 @@ export default function OnboardingIdentityPage() {
                     Place of birth
                   </label>
                   <input
+                    autoComplete="off"
                     className="hbce-input"
                     id="place_of_birth"
                     name="place_of_birth"
-                    placeholder="Bologna"
+                    placeholder="Demo City"
                     type="text"
                   />
                 </div>
@@ -116,19 +150,35 @@ export default function OnboardingIdentityPage() {
                 </div>
               </div>
 
-              <div className="hbce-field">
-                <label className="hbce-label" htmlFor="residential_country">
-                  Residential country
-                </label>
-                <select
-                  className="hbce-select"
-                  id="residential_country"
-                  name="residential_country"
-                >
-                  <option value="IT">Italy</option>
-                  <option value="EU">European Union jurisdiction</option>
-                  <option value="OTHER">Other jurisdiction</option>
-                </select>
+              <div className="hbce-grid hbce-grid--2">
+                <div className="hbce-field">
+                  <label className="hbce-label" htmlFor="residential_country">
+                    Residential country
+                  </label>
+                  <select
+                    className="hbce-select"
+                    id="residential_country"
+                    name="residential_country"
+                  >
+                    <option value="IT">Italy</option>
+                    <option value="EU">European Union jurisdiction</option>
+                    <option value="OTHER">Other jurisdiction</option>
+                  </select>
+                </div>
+
+                <div className="hbce-field">
+                  <label className="hbce-label" htmlFor="residential_city">
+                    Residential city
+                  </label>
+                  <input
+                    autoComplete="address-level2"
+                    className="hbce-input"
+                    id="residential_city"
+                    name="residential_city"
+                    placeholder="Demo City"
+                    type="text"
+                  />
+                </div>
               </div>
 
               <div className="hbce-actions">
@@ -147,41 +197,33 @@ export default function OnboardingIdentityPage() {
           </div>
 
           <div className="hbce-card hbce-card--soft">
-            <h2>Identity state</h2>
+            <p className="hbce-kicker">Identity state</p>
+            <h2>Identity data is not access authorization</h2>
+
             <p>
-              The identity form prepares the operational identity profile. It is
-              not enough to activate IPR Verified or JOKER-C2 access.
+              The identity form prepares the internal operational identity
+              profile. It is not enough to activate IPR Verified status, issue
+              the IPR Card or open governed JOKER-C2 access.
             </p>
 
             <div className="hbce-card-preview__meta">
-              <div className="hbce-meta">
-                <span className="hbce-meta__label">Identity data</span>
-                <span className="hbce-meta__value">
-                  <StatusBadge status="submitted" />
-                </span>
-              </div>
-
-              <div className="hbce-meta">
-                <span className="hbce-meta__label">Document status</span>
-                <span className="hbce-meta__value">
-                  <StatusBadge status="not_started" />
-                </span>
-              </div>
-
-              <div className="hbce-meta">
-                <span className="hbce-meta__label">Review status</span>
-                <span className="hbce-meta__value">
-                  <StatusBadge status="not_started" />
-                </span>
-              </div>
-
-              <div className="hbce-meta">
-                <span className="hbce-meta__label">JOKER-C2 access</span>
-                <span className="hbce-meta__value">
-                  <StatusBadge status="denied" />
-                </span>
-              </div>
+              {IDENTITY_STATE_ITEMS.map((item) => (
+                <div className="hbce-meta" key={item.label}>
+                  <span className="hbce-meta__label">{item.label}</span>
+                  <span className="hbce-meta__value">
+                    <StatusBadge status={item.status} />
+                  </span>
+                </div>
+              ))}
             </div>
+
+            <div className="hbce-divider" />
+
+            <ul className="hbce-list">
+              {IDENTITY_BOUNDARIES.map((boundary) => (
+                <li key={boundary}>{boundary}</li>
+              ))}
+            </ul>
 
             <div className="hbce-divider" />
 
