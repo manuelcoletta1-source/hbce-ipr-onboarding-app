@@ -43,35 +43,45 @@ const fields: IprPhaseFieldDefinition[] = [
       }
     ],
     helperText:
-      "Select the official identity document used for HBCE-IPR verification."
+      "This value is written inside the private HBCE-IPR certificate and also hashed for verification."
   },
   {
     name: "document_number",
     label: "Document number",
     type: "text",
-    placeholder: "CA000000X"
+    placeholder: "CA000000X",
+    helperText:
+      "This value is written inside the private HBCE-IPR certificate and also hashed for verification."
   },
   {
     name: "document_country",
     label: "Document country",
     type: "text",
-    placeholder: "IT"
+    placeholder: "IT",
+    helperText:
+      "This value is written inside the private HBCE-IPR certificate and also hashed for verification."
   },
   {
     name: "document_issuer",
     label: "Issuing authority",
     type: "text",
-    placeholder: "Comune / Ministry / Issuing authority"
+    placeholder: "Comune / Ministry / Issuing authority",
+    helperText:
+      "This value is written inside the private HBCE-IPR certificate and also hashed for verification."
   },
   {
     name: "document_issue_date",
     label: "Issue date",
-    type: "date"
+    type: "date",
+    helperText:
+      "This value is written inside the private HBCE-IPR certificate and also hashed for verification."
   },
   {
     name: "document_expiry_date",
     label: "Expiry date",
-    type: "date"
+    type: "date",
+    helperText:
+      "This value is written inside the private HBCE-IPR certificate and also hashed for verification."
   }
 ];
 
@@ -80,7 +90,7 @@ const evidenceInputs: IprPhaseEvidenceInputDefinition[] = [
     kind: "OFFICIAL_DOCUMENT_FRONT",
     label: "Upload official document front / CIE front / licence front",
     description:
-      "Upload the front side of the CIE, driving licence, EU identity card or other official document.",
+      "Upload the front side of the CIE, driving licence, EU identity card or other official document. The file itself is not embedded in the certificate; only its SHA-256 hash is stored.",
     accept: "image/*,.pdf",
     required: true
   },
@@ -88,7 +98,7 @@ const evidenceInputs: IprPhaseEvidenceInputDefinition[] = [
     kind: "OFFICIAL_DOCUMENT_BACK",
     label: "Upload official document back / CIE back / licence back",
     description:
-      "Upload the back side when the selected document has two sides.",
+      "Upload the back side when the selected document has two sides. The file itself is not embedded in the certificate; only its SHA-256 hash is stored.",
     accept: "image/*,.pdf",
     required: false
   },
@@ -96,7 +106,7 @@ const evidenceInputs: IprPhaseEvidenceInputDefinition[] = [
     kind: "PASSPORT_DATA_PAGE",
     label: "Upload passport data page",
     description:
-      "Use this field when the selected official document is a passport.",
+      "Use this field when the selected official document is a passport. The file itself is not embedded in the certificate; only its SHA-256 hash is stored.",
     accept: "image/*,.pdf",
     required: false
   }
@@ -146,11 +156,19 @@ async function buildPhase3OfficialDocumentData(
   const documentBackSha256 = getUploadHash(context, "OFFICIAL_DOCUMENT_BACK");
   const passportPageSha256 = getUploadHash(context, "PASSPORT_DATA_PAGE");
 
-  const documentMetadataHash = await sha256Canonical({
-    kind: "HBCE_IPR_PHASE_3_DOCUMENT_METADATA",
+  const privateFields = {
+    document_type: getStringValue(context, "document_type"),
+    document_number: getStringValue(context, "document_number"),
+    document_country: getStringValue(context, "document_country"),
+    document_issuer: getStringValue(context, "document_issuer"),
+    document_issue_date: getStringValue(context, "document_issue_date"),
+    document_expiry_date: getStringValue(context, "document_expiry_date")
+  };
+
+  const hashFields = {
     document_type_hash: await hashPhaseValue(context, "document_type"),
-    document_country_hash: await hashPhaseValue(context, "document_country"),
     document_number_hash: await hashPhaseValue(context, "document_number"),
+    document_country_hash: await hashPhaseValue(context, "document_country"),
     document_issuer_hash: await hashPhaseValue(context, "document_issuer"),
     document_issue_date_hash: await hashPhaseValue(
       context,
@@ -159,30 +177,50 @@ async function buildPhase3OfficialDocumentData(
     document_expiry_date_hash: await hashPhaseValue(
       context,
       "document_expiry_date"
-    ),
+    )
+  };
+
+  const evidenceHashes = {
     document_front_sha256: documentFrontSha256,
     document_back_sha256: documentBackSha256,
     document_passport_page_sha256: passportPageSha256
+  };
+
+  const documentMetadataHash = await sha256Canonical({
+    kind: "HBCE_IPR_PHASE_3_DOCUMENT_METADATA",
+    private_fields: privateFields,
+    hash_fields: hashFields,
+    evidence_hashes: evidenceHashes,
+    previous_payload_sha256:
+      context.previousCertificate?.hash_integrity.payload_sha256 ?? null,
+    issued_at: context.issuedAt
   });
 
   return {
-    document_type: getStringValue(context, "document_type"),
-    document_country: getStringValue(context, "document_country"),
-    document_number_hash: await hashPhaseValue(context, "document_number"),
-    document_issuer_hash: await hashPhaseValue(context, "document_issuer"),
-    document_issue_date_hash: await hashPhaseValue(
-      context,
-      "document_issue_date"
-    ),
-    document_expiry_date_hash: await hashPhaseValue(
-      context,
-      "document_expiry_date"
-    ),
+    certificate_visibility: "PRIVATE_PORTABLE_CERTIFICATE",
+    public_registry_mode: "HASH_ONLY",
+    phase_scope: "OFFICIAL_ID_DOCUMENT",
+
+    private_fields: privateFields,
+    hash_fields: hashFields,
+    evidence_hashes: evidenceHashes,
+
+    document_type: privateFields.document_type,
+    document_country: privateFields.document_country,
+    document_number_hash: hashFields.document_number_hash,
+    document_issuer_hash: hashFields.document_issuer_hash,
+    document_issue_date_hash: hashFields.document_issue_date_hash,
+    document_expiry_date_hash: hashFields.document_expiry_date_hash,
     document_metadata_hash: documentMetadataHash,
+
     previous_payload_sha256:
       context.previousCertificate?.hash_integrity.payload_sha256 ?? null,
     next_required_phase: "LIVENESS_CHECK",
     issued_at: context.issuedAt,
+
+    privacy_boundary:
+      "This is a private portable HBCE-IPR certificate downloaded by the subject. Official document metadata is stored inside private_fields. Uploaded document files are represented only by SHA-256 hashes and must be stored in protected backend storage in production.",
+
     ...(documentFrontSha256
       ? { document_front_sha256: documentFrontSha256 }
       : {}),
@@ -205,7 +243,7 @@ export default function Phase3OfficialDocumentPage() {
         buildPhaseData={buildPhase3OfficialDocumentData}
         submitLabel="Generate HBCE IPR Certificate 03"
         successTitle="HBCE IPR Certificate 03 generated"
-        successDescription="The official document certificate has been generated and downloaded. Use this file in Phase 4 — Liveness Check."
+        successDescription="The private official document certificate has been generated and downloaded. It contains the inserted document metadata, the corresponding hashes and the SHA-256 hashes of uploaded document evidence. Use this file in Phase 4 — Liveness Check."
       />
     </div>
   );
