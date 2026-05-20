@@ -15,6 +15,7 @@
   --hbce-warning: #ffd38f;
   --hbce-success: #9ee6b4;
   --hbce-shadow: 0 24px 80px rgba(0, 0, 0, 0.42);
+  --hbce-shadow-soft: 0 14px 42px rgba(0, 0, 0, 0.28);
   --hbce-radius: 18px;
   --hbce-radius-2: 26px;
   --hbce-max: 1180px;
@@ -27,14 +28,24 @@
 html {
   min-height: 100%;
   background: var(--hbce-bg);
+  color-scheme: dark;
+  scroll-behavior: smooth;
 }
 
 body {
   min-height: 100vh;
   margin: 0;
   background:
-    radial-gradient(circle at top left, rgba(143, 183, 255, 0.18), transparent 34rem),
-    radial-gradient(circle at 85% 10%, rgba(185, 210, 255, 0.08), transparent 26rem),
+    radial-gradient(
+      circle at top left,
+      rgba(143, 183, 255, 0.18),
+      transparent 34rem
+    ),
+    radial-gradient(
+      circle at 85% 10%,
+      rgba(185, 210, 255, 0.08),
+      transparent 26rem
+    ),
     linear-gradient(180deg, #05070b 0%, #080c14 52%, #05070b 100%);
   color: var(--hbce-text);
   font-family:
@@ -45,6 +56,12 @@ body {
     BlinkMacSystemFont,
     "Segoe UI",
     sans-serif;
+  text-rendering: optimizeLegibility;
+}
+
+::selection {
+  background: rgba(143, 183, 255, 0.34);
+  color: var(--hbce-text);
 }
 
 a {
@@ -59,6 +76,10 @@ textarea {
   font: inherit;
 }
 
+button {
+  border: 0;
+}
+
 code,
 pre,
 .hbce-mono {
@@ -67,6 +88,20 @@ pre,
     Consolas,
     "Liberation Mono",
     monospace;
+}
+
+pre {
+  overflow-x: auto;
+}
+
+img,
+svg {
+  max-width: 100%;
+}
+
+:focus-visible {
+  outline: 2px solid rgba(143, 183, 255, 0.85);
+  outline-offset: 3px;
 }
 
 .hbce-page {
@@ -90,12 +125,12 @@ pre,
 }
 
 .hbce-header {
-  border-bottom: 1px solid var(--hbce-line);
-  background: rgba(5, 7, 11, 0.78);
-  backdrop-filter: blur(18px);
   position: sticky;
   top: 0;
   z-index: 20;
+  border-bottom: 1px solid var(--hbce-line);
+  background: rgba(5, 7, 11, 0.78);
+  backdrop-filter: blur(18px);
 }
 
 .hbce-header__row {
@@ -109,6 +144,7 @@ pre,
 .hbce-brand {
   display: grid;
   gap: 4px;
+  min-width: 220px;
 }
 
 .hbce-brand__title {
@@ -120,11 +156,13 @@ pre,
 .hbce-brand__subtitle {
   color: var(--hbce-muted);
   font-size: 0.78rem;
+  line-height: 1.45;
 }
 
 .hbce-nav {
   display: flex;
   align-items: center;
+  justify-content: flex-end;
   flex-wrap: wrap;
   gap: 10px;
 }
@@ -155,6 +193,7 @@ pre,
 
 .hbce-kicker {
   width: fit-content;
+  margin: 0;
   border: 1px solid rgba(143, 183, 255, 0.32);
   background: rgba(143, 183, 255, 0.08);
   color: var(--hbce-accent-2);
@@ -209,7 +248,11 @@ pre,
 .hbce-card {
   border: 1px solid var(--hbce-line);
   background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.045), rgba(255, 255, 255, 0.018)),
+    linear-gradient(
+      180deg,
+      rgba(255, 255, 255, 0.045),
+      rgba(255, 255, 255, 0.018)
+    ),
     var(--hbce-panel);
   border-radius: var(--hbce-radius);
   box-shadow: var(--hbce-shadow);
@@ -218,7 +261,11 @@ pre,
 
 .hbce-card--soft {
   background:
-    linear-gradient(180deg, rgba(143, 183, 255, 0.08), rgba(255, 255, 255, 0.018)),
+    linear-gradient(
+      180deg,
+      rgba(143, 183, 255, 0.08),
+      rgba(255, 255, 255, 0.018)
+    ),
     var(--hbce-panel-2);
 }
 
@@ -241,6 +288,10 @@ pre,
 .hbce-card p {
   color: var(--hbce-muted);
   line-height: 1.62;
+}
+
+.hbce-card p:last-child {
+  margin-bottom: 0;
 }
 
 .hbce-actions {
@@ -276,7 +327,11 @@ pre,
 
 .hbce-btn--primary {
   border-color: rgba(143, 183, 255, 0.5);
-  background: linear-gradient(180deg, rgba(143, 183, 255, 0.35), rgba(143, 183, 255, 0.16));
+  background: linear-gradient(
+    180deg,
+    rgba(143, 183, 255, 0.35),
+    rgba(143, 183, 255, 0.16)
+  );
 }
 
 .hbce-btn--danger {
@@ -310,6 +365,7 @@ pre,
   border-radius: 14px;
   padding: 12px 14px;
   background: rgba(255, 255, 255, 0.03);
+  line-height: 1.5;
 }
 
 .hbce-stepper {
@@ -350,6 +406,7 @@ pre,
   margin: 3px 0 0;
   color: var(--hbce-muted);
   font-size: 0.9rem;
+  line-height: 1.5;
 }
 
 .hbce-badge {
@@ -366,6 +423,7 @@ pre,
   font-weight: 760;
   text-transform: uppercase;
   letter-spacing: 0.06em;
+  white-space: nowrap;
 }
 
 .hbce-badge--success {
@@ -414,10 +472,20 @@ pre,
   outline: none;
 }
 
+.hbce-input::placeholder,
+.hbce-textarea::placeholder {
+  color: var(--hbce-muted-2);
+}
+
 .hbce-input:focus,
 .hbce-select:focus,
 .hbce-textarea:focus {
   border-color: rgba(143, 183, 255, 0.6);
+}
+
+.hbce-textarea {
+  min-height: 132px;
+  resize: vertical;
 }
 
 .hbce-notice {
@@ -442,8 +510,16 @@ pre,
   border-radius: var(--hbce-radius-2);
   padding: 26px;
   background:
-    radial-gradient(circle at 18% 0%, rgba(143, 183, 255, 0.25), transparent 18rem),
-    linear-gradient(135deg, rgba(255, 255, 255, 0.07), rgba(255, 255, 255, 0.025)),
+    radial-gradient(
+      circle at 18% 0%,
+      rgba(143, 183, 255, 0.25),
+      transparent 18rem
+    ),
+    linear-gradient(
+      135deg,
+      rgba(255, 255, 255, 0.07),
+      rgba(255, 255, 255, 0.025)
+    ),
     var(--hbce-panel-3);
   box-shadow: var(--hbce-shadow);
 }
@@ -505,21 +581,34 @@ pre,
   padding: 24px;
   border: 1px solid var(--hbce-line);
   background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.045), rgba(255, 255, 255, 0.018)),
+    linear-gradient(
+      180deg,
+      rgba(255, 255, 255, 0.045),
+      rgba(255, 255, 255, 0.018)
+    ),
     var(--hbce-panel);
+  box-shadow: var(--hbce-shadow-soft);
 }
 
 .hbce-access-panel--allow {
   border-color: rgba(158, 230, 180, 0.35);
   background:
-    linear-gradient(180deg, rgba(158, 230, 180, 0.1), rgba(255, 255, 255, 0.018)),
+    linear-gradient(
+      180deg,
+      rgba(158, 230, 180, 0.1),
+      rgba(255, 255, 255, 0.018)
+    ),
     var(--hbce-panel);
 }
 
 .hbce-access-panel--deny {
   border-color: rgba(255, 143, 143, 0.35);
   background:
-    linear-gradient(180deg, rgba(255, 143, 143, 0.09), rgba(255, 255, 255, 0.018)),
+    linear-gradient(
+      180deg,
+      rgba(255, 143, 143, 0.09),
+      rgba(255, 255, 255, 0.018)
+    ),
     var(--hbce-panel);
 }
 
@@ -552,10 +641,18 @@ pre,
 }
 
 @media (max-width: 880px) {
+  .hbce-header {
+    position: static;
+  }
+
   .hbce-header__row {
     align-items: flex-start;
     flex-direction: column;
     padding: 16px 0;
+  }
+
+  .hbce-nav {
+    justify-content: flex-start;
   }
 
   .hbce-grid--2,
@@ -585,13 +682,49 @@ pre,
     padding: 28px 0 54px;
   }
 
+  .hbce-hero {
+    padding: 38px 0 18px;
+  }
+
+  .hbce-title {
+    letter-spacing: -0.06em;
+  }
+
+  .hbce-actions,
+  .hbce-footer__links {
+    width: 100%;
+    flex-direction: column;
+  }
+
+  .hbce-btn {
+    width: 100%;
+  }
+
   .hbce-card,
   .hbce-card-preview,
   .hbce-access-panel {
     padding: 18px;
   }
 
-  .hbce-title {
-    letter-spacing: -0.06em;
+  .hbce-card-preview__top {
+    flex-direction: column;
+  }
+
+  .hbce-badge {
+    white-space: normal;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+
+  *,
+  *::before,
+  *::after {
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
   }
 }
