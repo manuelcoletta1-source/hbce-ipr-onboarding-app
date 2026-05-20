@@ -1,12 +1,13 @@
 import Link from "next/link";
 
+import { evaluateJokerC2Access } from "@/lib/access-gate";
 import { ROUTES, SECURITY_BOUNDARY_TEXT } from "@/lib/constants";
 import {
   approvedOnboardingRecord,
   deniedOnboardingRecord,
   pendingOnboardingRecord,
   revokedOnboardingRecord
-} from "@/lib/mock-onboarding";
+} from "@/lib/mock-data";
 
 import { BoundaryNotice } from "@/components/BoundaryNotice";
 import { OnboardingStepper } from "@/components/OnboardingStepper";
@@ -16,28 +17,36 @@ const reviewCases = [
   {
     title: "Approved case",
     description:
-      "All required onboarding states are valid. The subject may proceed to IPR Card issuance.",
+      "All required onboarding states are valid. The subject may proceed to IPR Card issuance and operational certificate activation.",
     record: approvedOnboardingRecord
   },
   {
     title: "Pending case",
     description:
-      "The onboarding case is still under review. JOKER-C2 access remains denied.",
+      "The onboarding case is still under review. IPR Verified cannot be assigned and JOKER-C2 access remains unavailable.",
     record: pendingOnboardingRecord
   },
   {
     title: "Denied case",
     description:
-      "The onboarding case failed verification. IPR Verified cannot be issued.",
+      "The onboarding case failed verification. IPR Verified cannot be issued and governed AI access remains blocked.",
     record: deniedOnboardingRecord
   },
   {
     title: "Revoked case",
     description:
-      "The operational identity state has been revoked. Revocation overrides previous approval.",
+      "The operational identity state has been revoked. Revocation overrides previous approval, card state and certificate state.",
     record: revokedOnboardingRecord
   }
-];
+] as const;
+
+const REVIEW_RULES = [
+  "Review approval is required before IPR Verified status.",
+  "Pending review cannot issue an IPR Card.",
+  "Rejected review blocks operational certificate activation.",
+  "Revoked state overrides every previous approval.",
+  "Frontend approval is never a valid source of trust."
+] as const;
 
 export default function OnboardingReviewPage() {
   return (
@@ -60,96 +69,114 @@ export default function OnboardingReviewPage() {
           <h2>Only approved review state may create IPR Verified.</h2>
           <p>
             Pending, rejected, expired, suspended or revoked states keep
-            JOKER-C2 access denied. Review cannot be bypassed by frontend state,
-            button clicks, query parameters or local storage.
+            JOKER-C2 access denied or unavailable. Review cannot be bypassed by
+            frontend state, button clicks, query parameters or local storage.
           </p>
+
+          <div className="hbce-divider" />
+
+          <ul className="hbce-list">
+            {REVIEW_RULES.map((rule) => (
+              <li key={rule}>{rule}</li>
+            ))}
+          </ul>
         </div>
       </section>
 
       <section className="hbce-section">
         <div className="hbce-grid hbce-grid--2">
-          {reviewCases.map((item) => (
-            <div className="hbce-card" key={item.title}>
-              <div className="hbce-card-preview__top">
-                <div>
-                  <h2>{item.title}</h2>
-                  <p>{item.description}</p>
+          {reviewCases.map((item) => {
+            const accessResult = evaluateJokerC2Access(item.record);
+
+            return (
+              <div className="hbce-card" key={item.title}>
+                <div className="hbce-card-preview__top">
+                  <div>
+                    <h2>{item.title}</h2>
+                    <p>{item.description}</p>
+                  </div>
+
+                  <StatusBadge status={item.record.reviewStatus} />
                 </div>
 
-                <StatusBadge status={item.record.reviewStatus} />
+                <div className="hbce-divider" />
+
+                <div className="hbce-card-preview__meta">
+                  <div className="hbce-meta">
+                    <span className="hbce-meta__label">Onboarding</span>
+                    <span className="hbce-meta__value">
+                      <StatusBadge status={item.record.onboardingStatus} />
+                    </span>
+                  </div>
+
+                  <div className="hbce-meta">
+                    <span className="hbce-meta__label">Identity data</span>
+                    <span className="hbce-meta__value">
+                      <StatusBadge status={item.record.identityDataStatus} />
+                    </span>
+                  </div>
+
+                  <div className="hbce-meta">
+                    <span className="hbce-meta__label">Document</span>
+                    <span className="hbce-meta__value">
+                      <StatusBadge status={item.record.documentStatus} />
+                    </span>
+                  </div>
+
+                  <div className="hbce-meta">
+                    <span className="hbce-meta__label">Fiscal identifier</span>
+                    <span className="hbce-meta__value">
+                      <StatusBadge status={item.record.fiscalIdentifierStatus} />
+                    </span>
+                  </div>
+
+                  <div className="hbce-meta">
+                    <span className="hbce-meta__label">Photo</span>
+                    <span className="hbce-meta__value">
+                      <StatusBadge status={item.record.photoVerificationStatus} />
+                    </span>
+                  </div>
+
+                  <div className="hbce-meta">
+                    <span className="hbce-meta__label">Video</span>
+                    <span className="hbce-meta__value">
+                      <StatusBadge status={item.record.videoVerificationStatus} />
+                    </span>
+                  </div>
+
+                  <div className="hbce-meta">
+                    <span className="hbce-meta__label">IPR status</span>
+                    <span className="hbce-meta__value">
+                      <StatusBadge status={item.record.iprStatus} />
+                    </span>
+                  </div>
+
+                  <div className="hbce-meta">
+                    <span className="hbce-meta__label">Access decision</span>
+                    <span className="hbce-meta__value">
+                      <StatusBadge status={accessResult.decision} />
+                    </span>
+                  </div>
+                </div>
+
+                <div className="hbce-divider" />
+
+                <p className="hbce-small">{accessResult.decisionReason}</p>
               </div>
-
-              <div className="hbce-divider" />
-
-              <div className="hbce-card-preview__meta">
-                <div className="hbce-meta">
-                  <span className="hbce-meta__label">Onboarding</span>
-                  <span className="hbce-meta__value">
-                    <StatusBadge status={item.record.onboardingStatus} />
-                  </span>
-                </div>
-
-                <div className="hbce-meta">
-                  <span className="hbce-meta__label">Identity data</span>
-                  <span className="hbce-meta__value">
-                    <StatusBadge status={item.record.identityDataStatus} />
-                  </span>
-                </div>
-
-                <div className="hbce-meta">
-                  <span className="hbce-meta__label">Document</span>
-                  <span className="hbce-meta__value">
-                    <StatusBadge status={item.record.documentStatus} />
-                  </span>
-                </div>
-
-                <div className="hbce-meta">
-                  <span className="hbce-meta__label">Fiscal identifier</span>
-                  <span className="hbce-meta__value">
-                    <StatusBadge status={item.record.fiscalIdentifierStatus} />
-                  </span>
-                </div>
-
-                <div className="hbce-meta">
-                  <span className="hbce-meta__label">Photo</span>
-                  <span className="hbce-meta__value">
-                    <StatusBadge status={item.record.photoVerificationStatus} />
-                  </span>
-                </div>
-
-                <div className="hbce-meta">
-                  <span className="hbce-meta__label">Video</span>
-                  <span className="hbce-meta__value">
-                    <StatusBadge status={item.record.videoVerificationStatus} />
-                  </span>
-                </div>
-
-                <div className="hbce-meta">
-                  <span className="hbce-meta__label">IPR status</span>
-                  <span className="hbce-meta__value">
-                    <StatusBadge status={item.record.iprStatus} />
-                  </span>
-                </div>
-
-                <div className="hbce-meta">
-                  <span className="hbce-meta__label">JOKER-C2 access</span>
-                  <span className="hbce-meta__value">
-                    <StatusBadge status={item.record.jokerC2AccessStatus} />
-                  </span>
-                </div>
-              </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       </section>
 
       <section className="hbce-section">
         <div className="hbce-grid hbce-grid--2">
           <div className="hbce-card">
-            <h2>Approved path</h2>
+            <p className="hbce-kicker">Approved path</p>
+            <h2>Proceed to IPR Card issuance</h2>
             <p>
               If review is approved, the subject can proceed to IPR Card
-              issuance and operational certificate activation.
+              issuance and operational certificate activation. JOKER-C2 access
+              still requires the final access gate evaluation.
             </p>
 
             <div className="hbce-actions">
@@ -160,15 +187,20 @@ export default function OnboardingReviewPage() {
           </div>
 
           <div className="hbce-card">
-            <h2>Denied path</h2>
+            <p className="hbce-kicker">Denied path</p>
+            <h2>Keep governed runtime blocked</h2>
             <p>
-              If review is pending, rejected, expired or revoked, access remains
-              blocked and the subject cannot reach governed JOKER-C2 runtime.
+              If review is pending, rejected, expired, suspended or revoked,
+              access remains blocked and the subject cannot reach governed
+              JOKER-C2 runtime.
             </p>
 
             <div className="hbce-actions">
-              <Link className="hbce-btn hbce-btn--danger" href={ROUTES.jokerC2Access}>
-                View denied access gate
+              <Link
+                className="hbce-btn hbce-btn--danger"
+                href={ROUTES.jokerC2Access}
+              >
+                View access gate
               </Link>
             </div>
           </div>
