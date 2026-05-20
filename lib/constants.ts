@@ -3,7 +3,7 @@ import type { OnboardingStep } from "@/lib/types";
 export const APP_NAME = "HBCE IPR Onboarding App";
 
 export const APP_DESCRIPTION =
-  "Bank-grade operational identity onboarding for IPR Verified, IPR Card issuance and governed JOKER-C2 access.";
+  "IPR Onboarding Gateway for bank-grade operational identity verification, IPR Card issuance, operational certificate activation and governed JOKER-C2 access.";
 
 export const ORG_NAME = "HERMETICUM B.C.E. S.r.l.";
 
@@ -12,6 +12,9 @@ export const CANONICAL_TRADEMARK =
 
 export const JOKER_C2_GATEWAY_URL =
   "https://hbce-ai-joker-c2.vercel.app/interface";
+
+export const HBCE_PLATFORM_URL =
+  "https://manuelcoletta1-source.github.io/hermeticum-bce-platform/";
 
 export const CORE_PRODUCT_RULE =
   "No verified IPR, no governed JOKER-C2 access.";
@@ -26,7 +29,7 @@ export const PRODUCT_FORMULA = [
 ] as const;
 
 export const LEGAL_BOUNDARY_TEXT =
-  "IPR Card is an internal operational identity credential. It does not replace official identity documents, CIE, SPID, EUDI Wallet or qualified eIDAS certificates.";
+  "IPR Card is an internal operational identity credential. It does not replace official identity documents, national identity cards, passports, CIE, SPID, EUDI Wallet credentials or qualified eIDAS certificates.";
 
 export const CERTIFICATE_BOUNDARY_TEXT =
   "The operational certificate is internal to HBCE. It is not a qualified eIDAS certificate unless issued through a recognized and compliant trust service integration.";
@@ -36,6 +39,12 @@ export const PRIVACY_BOUNDARY_TEXT =
 
 export const SECURITY_BOUNDARY_TEXT =
   "The app follows a fail-closed access model. JOKER-C2 access is denied unless all required operational identity states are valid.";
+
+export const CORRECT_LEGAL_CLAIM =
+  "HBCE issues a verifiable operational identity that can be linked to official European identity systems.";
+
+export const INCORRECT_LEGAL_CLAIM =
+  "HBCE issues an official European identity.";
 
 export const ROUTES = {
   home: "/",
@@ -64,7 +73,7 @@ export type OnboardingStepDefinition = {
   purpose: string;
 };
 
-export const ONBOARDING_STEPS: OnboardingStepDefinition[] = [
+export const ONBOARDING_STEPS: readonly OnboardingStepDefinition[] = [
   {
     id: "start",
     number: "01",
@@ -140,7 +149,7 @@ export const ACCESS_REQUIRED_CONDITIONS = [
 export const CLASSIC_AI_ACCESS_MODEL = [
   "Email registration",
   "Password or OAuth",
-  "Subscription",
+  "Subscription or payment",
   "Direct model access"
 ] as const;
 
@@ -149,23 +158,24 @@ export const HBCE_GOVERNED_ACCESS_MODEL = [
   "Official document metadata",
   "Fiscal or national identifier linkage",
   "Photo/video verification step",
-  "Review",
-  "IPR Verified",
-  "IPR Card",
-  "Operational certificate",
+  "Compliance-oriented review",
+  "IPR Verified status",
+  "IPR Card issuance",
+  "Operational certificate activation",
   "Governed JOKER-C2 access"
 ] as const;
 
 export const NON_REPLACEMENT_BOUNDARY = [
   "National identity card",
   "Passport",
-  "Driving license",
+  "Driving licence",
   "CIE",
   "SPID",
   "EUDI Wallet",
   "Qualified eIDAS certificate",
   "Bank account",
-  "Regulated financial identity service"
+  "Regulated financial identity service",
+  "Regulated trust service"
 ] as const;
 
 export const FORBIDDEN_REPOSITORY_DATA = [
@@ -177,7 +187,9 @@ export const FORBIDDEN_REPOSITORY_DATA = [
   "Biometric material",
   "Production secrets",
   "Private keys",
-  "API credentials"
+  "API credentials",
+  "Unencrypted private records",
+  "Real onboarding evidence"
 ] as const;
 
 export const PUBLIC_SAFE_FIELDS = [
@@ -190,7 +202,9 @@ export const PUBLIC_SAFE_FIELDS = [
   "Access scope",
   "Revocation state",
   "Access decision",
-  "Decision reason"
+  "Decision reason",
+  "Hash reference",
+  "EVT reference"
 ] as const;
 
 export const EVENT_TYPES = [
@@ -212,4 +226,22 @@ export const EVENT_TYPES = [
   "JOKER_C2_ACCESS_DENIED",
   "IPR_SUSPENDED",
   "IPR_REVOKED"
+] as const;
+
+export const ACCESS_DECISION_LABELS = {
+  allow: "ACCESS ENABLED",
+  deny: "ACCESS DENIED",
+  pending: "ACCESS PENDING"
+} as const;
+
+export const FAIL_CLOSED_REASONS = [
+  "Identity verification is incomplete",
+  "Official document evidence is missing",
+  "Fiscal or national identifier linkage is incomplete",
+  "Photo/video verification is incomplete",
+  "Review is pending",
+  "IPR status is not verified",
+  "IPR Card has not been issued",
+  "Operational certificate is not active",
+  "Revocation state is not clear"
 ] as const;
