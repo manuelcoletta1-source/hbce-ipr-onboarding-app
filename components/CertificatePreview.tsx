@@ -10,6 +10,14 @@ type CertificatePreviewProps = {
   certificate: OperationalCertificateRecord;
 };
 
+const CERTIFICATE_SCOPE_ITEMS = [
+  "Internal HBCE operational authorization reference",
+  "Linked to verified IPR status",
+  "Linked to issued IPR Card",
+  "Controlled by revocation state",
+  "Required before governed JOKER-C2 access evaluation"
+] as const;
+
 export function CertificatePreview({ certificate }: CertificatePreviewProps) {
   return (
     <section className="hbce-section">
@@ -20,7 +28,8 @@ export function CertificatePreview({ certificate }: CertificatePreviewProps) {
             <h2 className="hbce-panel-title">Operational Certificate</h2>
             <p className="hbce-small">
               Internal operational certificate reference linked to verified IPR,
-              IPR Card issuance and governed JOKER-C2 access scope.
+              IPR Card issuance, revocation state and governed JOKER-C2 access
+              scope.
             </p>
           </div>
 
@@ -45,6 +54,13 @@ export function CertificatePreview({ certificate }: CertificatePreviewProps) {
           </div>
 
           <div className="hbce-meta">
+            <span className="hbce-meta__label">Subject ID</span>
+            <span className="hbce-meta__value hbce-mono">
+              {certificate.subjectId}
+            </span>
+          </div>
+
+          <div className="hbce-meta">
             <span className="hbce-meta__label">Issuer</span>
             <span className="hbce-meta__value">{certificate.issuer}</span>
           </div>
@@ -53,6 +69,13 @@ export function CertificatePreview({ certificate }: CertificatePreviewProps) {
             <span className="hbce-meta__label">Scope</span>
             <span className="hbce-meta__value hbce-mono">
               {certificate.scope}
+            </span>
+          </div>
+
+          <div className="hbce-meta">
+            <span className="hbce-meta__label">Certificate status</span>
+            <span className="hbce-meta__value">
+              <StatusBadge status={certificate.certificateStatus} />
             </span>
           </div>
 
@@ -84,6 +107,14 @@ export function CertificatePreview({ certificate }: CertificatePreviewProps) {
             </span>
           </div>
         </div>
+
+        <div className="hbce-divider" />
+
+        <ul className="hbce-list">
+          {CERTIFICATE_SCOPE_ITEMS.map((item) => (
+            <li key={item}>{item}</li>
+          ))}
+        </ul>
       </div>
 
       <div style={{ marginTop: "18px" }}>
