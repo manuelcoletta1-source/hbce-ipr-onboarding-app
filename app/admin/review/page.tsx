@@ -23,6 +23,9 @@ import type {
 
 const phase = getPhaseDefinitionByNumber(7);
 
+const PRODUCTION_BOUNDARY =
+  "MVP client-side approval is not a production trust source. Production approval requires authenticated backend enforcement.";
+
 export default function AdminReviewPage() {
   const [previousUpload, setPreviousUpload] =
     useState<AcceptedIprCertificateUpload | null>(null);
@@ -78,35 +81,90 @@ export default function AdminReviewPage() {
     try {
       const approvedAt = nowIso();
 
+      const privateFields = {
+        approved_by: approvedBy.trim(),
+        approved_at: approvedAt,
+        approval_decision: "APPROVE",
+        approval_note: approvalNote.trim(),
+        user_self_approval_allowed: false,
+        backend_or_admin_review_required: true,
+        next_required_phase: "IPR_CARD_ISSUANCE",
+        production_boundary: PRODUCTION_BOUNDARY
+      };
+
       const approvalDecisionHash = await buildApprovalDecisionHash({
         previousCertificate: previousUpload.certificate,
-        approvedBy: approvedBy.trim(),
-        approvalDecision,
-        approvalNote: approvalNote.trim(),
+        approvedBy: privateFields.approved_by,
+        approvalDecision: privateFields.approval_decision,
+        approvalNote: privateFields.approval_note,
         approvedAt
       });
 
-      const phaseData: JsonObject = {
-        approved_by: approvedBy.trim(),
-        approved_at: approvedAt,
+      const hashFields: JsonObject = {
         approval_decision_hash: approvalDecisionHash,
-        approval_decision: "APPROVE",
-        previous_payload_sha256:
-          previousUpload.certificate.hash_integrity.payload_sha256,
-        next_required_phase: "IPR_CARD_ISSUANCE",
-        user_self_approval_allowed: false,
-        backend_or_admin_review_required: true,
-        production_boundary:
-          "MVP client-side approval is not a production trust source. Production approval requires authenticated backend enforcement."
+        approved_by_hash: await sha256Canonical({
+          kind: "HBCE_IPR_PHASE_7_APPROVED_BY",
+          value: privateFields.approved_by,
+          approved_at: approvedAt
+        }),
+        approval_status_hash: await sha256Canonical({
+          kind: "HBCE_IPR_PHASE_7_APPROVAL_STATUS",
+          approval_decision: privateFields.approval_decision,
+          approved_at: approvedAt
+        }),
+        production_boundary_hash: await sha256Canonical({
+          kind: "HBCE_IPR_PHASE_7_PRODUCTION_BOUNDARY",
+          value: PRODUCTION_BOUNDARY,
+          approved_at: approvedAt
+        })
       };
 
-      if (approvalNote.trim()) {
-        phaseData.approval_note_hash = await sha256Canonical({
+      if (privateFields.approval_note) {
+        hashFields.approval_note_hash = await sha256Canonical({
           kind: "HBCE_IPR_PHASE_7_APPROVAL_NOTE",
-          value: approvalNote.trim(),
+          value: privateFields.approval_note,
           approved_at: approvedAt
         });
       }
+
+      const approvalMetadataHash = await sha256Canonical({
+        kind: "HBCE_IPR_PHASE_7_APPROVAL_METADATA",
+        private_fields: privateFields,
+        hash_fields: hashFields,
+        previous_payload_sha256:
+          previousUpload.certificate.hash_integrity.payload_sha256,
+        approved_at: approvedAt
+      });
+
+      const phaseData: JsonObject = {
+        certificate_visibility: "PRIVATE_PORTABLE_CERTIFICATE",
+        public_registry_mode: "HASH_ONLY",
+        phase_scope: "HBCE_APPROVAL",
+
+        private_fields: privateFields,
+        approval_fields: privateFields,
+        hash_fields: hashFields,
+
+        approved_by: privateFields.approved_by,
+        approved_at: privateFields.approved_at,
+        approval_decision: privateFields.approval_decision,
+        approval_decision_hash: approvalDecisionHash,
+        approval_metadata_hash: approvalMetadataHash,
+
+        previous_payload_sha256:
+          previousUpload.certificate.hash_integrity.payload_sha256,
+        next_required_phase: "IPR_CARD_ISSUANCE",
+
+        user_self_approval_allowed: false,
+        backend_or_admin_review_required: true,
+        production_boundary: PRODUCTION_BOUNDARY,
+
+        privacy_boundary:
+          "This is a private portable HBCE-IPR certificate. Approval fields are stored inside private_fields. Public verification must expose hash-only references, not private approval fields.",
+
+        trust_boundary:
+          "This MVP client-side approval certificate completes the local demo chain only. Production approval requires authenticated backend/admin enforcement."
+      };
 
       const generated = await generateHbceIprCertificate({
         phase_number: phase.phase_number,
@@ -186,7 +244,8 @@ export default function AdminReviewPage() {
                   onChange={(event) => setApprovedBy(event.target.value)}
                 />
                 <small>
-                  Use an operator reference, not a public personal document.
+                  This value is written inside the private approval certificate
+                  and also hashed for verification.
                 </small>
               </label>
 
@@ -211,8 +270,9 @@ export default function AdminReviewPage() {
                   onChange={(event) => setApprovalNote(event.target.value)}
                 />
                 <small>
-                  The portable certificate stores only the note hash, not the raw
-                  note.
+                  This optional value is written inside the private approval
+                  certificate and also hashed. Do not insert raw personal
+                  documents here.
                 </small>
               </label>
             </div>
@@ -254,8 +314,10 @@ export default function AdminReviewPage() {
             <h2>{generatedCertificate.file_name}</h2>
 
             <p>
-              The HBCE approval certificate has been generated and downloaded.
-              Use this file for Phase 8 — IPR Card issuance.
+              The private HBCE approval certificate has been generated and
+              downloaded. It contains approval fields, the corresponding hashes
+              and the production trust boundary. Use this file for Phase 8 — IPR
+              Card issuance.
             </p>
 
             <p className="hbce-mono">
