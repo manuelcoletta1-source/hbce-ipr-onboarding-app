@@ -6,6 +6,33 @@ import { BoundaryNotice } from "@/components/BoundaryNotice";
 import { OnboardingStepper } from "@/components/OnboardingStepper";
 import { StatusBadge } from "@/components/StatusBadge";
 
+const INITIAL_STATE_ITEMS = [
+  {
+    label: "Onboarding status",
+    status: "started"
+  },
+  {
+    label: "Email status",
+    status: "pending"
+  },
+  {
+    label: "IPR status",
+    status: "not_created"
+  },
+  {
+    label: "JOKER-C2 access",
+    status: "denied"
+  }
+] as const;
+
+const START_BOUNDARIES = [
+  "This step opens the onboarding session only.",
+  "No IPR is created at this stage.",
+  "No IPR Card is issued at this stage.",
+  "No operational certificate is active at this stage.",
+  "JOKER-C2 access remains denied by default."
+] as const;
+
 export default function OnboardingStartPage() {
   return (
     <div className="hbce-container">
@@ -17,7 +44,7 @@ export default function OnboardingStartPage() {
         <p className="hbce-lead">
           This step opens the IPR onboarding path. It does not grant JOKER-C2
           access. The subject must still complete operational identity
-          verification, document metadata, fiscal identifier linkage,
+          verification, official document metadata, fiscal identifier linkage,
           photo/video verification and review.
         </p>
       </section>
@@ -25,11 +52,14 @@ export default function OnboardingStartPage() {
       <section className="hbce-section">
         <div className="hbce-grid hbce-grid--2">
           <div className="hbce-card">
-            <h2>Initial registration</h2>
+            <p className="hbce-kicker">Initial registration</p>
+            <h2>Create the first onboarding state</h2>
+
             <p>
               The MVP form below represents the first onboarding state. It is a
               static interface for the first implementation phase and must not
-              be used for real identity data in production mode.
+              be used for real identity data, real documents, real fiscal
+              identifiers or production onboarding material.
             </p>
 
             <form className="hbce-form">
@@ -38,6 +68,7 @@ export default function OnboardingStartPage() {
                   Email
                 </label>
                 <input
+                  autoComplete="email"
                   className="hbce-input"
                   id="email"
                   name="email"
@@ -52,6 +83,7 @@ export default function OnboardingStartPage() {
                     First name
                   </label>
                   <input
+                    autoComplete="given-name"
                     className="hbce-input"
                     id="first_name"
                     name="first_name"
@@ -65,6 +97,7 @@ export default function OnboardingStartPage() {
                     Last name
                   </label>
                   <input
+                    autoComplete="family-name"
                     className="hbce-input"
                     id="last_name"
                     name="last_name"
@@ -76,7 +109,7 @@ export default function OnboardingStartPage() {
 
               <div className="hbce-field">
                 <label className="hbce-label" htmlFor="country">
-                  Country
+                  Country or jurisdiction
                 </label>
                 <select className="hbce-select" id="country" name="country">
                   <option value="IT">Italy</option>
@@ -111,48 +144,40 @@ export default function OnboardingStartPage() {
           </div>
 
           <div className="hbce-card hbce-card--soft">
-            <h2>Generated initial state</h2>
+            <p className="hbce-kicker">Generated initial state</p>
+            <h2>Registration is not authorization</h2>
+
             <p>
               In the MVP, this page represents the first operational state of
-              the onboarding record.
+              the onboarding record. The subject exists as a registration case,
+              not as a verified IPR identity.
             </p>
 
             <div className="hbce-card-preview__meta">
-              <div className="hbce-meta">
-                <span className="hbce-meta__label">Onboarding status</span>
-                <span className="hbce-meta__value">
-                  <StatusBadge status="started" />
-                </span>
-              </div>
-
-              <div className="hbce-meta">
-                <span className="hbce-meta__label">Email status</span>
-                <span className="hbce-meta__value">
-                  <StatusBadge status="pending" />
-                </span>
-              </div>
-
-              <div className="hbce-meta">
-                <span className="hbce-meta__label">IPR status</span>
-                <span className="hbce-meta__value">
-                  <StatusBadge status="not_created" />
-                </span>
-              </div>
-
-              <div className="hbce-meta">
-                <span className="hbce-meta__label">JOKER-C2 access</span>
-                <span className="hbce-meta__value">
-                  <StatusBadge status="denied" />
-                </span>
-              </div>
+              {INITIAL_STATE_ITEMS.map((item) => (
+                <div className="hbce-meta" key={item.label}>
+                  <span className="hbce-meta__label">{item.label}</span>
+                  <span className="hbce-meta__value">
+                    <StatusBadge status={item.status} />
+                  </span>
+                </div>
+              ))}
             </div>
+
+            <div className="hbce-divider" />
+
+            <ul className="hbce-list">
+              {START_BOUNDARIES.map((boundary) => (
+                <li key={boundary}>{boundary}</li>
+              ))}
+            </ul>
 
             <div className="hbce-divider" />
 
             <BoundaryNotice title="Registration does not equal access">
               Email registration only opens the onboarding flow. JOKER-C2 access
               remains denied until verified IPR, issued IPR Card, active
-              certificate and clear revocation state are present.
+              operational certificate and clear revocation state are present.
             </BoundaryNotice>
           </div>
         </div>
