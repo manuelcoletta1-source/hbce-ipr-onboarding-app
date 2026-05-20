@@ -25,6 +25,7 @@ import type {
   HbceIprCertificate,
   HbceIprPhaseDefinition,
   HbceIprPhaseRuntimeStatus,
+  HbceIprSubject,
   JsonObject
 } from "../lib/types";
 
@@ -149,6 +150,26 @@ function getInputAccept(kind: HbceEvidenceUploadKind): string {
     default:
       return "image/*,.pdf";
   }
+}
+
+function buildSubject(
+  subjectRef: string,
+  previousCertificate: HbceIprCertificate | null
+): HbceIprSubject {
+  const previousSubjectId = previousCertificate?.subject.subject_id;
+
+  if (previousSubjectId) {
+    return {
+      entity_type: "HUMAN",
+      subject_ref: subjectRef,
+      subject_id: previousSubjectId
+    };
+  }
+
+  return {
+    entity_type: "HUMAN",
+    subject_ref: subjectRef
+  };
 }
 
 export default function IprPhaseForm({
@@ -297,11 +318,7 @@ export default function IprPhaseForm({
         phase_code: phase.phase_code,
         phase_status: getRuntimeStatus(phase.phase_code),
         next_required_phase: phase.next_required_phase,
-        subject: {
-          entity_type: "HUMAN",
-          subject_ref: subjectRef,
-          subject_id: previousCertificate?.subject.subject_id
-        },
+        subject: buildSubject(subjectRef, previousCertificate),
         previous_certificate: previousCertificate,
         previous_payload_sha256:
           previousCertificate?.hash_integrity.payload_sha256 ?? null,
