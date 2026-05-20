@@ -2,12 +2,18 @@
   "name": "hbce-ipr-onboarding-app",
   "version": "0.1.0",
   "private": true,
-  "description": "Bank-grade operational identity onboarding for IPR Verified, IPR Card issuance and governed JOKER-C2 access.",
+  "description": "IPR Onboarding Gateway for bank-grade operational identity verification, IPR Card issuance and governed JOKER-C2 access.",
   "author": "HERMETICUM B.C.E. S.r.l.",
   "license": "UNLICENSED",
   "type": "module",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/manuelcoletta1-source/hbce-ipr-onboarding-app.git"
+  },
+  "homepage": "https://hbce-ipr-onboarding-app.vercel.app",
   "engines": {
-    "node": ">=20.9.0"
+    "node": ">=20.9.0 <21",
+    "npm": ">=10 <11"
   },
   "scripts": {
     "dev": "next dev",
@@ -32,12 +38,19 @@
   },
   "keywords": [
     "hbce",
+    "hermeticum-bce",
     "ipr",
+    "identity-primary-record",
+    "ipr-onboarding-gateway",
     "identity-onboarding",
+    "operational-identity",
+    "identity-verification",
+    "document-verification",
     "ipr-card",
+    "operational-certificate",
     "joker-c2",
     "governed-ai",
-    "operational-identity",
+    "ai-operational-runtime",
     "fail-closed",
     "evt",
     "opc",
