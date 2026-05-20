@@ -117,7 +117,16 @@ export function stableStringify(value: unknown): string {
   return JSON.stringify(canonicalize(value));
 }
 
-export async function sha256Hex(input: string | ArrayBuffer | Uint8Array | Blob): Promise<HashReference> {
+function copyUint8ArrayToArrayBuffer(input: Uint8Array): ArrayBuffer {
+  const copy = new Uint8Array(input.byteLength);
+  copy.set(input);
+
+  return copy.buffer as ArrayBuffer;
+}
+
+export async function sha256Hex(
+  input: string | ArrayBuffer | Uint8Array | Blob
+): Promise<HashReference> {
   const subtle = globalThis.crypto?.subtle;
 
   if (!subtle) {
@@ -127,12 +136,9 @@ export async function sha256Hex(input: string | ArrayBuffer | Uint8Array | Blob)
   let data: ArrayBuffer;
 
   if (typeof input === "string") {
-    data = new TextEncoder().encode(input).buffer;
+    data = copyUint8ArrayToArrayBuffer(new TextEncoder().encode(input));
   } else if (input instanceof Uint8Array) {
-    data = input.buffer.slice(
-      input.byteOffset,
-      input.byteOffset + input.byteLength
-    );
+    data = copyUint8ArrayToArrayBuffer(input);
   } else if (input instanceof Blob) {
     data = await input.arrayBuffer();
   } else {
@@ -153,7 +159,9 @@ export async function sha256File(file: Blob): Promise<HashReference> {
   return sha256Hex(file);
 }
 
-export async function createHashOnlySubjectRef(input: JsonObject): Promise<HashReference> {
+export async function createHashOnlySubjectRef(
+  input: JsonObject
+): Promise<HashReference> {
   return sha256Canonical({
     kind: "HBCE_HASH_ONLY_SUBJECT_REF",
     input
@@ -217,7 +225,9 @@ export function isExpectedIssuer(value: unknown): value is HbceIssuer {
   );
 }
 
-export function isHbceIprCertificate(value: unknown): value is HbceIprCertificate {
+export function isHbceIprCertificate(
+  value: unknown
+): value is HbceIprCertificate {
   if (!isPlainRecord(value)) {
     return false;
   }
@@ -588,8 +598,7 @@ export async function parseHbceIprCertificateJson(
       validation: createValidationResult({
         valid: false,
         reason: "INVALID_JSON",
-        message:
-          "Certificate rejected. The uploaded file is not valid JSON.",
+        message: "Certificate rejected. The uploaded file is not valid JSON.",
         expected_phase: expected_previous_phase ?? undefined,
         expected_next_phase
       })
@@ -676,8 +685,7 @@ export async function validateJokerC2OperationalCertificate(
   if (certificate.phase.code !== "IPR_VERIFIED") {
     return {
       decision: "ACCESS_DENIED",
-      reason:
-        "ACCESS_DENIED: certificate phase is not IPR_VERIFIED.",
+      reason: "ACCESS_DENIED: certificate phase is not IPR_VERIFIED.",
       certificate_status: certificate.certificate_status,
       certificate_scope: certificate.certificate_scope,
       payload_sha256: certificate.hash_integrity.payload_sha256,
@@ -690,8 +698,7 @@ export async function validateJokerC2OperationalCertificate(
   if (certificate.certificate_status !== "ACTIVE") {
     return {
       decision: "ACCESS_DENIED",
-      reason:
-        "ACCESS_DENIED: operational certificate is not active.",
+      reason: "ACCESS_DENIED: operational certificate is not active.",
       certificate_status: certificate.certificate_status,
       certificate_scope: certificate.certificate_scope,
       payload_sha256: certificate.hash_integrity.payload_sha256,
@@ -734,8 +741,7 @@ export async function validateJokerC2OperationalCertificate(
   if (recomputedHash !== certificate.hash_integrity.payload_sha256) {
     return {
       decision: "ACCESS_DENIED",
-      reason:
-        "ACCESS_DENIED: operational certificate payload hash mismatch.",
+      reason: "ACCESS_DENIED: operational certificate payload hash mismatch.",
       certificate_status: certificate.certificate_status,
       certificate_scope: certificate.certificate_scope,
       payload_sha256: certificate.hash_integrity.payload_sha256,
