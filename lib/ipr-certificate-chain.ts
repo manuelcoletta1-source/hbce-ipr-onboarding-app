@@ -317,12 +317,56 @@ export async function generateHbceIprCertificate<TPhaseData extends JsonObject>(
     payload
   );
 
-  const kind = getCertificateKind(input.phase_code);
   const fileName = getCertificateFileName(input.phase_code);
 
-  const baseCertificate = {
+  if (input.phase_code === "IPR_VERIFIED") {
+    const certificate: HbceIprOperationalCertificate<TPhaseData> = {
+      proto: "HBCE-IPR-RELEASE-v3",
+      kind: "IPR_OPERATIONAL_CERTIFICATE",
+      issuer: HBCE_ISSUER,
+      phase: {
+        number: input.phase_number,
+        code: input.phase_code,
+        status: input.phase_status,
+        next_required_phase: input.next_required_phase
+      },
+      subject: input.subject,
+      hash_integrity: {
+        algo: "SHA-256",
+        canonicalization: "stableStringify(keys-sorted)",
+        previous_payload_sha256: input.previous_payload_sha256,
+        payload_sha256: payloadSha256
+      },
+      payload,
+      registry: {
+        kind: "HASH_ONLY_PUBLIC_ENTRY",
+        public_entry: {
+          payload_sha256: payloadSha256,
+          timestamp: input.issued_at,
+          phase: input.phase_code
+        }
+      },
+      next: {
+        upload_required: input.next_required_phase !== "COMPLETED",
+        next_phase: input.next_required_phase
+      },
+      issued_at: input.issued_at,
+      certificate_status: "ACTIVE",
+      certificate_scope: "JOKER_C2_ACCESS"
+    };
+
+    return {
+      file_name: fileName,
+      certificate,
+      payload_sha256: payloadSha256,
+      previous_payload_sha256: input.previous_payload_sha256,
+      generated_at: input.issued_at
+    };
+  }
+
+  const certificate: HbceIprPhaseCertificate<TPhaseData> = {
     proto: "HBCE-IPR-RELEASE-v3",
-    kind,
+    kind: "IPR_PHASE_CERTIFICATE",
     issuer: HBCE_ISSUER,
     phase: {
       number: input.phase_number,
@@ -351,17 +395,7 @@ export async function generateHbceIprCertificate<TPhaseData extends JsonObject>(
       next_phase: input.next_required_phase
     },
     issued_at: input.issued_at
-  } satisfies HbceIprPhaseCertificate<TPhaseData>;
-
-  const certificate =
-    kind === "IPR_OPERATIONAL_CERTIFICATE"
-      ? ({
-          ...baseCertificate,
-          kind: "IPR_OPERATIONAL_CERTIFICATE",
-          certificate_status: "ACTIVE",
-          certificate_scope: "JOKER_C2_ACCESS"
-        } satisfies HbceIprOperationalCertificate<TPhaseData>)
-      : baseCertificate;
+  };
 
   return {
     file_name: fileName,
@@ -387,15 +421,21 @@ export function createValidationResult(params: {
   return {
     decision: params.valid ? "VALID" : "FAIL_CLOSED",
     valid: params.valid,
-    reason: params.reason,
     message: params.message,
-    expected_phase: params.expected_phase,
-    received_phase: params.received_phase,
-    expected_next_phase: params.expected_next_phase,
-    received_next_phase: params.received_next_phase,
-    payload_sha256: params.payload_sha256,
-    previous_payload_sha256: params.previous_payload_sha256,
-    checked_at: params.checked_at ?? nowIso()
+    checked_at: params.checked_at ?? nowIso(),
+    ...(params.reason ? { reason: params.reason } : {}),
+    ...(params.expected_phase ? { expected_phase: params.expected_phase } : {}),
+    ...(params.received_phase ? { received_phase: params.received_phase } : {}),
+    ...(params.expected_next_phase
+      ? { expected_next_phase: params.expected_next_phase }
+      : {}),
+    ...(params.received_next_phase
+      ? { received_next_phase: params.received_next_phase }
+      : {}),
+    ...(params.payload_sha256 ? { payload_sha256: params.payload_sha256 } : {}),
+    ...(params.previous_payload_sha256 !== undefined
+      ? { previous_payload_sha256: params.previous_payload_sha256 }
+      : {})
   };
 }
 
@@ -599,7 +639,9 @@ export async function parseHbceIprCertificateJson(
         valid: false,
         reason: "INVALID_JSON",
         message: "Certificate rejected. The uploaded file is not valid JSON.",
-        expected_phase: expected_previous_phase ?? undefined,
+        ...(expected_previous_phase
+          ? { expected_phase: expected_previous_phase }
+          : {}),
         expected_next_phase
       })
     };
@@ -620,15 +662,11 @@ export async function readHbceIprCertificateFile(
   );
 }
 
-export function buildCertificateJson(
-  certificate: HbceIprCertificate
-): string {
+export function buildCertificateJson(certificate: HbceIprCertificate): string {
   return `${stableStringify(certificate)}\n`;
 }
 
-export function buildCertificateBlob(
-  certificate: HbceIprCertificate
-): Blob {
+export function buildCertificateBlob(certificate: HbceIprCertificate): Blob {
   return new Blob([buildCertificateJson(certificate)], {
     type: "application/json"
   });
