@@ -85,6 +85,14 @@ a {
   -webkit-tap-highlight-color: transparent;
 }
 
+button:disabled,
+input:disabled,
+select:disabled,
+textarea:disabled {
+  cursor: not-allowed;
+  opacity: 0.58;
+}
+
 code,
 pre,
 .hbce-mono {
@@ -127,6 +135,11 @@ svg {
 
 .hbce-section {
   margin: 32px 0;
+}
+
+.hbce-stack {
+  display: grid;
+  gap: 18px;
 }
 
 .hbce-header {
@@ -254,6 +267,12 @@ svg {
   grid-template-columns: repeat(4, minmax(0, 1fr));
 }
 
+.hbce-form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+
 .hbce-card {
   border: 1px solid var(--hbce-line);
   background:
@@ -276,6 +295,28 @@ svg {
       rgba(255, 255, 255, 0.018)
     ),
     var(--hbce-panel-2);
+}
+
+.hbce-card--success {
+  border-color: rgba(158, 230, 180, 0.38);
+  background:
+    linear-gradient(
+      180deg,
+      rgba(158, 230, 180, 0.1),
+      rgba(255, 255, 255, 0.018)
+    ),
+    var(--hbce-panel);
+}
+
+.hbce-card--danger {
+  border-color: rgba(255, 143, 143, 0.38);
+  background:
+    linear-gradient(
+      180deg,
+      rgba(255, 143, 143, 0.1),
+      rgba(255, 255, 255, 0.018)
+    ),
+    var(--hbce-panel);
 }
 
 .hbce-card h1,
@@ -325,10 +366,11 @@ svg {
   transition:
     transform 160ms ease,
     background 160ms ease,
-    border-color 160ms ease;
+    border-color 160ms ease,
+    opacity 160ms ease;
 }
 
-.hbce-btn:hover {
+.hbce-btn:hover:not(:disabled) {
   transform: translateY(-1px);
   border-color: rgba(143, 183, 255, 0.42);
   background: rgba(143, 183, 255, 0.1);
@@ -346,6 +388,10 @@ svg {
 .hbce-btn--danger {
   border-color: rgba(255, 143, 143, 0.45);
   background: rgba(255, 143, 143, 0.08);
+}
+
+.hbce-btn--ghost {
+  background: transparent;
 }
 
 .hbce-panel-title {
@@ -461,6 +507,19 @@ svg {
 .hbce-field {
   display: grid;
   gap: 8px;
+  color: var(--hbce-text);
+  font-weight: 720;
+  font-size: 0.9rem;
+}
+
+.hbce-field span {
+  color: var(--hbce-text);
+}
+
+.hbce-field small {
+  color: var(--hbce-muted-2);
+  font-weight: 520;
+  line-height: 1.45;
 }
 
 .hbce-label {
@@ -471,7 +530,10 @@ svg {
 
 .hbce-input,
 .hbce-select,
-.hbce-textarea {
+.hbce-textarea,
+.hbce-field input:not([type="checkbox"]),
+.hbce-field select,
+.hbce-field textarea {
   width: 100%;
   border: 1px solid var(--hbce-line);
   border-radius: 14px;
@@ -481,20 +543,150 @@ svg {
   outline: none;
 }
 
+.hbce-field input[type="file"] {
+  cursor: pointer;
+}
+
 .hbce-input::placeholder,
-.hbce-textarea::placeholder {
+.hbce-textarea::placeholder,
+.hbce-field input::placeholder,
+.hbce-field textarea::placeholder {
   color: var(--hbce-muted-2);
 }
 
 .hbce-input:focus,
 .hbce-select:focus,
-.hbce-textarea:focus {
+.hbce-textarea:focus,
+.hbce-field input:focus,
+.hbce-field select:focus,
+.hbce-field textarea:focus {
   border-color: rgba(143, 183, 255, 0.6);
 }
 
-.hbce-textarea {
+.hbce-textarea,
+.hbce-field textarea {
   min-height: 132px;
   resize: vertical;
+}
+
+.hbce-check {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 12px;
+  align-items: flex-start;
+  border: 1px solid var(--hbce-line);
+  border-radius: 16px;
+  padding: 14px;
+  background: rgba(255, 255, 255, 0.03);
+  color: var(--hbce-text);
+  cursor: pointer;
+}
+
+.hbce-check input {
+  width: 18px;
+  height: 18px;
+  margin-top: 2px;
+  accent-color: var(--hbce-accent);
+}
+
+.hbce-check span {
+  display: grid;
+  gap: 4px;
+}
+
+.hbce-check small {
+  color: var(--hbce-muted-2);
+  line-height: 1.45;
+}
+
+.hbce-field-error,
+.hbce-field-error input,
+.hbce-field-error select,
+.hbce-field-error textarea {
+  border-color: rgba(255, 143, 143, 0.55);
+}
+
+.hbce-error-text {
+  color: var(--hbce-danger) !important;
+}
+
+.hbce-upload-zone {
+  display: grid;
+  gap: 8px;
+  border: 1px dashed rgba(143, 183, 255, 0.42);
+  border-radius: var(--hbce-radius);
+  background:
+    linear-gradient(
+      180deg,
+      rgba(143, 183, 255, 0.075),
+      rgba(255, 255, 255, 0.02)
+    ),
+    rgba(5, 7, 11, 0.35);
+  padding: 20px;
+  cursor: pointer;
+  transition:
+    border-color 160ms ease,
+    background 160ms ease,
+    transform 160ms ease;
+}
+
+.hbce-upload-zone:hover {
+  transform: translateY(-1px);
+  border-color: rgba(143, 183, 255, 0.72);
+  background:
+    linear-gradient(
+      180deg,
+      rgba(143, 183, 255, 0.12),
+      rgba(255, 255, 255, 0.025)
+    ),
+    rgba(5, 7, 11, 0.45);
+}
+
+.hbce-upload-zone input {
+  position: absolute;
+  inline-size: 1px;
+  block-size: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  clip-path: inset(50%);
+}
+
+.hbce-upload-zone__title {
+  color: var(--hbce-text);
+  font-weight: 800;
+}
+
+.hbce-upload-zone__text {
+  color: var(--hbce-muted);
+  font-size: 0.92rem;
+  line-height: 1.45;
+  word-break: break-word;
+}
+
+.hbce-upload-status {
+  border: 1px solid var(--hbce-line);
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.03);
+  color: var(--hbce-muted);
+  padding: 14px;
+  line-height: 1.55;
+}
+
+.hbce-upload-status p {
+  margin: 6px 0 0;
+}
+
+.hbce-upload-status--valid {
+  border-color: rgba(158, 230, 180, 0.38);
+  background: rgba(158, 230, 180, 0.08);
+  color: var(--hbce-success);
+}
+
+.hbce-upload-status--invalid {
+  border-color: rgba(255, 143, 143, 0.38);
+  background: rgba(255, 143, 143, 0.08);
+  color: var(--hbce-danger);
 }
 
 .hbce-notice {
@@ -672,7 +864,8 @@ svg {
 
   .hbce-grid--2,
   .hbce-grid--3,
-  .hbce-grid--4 {
+  .hbce-grid--4,
+  .hbce-form-grid {
     grid-template-columns: 1fr;
   }
 
@@ -728,6 +921,10 @@ svg {
 
   .hbce-badge {
     white-space: normal;
+  }
+
+  .hbce-upload-zone {
+    padding: 16px;
   }
 }
 
