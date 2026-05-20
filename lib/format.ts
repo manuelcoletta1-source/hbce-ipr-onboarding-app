@@ -29,7 +29,18 @@ const SUCCESS_STATUSES = new Set<string>([
   "clear",
   "enabled",
   "completed",
-  "allow_governed_access"
+  "allow_governed_access",
+  "access_granted",
+  "valid",
+  "subject_created",
+  "fiscal_identity_collected",
+  "official_document_submitted",
+  "liveness_submitted",
+  "compliance_accepted",
+  "ipr_approved",
+  "ipr_card_issued",
+  "ipr_verified",
+  "joker_c2_access"
 ]);
 
 const WARNING_STATUSES = new Set<string>([
@@ -45,7 +56,11 @@ const WARNING_STATUSES = new Set<string>([
   "needs_more_information",
   "not_created",
   "not_issued",
-  "under_review"
+  "under_review",
+  "review_submission",
+  "hbce_approval",
+  "ipr_card_issuance",
+  "operational_certificate"
 ]);
 
 const DANGER_STATUSES = new Set<string>([
@@ -56,28 +71,50 @@ const DANGER_STATUSES = new Set<string>([
   "revoked",
   "suspended",
   "blocked",
-  "deny_access"
+  "deny_access",
+  "access_denied",
+  "fail_closed",
+  "invalid_json",
+  "invalid_proto",
+  "invalid_kind",
+  "invalid_issuer",
+  "invalid_phase",
+  "invalid_next_phase",
+  "missing_payload_hash",
+  "missing_previous_hash",
+  "hash_mismatch",
+  "missing_required_field",
+  "missing_required_upload",
+  "not_operational_certificate",
+  "invalid_certificate_scope"
 ]);
+
+function normalizeStatus(status: string): string {
+  return status.trim().replaceAll("-", "_").toLowerCase();
+}
 
 export function formatStatusLabel(status: string): string {
   return status
     .trim()
+    .replaceAll("-", "_")
     .split("_")
     .filter(Boolean)
-    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1).toLowerCase())
     .join(" ");
 }
 
 export function getStatusTone(status: SupportedStatus | string): StatusTone {
-  if (SUCCESS_STATUSES.has(status)) {
+  const normalizedStatus = normalizeStatus(status);
+
+  if (SUCCESS_STATUSES.has(normalizedStatus)) {
     return "success";
   }
 
-  if (WARNING_STATUSES.has(status)) {
+  if (WARNING_STATUSES.has(normalizedStatus)) {
     return "warning";
   }
 
-  if (DANGER_STATUSES.has(status)) {
+  if (DANGER_STATUSES.has(normalizedStatus)) {
     return "danger";
   }
 
