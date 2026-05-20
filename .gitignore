@@ -6,8 +6,9 @@ node_modules/
 out/
 build/
 dist/
+.turbo/
 
-# Production
+# Production platforms
 .vercel/
 .netlify/
 
@@ -50,20 +51,41 @@ Thumbs.db
 uploads/
 documents/
 identity-documents/
+identity_documents/
+official-documents/
+official_documents/
 fiscal-identifiers/
+fiscal_identifiers/
+tax-identifiers/
+tax_identifiers/
+national-identifiers/
+national_identifiers/
 photos/
 videos/
+media/
 biometric/
+biometrics/
 liveness/
+face-templates/
+face_templates/
 private-storage/
+private_storage/
 secure-storage/
+secure_storage/
 review-notes/
+review_notes/
 production-records/
+production_records/
+onboarding-records/
+onboarding_records/
+identity-records/
+identity_records/
 
 # Local databases
 *.sqlite
 *.sqlite3
 *.db
+*.db-journal
 
 # Keys and certificates
 *.pem
@@ -72,6 +94,8 @@ production-records/
 *.pfx
 *.crt
 *.cer
+*.csr
+*.jks
 
 # Coverage
 coverage/
@@ -79,3 +103,12 @@ coverage/
 # Package manager cache
 .pnpm-store/
 .yarn/
+.yarn/cache/
+.yarn/unplugged/
+.yarn/build-state.yml
+.yarn/install-state.gz
+
+# Optional local artifacts
+*.local
+*.bak
+*.backup
