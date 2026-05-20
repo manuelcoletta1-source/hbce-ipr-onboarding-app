@@ -5,10 +5,11 @@ import { useState } from "react";
 
 import IprCertificateUploader from "@/components/IprCertificateUploader";
 
+import { JOKER_C2_GATEWAY_URL } from "@/lib/constants";
 import { validateJokerC2OperationalCertificate } from "@/lib/ipr-certificate-chain";
 
 import type { AcceptedIprCertificateUpload } from "@/components/IprCertificateUploader";
-import type { HbceJokerC2AccessGateResult } from "@/lib/types";
+import type { HbceJokerC2AccessGateResult, JsonObject } from "@/lib/types";
 
 const ACCESS_REQUIREMENTS = [
   "The uploaded file must be an HBCE operational certificate.",
@@ -20,6 +21,36 @@ const ACCESS_REQUIREMENTS = [
   "The previous payload hash must be present.",
   "The payload hash must match the canonical certificate payload."
 ] as const;
+
+function isJsonObject(value: unknown): value is JsonObject {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function getCertificatePrivateFields(
+  upload: AcceptedIprCertificateUpload
+): JsonObject | null {
+  const phaseData = upload.certificate.payload.phase_data;
+
+  if (isJsonObject(phaseData.certificate_fields)) {
+    return phaseData.certificate_fields;
+  }
+
+  if (isJsonObject(phaseData.private_fields)) {
+    return phaseData.private_fields;
+  }
+
+  return null;
+}
+
+function getStringField(fields: JsonObject | null, key: string): string | null {
+  if (!fields) {
+    return null;
+  }
+
+  const value = fields[key];
+
+  return typeof value === "string" && value.trim() ? value : null;
+}
 
 export default function JokerC2AccessPage() {
   const [acceptedUpload, setAcceptedUpload] =
@@ -45,6 +76,9 @@ export default function JokerC2AccessPage() {
   }
 
   const isAccessGranted = accessResult?.decision === "ACCESS_GRANTED";
+  const privateFields = acceptedUpload
+    ? getCertificatePrivateFields(acceptedUpload)
+    : null;
 
   return (
     <div className="hbce-container">
@@ -143,6 +177,63 @@ export default function JokerC2AccessPage() {
           </section>
         ) : null}
 
+        {privateFields ? (
+          <section className="hbce-card">
+            <p className="hbce-kicker">Private certificate fields</p>
+            <h2>Operational identity data read from the private certificate.</h2>
+
+            {getStringField(privateFields, "certificate_id") ? (
+              <p className="hbce-mono">
+                certificate_id: {getStringField(privateFields, "certificate_id")}
+              </p>
+            ) : null}
+
+            {getStringField(privateFields, "ipr_id") ? (
+              <p className="hbce-mono">
+                ipr_id: {getStringField(privateFields, "ipr_id")}
+              </p>
+            ) : null}
+
+            {getStringField(privateFields, "subject_id") ? (
+              <p className="hbce-mono">
+                subject_id: {getStringField(privateFields, "subject_id")}
+              </p>
+            ) : null}
+
+            {getStringField(privateFields, "card_serial") ? (
+              <p className="hbce-mono">
+                card_serial: {getStringField(privateFields, "card_serial")}
+              </p>
+            ) : null}
+
+            {getStringField(privateFields, "certificate_status") ? (
+              <p className="hbce-mono">
+                certificate_status:{" "}
+                {getStringField(privateFields, "certificate_status")}
+              </p>
+            ) : null}
+
+            {getStringField(privateFields, "certificate_scope") ? (
+              <p className="hbce-mono">
+                certificate_scope:{" "}
+                {getStringField(privateFields, "certificate_scope")}
+              </p>
+            ) : null}
+
+            {getStringField(privateFields, "issued_at") ? (
+              <p className="hbce-mono">
+                issued_at: {getStringField(privateFields, "issued_at")}
+              </p>
+            ) : null}
+
+            {getStringField(privateFields, "valid_until") ? (
+              <p className="hbce-mono">
+                valid_until: {getStringField(privateFields, "valid_until")}
+              </p>
+            ) : null}
+          </section>
+        ) : null}
+
         {accessResult ? (
           <section
             className={
@@ -188,7 +279,7 @@ export default function JokerC2AccessPage() {
               <div className="hbce-actions">
                 <a
                   className="hbce-btn hbce-btn--primary"
-                  href="https://hbce-ai-joker-c2.vercel.app/interface"
+                  href={JOKER_C2_GATEWAY_URL}
                   rel="noopener noreferrer"
                   target="_blank"
                 >
