@@ -1,169 +1,215 @@
+"use client";
+
 import Link from "next/link";
+import { useState } from "react";
 
-import { evaluateJokerC2Access } from "@/lib/access-gate";
-import { ROUTES, SECURITY_BOUNDARY_TEXT } from "@/lib/constants";
-import {
-  approvedOnboardingRecord,
-  deniedOnboardingRecord,
-  pendingOnboardingRecord,
-  revokedOnboardingRecord
-} from "@/lib/mock-data";
+import IprCertificateUploader from "@/components/IprCertificateUploader";
 
-import { AccessGatePanel } from "@/components/AccessGatePanel";
-import { BoundaryNotice } from "@/components/BoundaryNotice";
-import { OnboardingStepper } from "@/components/OnboardingStepper";
-import { StatusBadge } from "@/components/StatusBadge";
+import { validateJokerC2OperationalCertificate } from "@/lib/ipr-certificate-chain";
 
-const demoCases = [
-  {
-    title: "Approved operational identity",
-    description:
-      "Verified IPR, issued IPR Card, active operational certificate and clear revocation state are present.",
-    record: approvedOnboardingRecord
-  },
-  {
-    title: "Pending onboarding",
-    description:
-      "The onboarding case is still pending or under review. The access gate must keep JOKER-C2 unavailable until verification is complete.",
-    record: pendingOnboardingRecord
-  },
-  {
-    title: "Denied onboarding",
-    description:
-      "The onboarding case failed verification. IPR Verified cannot be assigned and governed AI access remains blocked.",
-    record: deniedOnboardingRecord
-  },
-  {
-    title: "Revoked operational identity",
-    description:
-      "The operational identity state is revoked. Revocation overrides every previous approval and access state.",
-    record: revokedOnboardingRecord
-  }
+import type { AcceptedIprCertificateUpload } from "@/components/IprCertificateUploader";
+import type { HbceJokerC2AccessGateResult } from "@/lib/types";
+
+const ACCESS_REQUIREMENTS = [
+  "The uploaded file must be an HBCE operational certificate.",
+  "The certificate kind must be IPR_OPERATIONAL_CERTIFICATE.",
+  "The phase code must be IPR_VERIFIED.",
+  "The certificate status must be ACTIVE.",
+  "The certificate scope must be JOKER_C2_ACCESS.",
+  "The issuer must be HERMETICUM B.C.E. S.r.l.",
+  "The previous payload hash must be present.",
+  "The payload hash must match the canonical certificate payload."
 ] as const;
 
 export default function JokerC2AccessPage() {
-  const primaryAccessResult = evaluateJokerC2Access(approvedOnboardingRecord);
+  const [acceptedUpload, setAcceptedUpload] =
+    useState<AcceptedIprCertificateUpload | null>(null);
+  const [accessResult, setAccessResult] =
+    useState<HbceJokerC2AccessGateResult | null>(null);
+  const [isChecking, setIsChecking] = useState(false);
+
+  async function evaluateAccess(upload: AcceptedIprCertificateUpload) {
+    setAcceptedUpload(upload);
+    setAccessResult(null);
+    setIsChecking(true);
+
+    try {
+      const result = await validateJokerC2OperationalCertificate(
+        upload.certificate
+      );
+
+      setAccessResult(result);
+    } finally {
+      setIsChecking(false);
+    }
+  }
+
+  const isAccessGranted = accessResult?.decision === "ACCESS_GRANTED";
 
   return (
     <div className="hbce-container">
-      <section className="hbce-hero">
-        <p className="hbce-kicker">Step 09 · JOKER-C2 Access Gate</p>
+      <main className="hbce-main">
+        <section className="hbce-hero">
+          <p className="hbce-kicker">JOKER-C2 Verified Access</p>
 
-        <h1 className="hbce-title">Evaluate governed AI access.</h1>
+          <h1>Upload the HBCE Operational Certificate.</h1>
 
-        <p className="hbce-lead">
-          JOKER-C2 access is not granted through a simple email account,
-          password or subscription. The access gate evaluates verified IPR,
-          issued IPR Card, active operational certificate and clear revocation
-          state before governed runtime access can be enabled.
-        </p>
-      </section>
-
-      <section className="hbce-section">
-        <div className="hbce-card hbce-card--soft">
-          <p className="hbce-kicker">Final access rule</p>
-          <h2>No verified IPR, no governed JOKER-C2 access.</h2>
           <p>
-            The default posture is fail-closed. The access gate becomes
-            permissive only when every required operational identity condition is
-            valid, current and not revoked.
+            JOKER-C2 does not open through a simple email login or subscription.
+            Access requires a valid HBCE operational certificate generated at the
+            end of the IPR onboarding chain.
           </p>
 
           <div className="hbce-actions">
-            <Link className="hbce-btn" href={ROUTES.certificate}>
+            <Link className="hbce-btn" href="/certificate">
               Back to Certificate
             </Link>
 
-            <Link className="hbce-btn" href={ROUTES.onboarding}>
-              View Onboarding Flow
+            <Link className="hbce-btn" href="/onboarding">
+              Continue Onboarding
             </Link>
           </div>
-        </div>
-      </section>
+        </section>
 
-      <AccessGatePanel result={primaryAccessResult} />
+        <IprCertificateUploader
+          expectedPreviousPhase="IPR_VERIFIED"
+          expectedNextPhase="JOKER_C2_ACCESS"
+          title="Upload HBCE Operational Certificate"
+          description="Upload hbce-ipr-09-operational-certificate.hbce.json. The gate verifies protocol, issuer, phase, status, scope and payload hash before allowing governed JOKER-C2 access."
+          onCertificateAccepted={(upload) => {
+            void evaluateAccess(upload);
+          }}
+          onValidation={(validation) => {
+            if (!validation.valid) {
+              setAcceptedUpload(null);
+              setAccessResult(null);
+            }
+          }}
+        />
 
-      <section className="hbce-section">
-        <div className="hbce-card">
-          <h2>Demo access decisions</h2>
+        <section className="hbce-card">
+          <p className="hbce-kicker">Access requirements</p>
+          <h2>JOKER-C2 remains closed unless every condition is valid.</h2>
+
           <p>
-            These synthetic states demonstrate that the access gate is not
-            decorative. Only the approved operational identity produces governed
-            access. Pending, denied and revoked states remain unavailable or
-            blocked according to fail-closed logic.
+            This gate is fail-closed. A malformed certificate, wrong phase,
+            wrong issuer, missing hash, invalid scope or inactive status blocks
+            access.
           </p>
 
-          <div className="hbce-grid hbce-grid--2" style={{ marginTop: "18px" }}>
-            {demoCases.map((item) => {
-              const result = evaluateJokerC2Access(item.record);
+          <ul className="hbce-list">
+            {ACCESS_REQUIREMENTS.map((requirement) => (
+              <li key={requirement}>{requirement}</li>
+            ))}
+          </ul>
+        </section>
 
-              return (
-                <div className="hbce-card" key={item.title}>
-                  <div className="hbce-card-preview__top">
-                    <div>
-                      <h3>{item.title}</h3>
-                      <p>{item.description}</p>
-                    </div>
+        {isChecking ? (
+          <section className="hbce-card hbce-card--soft">
+            <p className="hbce-kicker">Checking certificate</p>
+            <h2>Evaluating JOKER-C2 access.</h2>
+            <p>
+              The certificate is being checked against the HBCE operational
+              access requirements.
+            </p>
+          </section>
+        ) : null}
 
-                    <StatusBadge status={result.decision} />
-                  </div>
+        {acceptedUpload ? (
+          <section className="hbce-card hbce-card--soft">
+            <p className="hbce-kicker">Uploaded certificate</p>
+            <h2>HBCE certificate received.</h2>
 
-                  <div className="hbce-divider" />
+            <p className="hbce-mono">file_name: {acceptedUpload.fileName}</p>
 
-                  <div className="hbce-card-preview__meta">
-                    <div className="hbce-meta">
-                      <span className="hbce-meta__label">IPR status</span>
-                      <span className="hbce-meta__value">
-                        <StatusBadge status={item.record.iprStatus} />
-                      </span>
-                    </div>
+            <p className="hbce-mono">
+              phase: {acceptedUpload.certificate.phase.code}
+            </p>
 
-                    <div className="hbce-meta">
-                      <span className="hbce-meta__label">IPR Card</span>
-                      <span className="hbce-meta__value">
-                        <StatusBadge status={item.record.iprCardStatus} />
-                      </span>
-                    </div>
+            <p className="hbce-mono">
+              kind: {acceptedUpload.certificate.kind}
+            </p>
 
-                    <div className="hbce-meta">
-                      <span className="hbce-meta__label">Certificate</span>
-                      <span className="hbce-meta__value">
-                        <StatusBadge status={item.record.certificateStatus} />
-                      </span>
-                    </div>
+            <p className="hbce-mono">
+              payload_sha256: {acceptedUpload.payloadSha256}
+            </p>
 
-                    <div className="hbce-meta">
-                      <span className="hbce-meta__label">Revocation</span>
-                      <span className="hbce-meta__value">
-                        <StatusBadge status={item.record.revocationState} />
-                      </span>
-                    </div>
-                  </div>
+            {acceptedUpload.previousPayloadSha256 ? (
+              <p className="hbce-mono">
+                previous_payload_sha256:{" "}
+                {acceptedUpload.previousPayloadSha256}
+              </p>
+            ) : null}
+          </section>
+        ) : null}
 
-                  <div className="hbce-divider" />
+        {accessResult ? (
+          <section
+            className={
+              isAccessGranted
+                ? "hbce-card hbce-card--success"
+                : "hbce-card hbce-card--danger"
+            }
+          >
+            <p className="hbce-kicker">Access decision</p>
 
-                  <p className="hbce-small">{result.decisionReason}</p>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      </section>
+            <h2>{accessResult.decision}</h2>
 
-      <section className="hbce-section">
-        <div className="hbce-card">
-          <h2>Current onboarding position</h2>
-          <OnboardingStepper currentStep="joker_c2_access" />
-        </div>
-      </section>
+            <p>{accessResult.reason}</p>
 
-      <section className="hbce-section">
-        <BoundaryNotice title="Access gate security boundary" tone="danger">
-          {SECURITY_BOUNDARY_TEXT} The future production access gate must be
-          enforced server-side. Browser state, local storage, query parameters
-          and frontend-only approval must never authorize JOKER-C2.
-        </BoundaryNotice>
-      </section>
+            {accessResult.certificate_status ? (
+              <p className="hbce-mono">
+                certificate_status: {accessResult.certificate_status}
+              </p>
+            ) : null}
+
+            {accessResult.certificate_scope ? (
+              <p className="hbce-mono">
+                certificate_scope: {accessResult.certificate_scope}
+              </p>
+            ) : null}
+
+            {accessResult.payload_sha256 ? (
+              <p className="hbce-mono">
+                payload_sha256: {accessResult.payload_sha256}
+              </p>
+            ) : null}
+
+            {accessResult.previous_payload_sha256 ? (
+              <p className="hbce-mono">
+                previous_payload_sha256:{" "}
+                {accessResult.previous_payload_sha256}
+              </p>
+            ) : null}
+
+            <p className="hbce-mono">checked_at: {accessResult.checked_at}</p>
+
+            {isAccessGranted ? (
+              <div className="hbce-actions">
+                <a
+                  className="hbce-btn hbce-btn--primary"
+                  href="https://hbce-ai-joker-c2.vercel.app/interface"
+                  rel="noopener noreferrer"
+                  target="_blank"
+                >
+                  Open JOKER-C2 Runtime
+                </a>
+              </div>
+            ) : null}
+          </section>
+        ) : null}
+
+        <section className="hbce-card">
+          <p className="hbce-kicker">Boundary</p>
+          <h2>Access is governed, not automatic.</h2>
+
+          <p>
+            The HBCE operational certificate enables JOKER-C2 access evaluation.
+            It does not bypass governance, revocation, suspension, expiry,
+            runtime policy or future server-side enforcement.
+          </p>
+        </section>
+      </main>
     </div>
   );
 }
