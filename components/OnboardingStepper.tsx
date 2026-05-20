@@ -9,18 +9,30 @@ type OnboardingStepperProps = {
   currentStep?: OnboardingStep;
 };
 
+type StepState = "completed" | "current" | "pending" | "blocked";
+
+function getCurrentStepIndex(currentStep: OnboardingStep | undefined): number {
+  if (!currentStep) {
+    return 0;
+  }
+
+  return ONBOARDING_STEPS.findIndex((item) => item.id === currentStep);
+}
+
 function getStepState(
   step: OnboardingStep,
   currentStep: OnboardingStep | undefined,
   index: number
-): "completed" | "current" | "pending" {
-  if (!currentStep) {
-    return index === 0 ? "current" : "pending";
+): StepState {
+  if (currentStep === "completed") {
+    return "completed";
   }
 
-  const currentIndex = ONBOARDING_STEPS.findIndex(
-    (item) => item.id === currentStep
-  );
+  if (currentStep === "blocked") {
+    return index === ONBOARDING_STEPS.length - 1 ? "blocked" : "pending";
+  }
+
+  const currentIndex = getCurrentStepIndex(currentStep);
 
   if (currentIndex === -1) {
     return index === 0 ? "current" : "pending";
@@ -37,14 +49,52 @@ function getStepState(
   return "pending";
 }
 
+function getBadgeStatus(state: StepState) {
+  if (state === "completed") {
+    return "approved";
+  }
+
+  if (state === "current") {
+    return "in_progress";
+  }
+
+  if (state === "blocked") {
+    return "rejected";
+  }
+
+  return "pending";
+}
+
+function getBadgeLabel(state: StepState): string {
+  if (state === "completed") {
+    return "Completed";
+  }
+
+  if (state === "current") {
+    return "Current";
+  }
+
+  if (state === "blocked") {
+    return "Blocked";
+  }
+
+  return "Pending";
+}
+
 export function OnboardingStepper({ currentStep }: OnboardingStepperProps) {
   return (
-    <div className="hbce-stepper">
+    <div className="hbce-stepper" aria-label="IPR onboarding sequence">
       {ONBOARDING_STEPS.map((step, index) => {
         const state = getStepState(step.id, currentStep, index);
+        const isCurrent = state === "current";
 
         return (
-          <Link className="hbce-step" href={step.route} key={step.id}>
+          <Link
+            aria-current={isCurrent ? "step" : undefined}
+            className={`hbce-step hbce-step--${state}`}
+            href={step.route}
+            key={step.id}
+          >
             <span className="hbce-step__number">{step.number}</span>
 
             <span>
@@ -52,22 +102,7 @@ export function OnboardingStepper({ currentStep }: OnboardingStepperProps) {
               <span className="hbce-step__text">{step.purpose}</span>
             </span>
 
-            <StatusBadge
-              status={
-                state === "completed"
-                  ? "approved"
-                  : state === "current"
-                    ? "in_progress"
-                    : "pending"
-              }
-              label={
-                state === "completed"
-                  ? "Completed"
-                  : state === "current"
-                    ? "Current"
-                    : "Pending"
-              }
-            />
+            <StatusBadge status={getBadgeStatus(state)} label={getBadgeLabel(state)} />
           </Link>
         );
       })}
