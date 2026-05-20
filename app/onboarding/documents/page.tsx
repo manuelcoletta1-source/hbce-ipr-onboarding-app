@@ -6,6 +6,42 @@ import { BoundaryNotice } from "@/components/BoundaryNotice";
 import { OnboardingStepper } from "@/components/OnboardingStepper";
 import { StatusBadge } from "@/components/StatusBadge";
 
+const DOCUMENT_STATE_ITEMS = [
+  {
+    label: "Document status",
+    status: "submitted"
+  },
+  {
+    label: "Fiscal identifier",
+    status: "not_started"
+  },
+  {
+    label: "Review status",
+    status: "not_started"
+  },
+  {
+    label: "JOKER-C2 access",
+    status: "denied"
+  }
+] as const;
+
+const DOCUMENT_BOUNDARIES = [
+  "Document metadata alone does not create IPR Verified status.",
+  "Raw identity document files must remain outside public routes.",
+  "Document numbers must be hashed or masked before exposure.",
+  "Protected storage references must never expose public download URLs.",
+  "JOKER-C2 access remains denied by default."
+] as const;
+
+const DOCUMENT_EVIDENCE_ITEMS = [
+  "Document type",
+  "Issuing country or jurisdiction",
+  "Expiry date",
+  "Document number hash",
+  "Document file hash",
+  "Protected storage reference"
+] as const;
+
 export default function OnboardingDocumentsPage() {
   return (
     <div className="hbce-container">
@@ -17,18 +53,22 @@ export default function OnboardingDocumentsPage() {
         <p className="hbce-lead">
           This step records document type, issuing country, expiry date and
           protected hash references. The MVP must not process or expose real
-          identity document images, scans or raw document numbers.
+          identity document images, scans, raw document numbers or unprotected
+          storage links.
         </p>
       </section>
 
       <section className="hbce-section">
         <div className="hbce-grid hbce-grid--2">
           <div className="hbce-card">
-            <h2>Document metadata</h2>
+            <p className="hbce-kicker">Document evidence</p>
+            <h2>Prepare protected document metadata</h2>
+
             <p>
               Use synthetic metadata and demonstration hash references only.
-              Real documents must remain outside the repository and outside
-              public routes.
+              Real documents must remain outside the repository, outside public
+              routes and inside controlled storage in any future production
+              implementation.
             </p>
 
             <form className="hbce-form">
@@ -43,7 +83,7 @@ export default function OnboardingDocumentsPage() {
                 >
                   <option value="identity_card">Identity card</option>
                   <option value="passport">Passport</option>
-                  <option value="driving_license">Driving license</option>
+                  <option value="driving_license">Driving licence</option>
                   <option value="residence_document">Residence document</option>
                   <option value="other_official_document">
                     Other official document
@@ -88,6 +128,7 @@ export default function OnboardingDocumentsPage() {
                   Document number hash
                 </label>
                 <input
+                  autoComplete="off"
                   className="hbce-input hbce-mono"
                   id="document_number_hash"
                   name="document_number_hash"
@@ -101,6 +142,7 @@ export default function OnboardingDocumentsPage() {
                   Document file hash
                 </label>
                 <input
+                  autoComplete="off"
                   className="hbce-input hbce-mono"
                   id="document_file_hash"
                   name="document_file_hash"
@@ -117,6 +159,7 @@ export default function OnboardingDocumentsPage() {
                   Protected storage reference
                 </label>
                 <input
+                  autoComplete="off"
                   className="hbce-input hbce-mono"
                   id="document_storage_reference"
                   name="document_storage_reference"
@@ -141,41 +184,42 @@ export default function OnboardingDocumentsPage() {
           </div>
 
           <div className="hbce-card hbce-card--soft">
-            <h2>Document state</h2>
+            <p className="hbce-kicker">Document state</p>
+            <h2>Document metadata supports review, not access.</h2>
+
             <p>
-              Document metadata supports verification, but it does not create
-              IPR Verified status by itself.
+              Document metadata supports operational verification, but it does
+              not create IPR Verified status by itself. Fiscal linkage,
+              photo/video verification and review are still required.
             </p>
 
             <div className="hbce-card-preview__meta">
-              <div className="hbce-meta">
-                <span className="hbce-meta__label">Document status</span>
-                <span className="hbce-meta__value">
-                  <StatusBadge status="submitted" />
-                </span>
-              </div>
-
-              <div className="hbce-meta">
-                <span className="hbce-meta__label">Fiscal identifier</span>
-                <span className="hbce-meta__value">
-                  <StatusBadge status="not_started" />
-                </span>
-              </div>
-
-              <div className="hbce-meta">
-                <span className="hbce-meta__label">Review status</span>
-                <span className="hbce-meta__value">
-                  <StatusBadge status="not_started" />
-                </span>
-              </div>
-
-              <div className="hbce-meta">
-                <span className="hbce-meta__label">JOKER-C2 access</span>
-                <span className="hbce-meta__value">
-                  <StatusBadge status="denied" />
-                </span>
-              </div>
+              {DOCUMENT_STATE_ITEMS.map((item) => (
+                <div className="hbce-meta" key={item.label}>
+                  <span className="hbce-meta__label">{item.label}</span>
+                  <span className="hbce-meta__value">
+                    <StatusBadge status={item.status} />
+                  </span>
+                </div>
+              ))}
             </div>
+
+            <div className="hbce-divider" />
+
+            <h3>Expected evidence layer</h3>
+            <ul className="hbce-list">
+              {DOCUMENT_EVIDENCE_ITEMS.map((item) => (
+                <li key={item}>{item}</li>
+              ))}
+            </ul>
+
+            <div className="hbce-divider" />
+
+            <ul className="hbce-list">
+              {DOCUMENT_BOUNDARIES.map((boundary) => (
+                <li key={boundary}>{boundary}</li>
+              ))}
+            </ul>
 
             <div className="hbce-divider" />
 
