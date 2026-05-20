@@ -13,8 +13,12 @@ const allowedModes: DemoOnboardingMode[] = [
   "revoked"
 ];
 
-function isDemoMode(value: string | null): value is DemoOnboardingMode {
-  return value !== null && allowedModes.includes(value as DemoOnboardingMode);
+function isDemoMode(value: string | null | undefined): value is DemoOnboardingMode {
+  return (
+    value !== null &&
+    value !== undefined &&
+    allowedModes.includes(value as DemoOnboardingMode)
+  );
 }
 
 function getRecordByMode(mode: DemoOnboardingMode) {
@@ -23,7 +27,10 @@ function getRecordByMode(mode: DemoOnboardingMode) {
 
 export async function GET(request: NextRequest) {
   const modeParam = request.nextUrl.searchParams.get("mode");
-  const mode = isDemoMode(modeParam) ? modeParam : "approved";
+  const mode: DemoOnboardingMode = isDemoMode(modeParam)
+    ? modeParam
+    : "approved";
+
   const record = getRecordByMode(mode);
   const result = evaluateJokerC2Access(record);
 
@@ -42,7 +49,11 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const body = (await request.json()) as { mode?: string };
-    const mode = isDemoMode(body.mode ?? null) ? body.mode : "approved";
+    const modeInput = body.mode;
+    const mode: DemoOnboardingMode = isDemoMode(modeInput)
+      ? modeInput
+      : "approved";
+
     const record = getRecordByMode(mode);
     const result = evaluateJokerC2Access(record);
 
@@ -57,7 +68,8 @@ export async function POST(request: NextRequest) {
       error: null
     });
   } catch {
-    const record = getRecordByMode("approved");
+    const mode: DemoOnboardingMode = "approved";
+    const record = getRecordByMode(mode);
     const result = evaluateJokerC2Access(record);
 
     return NextResponse.json(
@@ -67,7 +79,7 @@ export async function POST(request: NextRequest) {
         message:
           "Invalid request body. Default fail-closed access decision returned.",
         data: {
-          mode: "approved",
+          mode,
           result
         },
         error: {
