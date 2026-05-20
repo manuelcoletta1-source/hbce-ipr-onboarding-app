@@ -1,45 +1,69 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import Link from "next/link";
 import type { ReactNode } from "react";
 
 import "./globals.css";
 
+const appName = "HBCE IPR Onboarding App";
+const organizationName = "HERMETICUM B.C.E. S.r.l.";
+const canonicalTrademark = "HERMETICUM - BLINDATA · COMPUTABILE · EVOLUTIVA";
+const appDescription =
+  "IPR Onboarding Gateway for bank-grade operational identity verification, IPR Card issuance, operational certificate activation and governed JOKER-C2 access.";
+
 export const metadata: Metadata = {
+  metadataBase: new URL("https://hbce-ipr-onboarding-app.vercel.app"),
   title: {
-    default: "HBCE IPR Onboarding App",
-    template: "%s | HBCE IPR Onboarding App"
+    default: `${appName} | IPR Onboarding Gateway`,
+    template: `%s | ${appName}`
   },
-  description:
-    "Bank-grade operational identity onboarding for IPR Verified status, IPR Card issuance, operational certificate activation and governed JOKER-C2 access.",
-  applicationName: "HBCE IPR Onboarding App",
-  authors: [{ name: "HERMETICUM B.C.E. S.r.l." }],
-  creator: "HERMETICUM B.C.E. S.r.l.",
-  publisher: "HERMETICUM B.C.E. S.r.l.",
+  description: appDescription,
+  applicationName: appName,
+  authors: [{ name: organizationName }],
+  creator: organizationName,
+  publisher: organizationName,
+  category: "operational identity onboarding",
   keywords: [
     "HBCE",
     "HERMETICUM B.C.E.",
     "IPR",
     "Identity Primary Record",
-    "IPR Onboarding",
+    "IPR Onboarding Gateway",
+    "IPR Verified",
     "IPR Card",
+    "operational certificate",
     "JOKER-C2",
     "governed AI",
+    "AI Operational Runtime",
     "operational identity",
+    "identity verification",
+    "document verification",
     "AI governance",
-    "fail-closed access"
+    "fail-closed access",
+    "EVT",
+    "OPC",
+    "MATRIX"
   ],
   robots: {
     index: true,
     follow: true
   },
+  alternates: {
+    canonical: "/"
+  },
   openGraph: {
-    title: "HBCE IPR Onboarding App",
-    description:
-      "Operational identity onboarding for IPR Verified status, IPR Card issuance and governed JOKER-C2 access.",
-    siteName: "HBCE IPR Onboarding App",
+    title: `${appName} | IPR Onboarding Gateway`,
+    description: appDescription,
+    siteName: appName,
     type: "website",
-    locale: "en_US"
+    locale: "en_US",
+    url: "/"
   }
+};
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  viewportFit: "cover"
 };
 
 const navItems = [
@@ -50,7 +74,7 @@ const navItems = [
   { href: "/legal", label: "Legal" },
   { href: "/privacy", label: "Privacy" },
   { href: "/security", label: "Security" }
-];
+] as const;
 
 export default function RootLayout({
   children
@@ -63,7 +87,11 @@ export default function RootLayout({
         <div className="hbce-page">
           <header className="hbce-header">
             <div className="hbce-container hbce-header__row">
-              <Link className="hbce-brand" href="/">
+              <Link
+                className="hbce-brand"
+                href="/"
+                aria-label="HBCE IPR Onboarding App home"
+              >
                 <span className="hbce-brand__title">
                   HBCE IPR Onboarding App
                 </span>
@@ -87,10 +115,8 @@ export default function RootLayout({
           <footer className="hbce-footer">
             <div className="hbce-container hbce-footer__row">
               <div>
-                <strong>HERMETICUM B.C.E. S.r.l.</strong>
-                <div className="hbce-small">
-                  HERMETICUM - BLINDATA · COMPUTABILE · EVOLUTIVA
-                </div>
+                <strong>{organizationName}</strong>
+                <div className="hbce-small">{canonicalTrademark}</div>
                 <div className="hbce-small">
                   IPR Onboarding Gateway · IPR Card · Operational Certificate ·
                   JOKER-C2 Access Gate
