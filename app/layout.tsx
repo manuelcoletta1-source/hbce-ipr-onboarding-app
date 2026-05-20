@@ -2,31 +2,35 @@ import type { Metadata, Viewport } from "next";
 import Link from "next/link";
 import type { ReactNode } from "react";
 
-import "./globals.css";
+import {
+  APP_DESCRIPTION,
+  APP_NAME,
+  CANONICAL_TRADEMARK,
+  JOKER_C2_GATEWAY_URL,
+  ORG_NAME,
+  ROUTES
+} from "@/lib/constants";
 
-const appName = "HBCE IPR Onboarding App";
-const organizationName = "HERMETICUM B.C.E. S.r.l.";
-const canonicalTrademark = "HERMETICUM - BLINDATA · COMPUTABILE · EVOLUTIVA";
-const appDescription =
-  "IPR Onboarding Gateway for bank-grade operational identity verification, IPR Card issuance, operational certificate activation and governed JOKER-C2 access.";
+import "./globals.css";
 
 export const metadata: Metadata = {
   metadataBase: new URL("https://hbce-ipr-onboarding-app.vercel.app"),
   title: {
-    default: `${appName} | IPR Onboarding Gateway`,
-    template: `%s | ${appName}`
+    default: `${APP_NAME} | IPR Onboarding Gateway`,
+    template: `%s | ${APP_NAME}`
   },
-  description: appDescription,
-  applicationName: appName,
-  authors: [{ name: organizationName }],
-  creator: organizationName,
-  publisher: organizationName,
+  description: APP_DESCRIPTION,
+  applicationName: APP_NAME,
+  authors: [{ name: ORG_NAME }],
+  creator: ORG_NAME,
+  publisher: ORG_NAME,
   category: "operational identity onboarding",
   keywords: [
     "HBCE",
     "HERMETICUM B.C.E.",
     "IPR",
     "Identity Primary Record",
+    "HBCE IPR certificate chain",
     "IPR Onboarding Gateway",
     "IPR Verified",
     "IPR Card",
@@ -51,9 +55,9 @@ export const metadata: Metadata = {
     canonical: "/"
   },
   openGraph: {
-    title: `${appName} | IPR Onboarding Gateway`,
-    description: appDescription,
-    siteName: appName,
+    title: `${APP_NAME} | IPR Onboarding Gateway`,
+    description: APP_DESCRIPTION,
+    siteName: APP_NAME,
     type: "website",
     locale: "en_US",
     url: "/"
@@ -67,13 +71,14 @@ export const viewport: Viewport = {
 };
 
 const navItems = [
-  { href: "/onboarding", label: "Onboarding" },
-  { href: "/ipr-card", label: "IPR Card" },
-  { href: "/certificate", label: "Certificate" },
-  { href: "/access/joker-c2", label: "JOKER-C2 Access" },
-  { href: "/legal", label: "Legal" },
-  { href: "/privacy", label: "Privacy" },
-  { href: "/security", label: "Security" }
+  { href: ROUTES.onboardingPhase1, label: "Start IPR" },
+  { href: ROUTES.onboarding, label: "Continue" },
+  { href: ROUTES.iprCard, label: "IPR Card" },
+  { href: ROUTES.certificate, label: "Certificate" },
+  { href: ROUTES.jokerC2Access, label: "JOKER-C2" },
+  { href: ROUTES.legal, label: "Legal" },
+  { href: ROUTES.privacy, label: "Privacy" },
+  { href: ROUTES.security, label: "Security" }
 ] as const;
 
 export default function RootLayout({
@@ -89,12 +94,10 @@ export default function RootLayout({
             <div className="hbce-container hbce-header__row">
               <Link
                 className="hbce-brand"
-                href="/"
+                href={ROUTES.home}
                 aria-label="HBCE IPR Onboarding App home"
               >
-                <span className="hbce-brand__title">
-                  HBCE IPR Onboarding App
-                </span>
+                <span className="hbce-brand__title">{APP_NAME}</span>
                 <span className="hbce-brand__subtitle">
                   Identity verified first. Governed AI access after.
                 </span>
@@ -110,23 +113,30 @@ export default function RootLayout({
             </div>
           </header>
 
-          <main className="hbce-main">{children}</main>
+          {children}
 
           <footer className="hbce-footer">
             <div className="hbce-container hbce-footer__row">
               <div>
-                <strong>{organizationName}</strong>
-                <div className="hbce-small">{canonicalTrademark}</div>
+                <strong>{ORG_NAME}</strong>
+                <div className="hbce-small">{CANONICAL_TRADEMARK}</div>
                 <div className="hbce-small">
-                  IPR Onboarding Gateway · IPR Card · Operational Certificate ·
-                  JOKER-C2 Access Gate
+                  HBCE-IPR Certificate Chain · IPR Card · Operational
+                  Certificate · JOKER-C2 Access Gate
                 </div>
               </div>
 
               <div className="hbce-footer__links">
-                <Link href="/legal">Legal Boundary</Link>
-                <Link href="/privacy">Privacy</Link>
-                <Link href="/security">Security</Link>
+                <Link href={ROUTES.legal}>Legal Boundary</Link>
+                <Link href={ROUTES.privacy}>Privacy</Link>
+                <Link href={ROUTES.security}>Security</Link>
+                <a
+                  href={JOKER_C2_GATEWAY_URL}
+                  rel="noopener noreferrer"
+                  target="_blank"
+                >
+                  JOKER-C2 Runtime
+                </a>
               </div>
             </div>
           </footer>
