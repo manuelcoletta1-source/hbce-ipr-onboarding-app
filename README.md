@@ -21,6 +21,10 @@ Then access operational artificial intelligence.
 
 This repository defines the onboarding gateway for IPR Verified users, IPR Card issuance, operational certificate preparation and controlled access to JOKER-C2.
 
+HBCE IPR Onboarding App is not a simple login form.
+
+It is an operational identity gateway.
+
 
 ---
 
@@ -28,28 +32,66 @@ Strategic Positioning
 
 Classic AI access normally follows a minimal pattern:
 
-email
-password
-subscription
-model access
+1. email registration;
+
+
+2. password or OAuth login;
+
+
+3. subscription or payment;
+
+
+4. direct model access.
+
+
 
 HBCE follows a different operational model:
 
-identity onboarding
-official document collection
-fiscal or national identifier linkage
-photo and video verification
-compliance-oriented review
-IPR Verified status assignment
-IPR Card issuance
-operational certificate preparation
-governed access to JOKER-C2
+1. identity onboarding;
+
+
+2. official document collection;
+
+
+3. fiscal code, national tax identifier or national identification number linkage;
+
+
+4. photo and video verification;
+
+
+5. compliance-oriented review;
+
+
+6. IPR Verified status assignment;
+
+
+7. IPR Card issuance;
+
+
+8. operational certificate preparation;
+
+
+9. governed access to JOKER-C2.
+
+
 
 This makes the system closer to a digital banking onboarding workflow than to a generic AI login page.
 
-HBCE IPR Onboarding App is not a simple login form.
+The market distinction is structural:
 
-It is an operational identity gateway.
+Classic AI
+→ email
+→ password
+→ subscription
+→ model access
+
+HBCE / JOKER-C2
+→ identity onboarding
+→ document verification
+→ IPR Verified status
+→ IPR Card
+→ operational certificate
+→ governed AI access
 
 
 ---
@@ -58,39 +100,45 @@ Canonical Flow
 
 The canonical onboarding flow is:
 
-1. User registration
+1. user registration;
 
 
-2. Email verification
+2. email verification;
 
 
-3. Personal data submission
+3. personal data submission;
 
 
-4. Official identity document submission
+4. official identity document submission;
 
 
-5. Fiscal code, national tax identifier or national identification number linkage
+5. fiscal code, national tax identifier or national identification number linkage;
 
 
-6. Photo and video verification
+6. photo and video verification;
 
 
-7. Human or automated compliance-oriented review
+7. human or automated compliance-oriented review;
 
 
-8. IPR Verified status assignment
+8. IPR Verified status assignment;
 
 
-9. IPR Card issuance
+9. IPR Card issuance;
 
 
-10. Operational digital certificate preparation
+10. operational digital certificate preparation;
 
 
-11. Access enablement for JOKER-C2
+11. access enablement for JOKER-C2.
 
 
+
+The operational formula is:
+
+HERMETICUM B.C.E. Platform is the access threshold.
+IPR Card is the operational key.
+JOKER-C2 is the governed artificial intelligence runtime.
 
 
 ---
@@ -142,6 +190,16 @@ JOKER-C2 is not an AI service accessible through a simple email account.
 
 JOKER-C2 is a governed AI operational runtime accessible through verified IPR status.
 
+The canonical access rule is:
+
+Access JOKER-C2 only through verified IPR.
+
+An email is not enough.
+A subscription is not enough.
+
+An operational identity is required:
+documented, traceable and verifiable.
+
 
 ---
 
@@ -170,37 +228,15 @@ regulated financial services.
 
 HBCE issues an internal operational identity record that may be connected to official European identity systems in future integrations, subject to applicable law, recognized trust service providers and institutional partnerships.
 
-The correct claim is:
+Correct claim:
 
 HBCE issues a verifiable operational identity that can be linked to official European identity systems.
 
-The incorrect claim is:
+Incorrect claim:
 
 HBCE issues an official European identity.
 
-
----
-
-Product Formula
-
-HERMETICUM B.C.E. Platform is the access threshold.
-
-IPR Card is the operational key.
-
-JOKER-C2 is the governed artificial intelligence runtime.
-
-
----
-
-Public Website Formula
-
-Access JOKER-C2 only through verified IPR.
-
-An email is not enough.
-
-A subscription is not enough.
-
-An operational identity is required: documented, traceable and verifiable.
+This repository is intended as an R&D and MVP surface, not as a regulated identity issuance service, financial service, banking service or qualified trust service.
 
 
 ---
@@ -209,21 +245,17 @@ Architecture Role
 
 This repository is part of the HBCE operational architecture:
 
-HBCE Platform: public and institutional gateway;
+Layer	Role
 
-HBCE IPR Onboarding App: identity onboarding and verification application;
-
-IPR Card: operational identity credential;
-
-JOKER-C2: governed AI operational runtime;
-
-EVT: event continuity layer;
-
-OPC: operational proof and compliance layer;
-
-MATRIX: coordination framework;
-
-HBCE: governance ecosystem.
+HBCE Platform	Public and institutional gateway
+HBCE IPR Onboarding App	Identity onboarding and verification application
+IPR Card	Operational identity credential
+Operational Certificate	Internal certificate reference for governed access
+JOKER-C2	Governed AI operational runtime
+EVT	Event continuity layer
+OPC	Operational proof and compliance layer
+MATRIX	Coordination framework
+HBCE	Governance ecosystem
 
 
 
@@ -232,6 +264,8 @@ HBCE: governance ecosystem.
 Initial MVP Scope
 
 The first MVP should include:
+
+landing page;
 
 registration page;
 
@@ -260,52 +294,30 @@ legal boundary page;
 security posture page.
 
 
+The MVP must simulate the onboarding and verification logic without exposing real identity documents, real user photos, real videos or production identity records.
+
 
 ---
 
 Suggested Routes
 
-/
-Landing page for the onboarding app.
+Route	Function
 
-/onboarding
-Main onboarding flow.
+/	Landing page for the onboarding app
+/onboarding	Main onboarding flow
+/onboarding/start	Initial account and subject registration
+/onboarding/identity	Personal identity data submission
+/onboarding/documents	Official document upload and document metadata submission
+/onboarding/fiscal	Fiscal code, tax identifier or national identification number linkage
+/onboarding/photo-video	Photo and video verification step
+/onboarding/review	Review state, pending validation and compliance status
+/ipr-card	IPR Card preview and issuance status
+/certificate	Operational certificate preview and certificate reference
+/access/joker-c2	Access gate to JOKER-C2 after verified IPR status
+/legal	Legal and operational boundary page
+/privacy	Privacy and data minimization page
+/security	Security posture and fail-closed access page
 
-/onboarding/start
-Initial account and subject registration.
-
-/onboarding/identity
-Personal identity data submission.
-
-/onboarding/documents
-Official document upload and document metadata submission.
-
-/onboarding/fiscal
-Fiscal code, tax identifier or national identification number linkage.
-
-/onboarding/photo-video
-Photo and video verification step.
-
-/onboarding/review
-Review state, pending validation and compliance status.
-
-/ipr-card
-IPR Card preview and issuance status.
-
-/certificate
-Operational certificate preview and certificate reference.
-
-/access/joker-c2
-Access gate to JOKER-C2 after verified IPR status.
-
-/legal
-Legal and operational boundary page.
-
-/privacy
-Privacy and data minimization page.
-
-/security
-Security posture and fail-closed access page.
 
 
 ---
@@ -361,7 +373,11 @@ no access to JOKER-C2 should be granted without verified IPR status;
 
 document files, images and videos must remain in protected storage;
 
-public proof layers should expose minimized metadata and hash-only references where possible.
+public proof layers should expose minimized metadata and hash-only references where possible;
+
+revocation state must override access state;
+
+incomplete verification must produce blocked access by default.
 
 
 
@@ -389,17 +405,6 @@ no raw personal documents;
 
 no production identity records.
 
-
-
----
-
-Development Status
-
-Current status: early MVP repository.
-
-Primary objective: build the HBCE IPR Onboarding App as the bank-grade onboarding layer for operational identity verification and governed AI access.
-
-The current implementation is intended as an R&D and MVP surface, not as a regulated identity issuance service, financial service, banking service or qualified trust service.
 
 
 ---
@@ -443,6 +448,17 @@ banking or financial account logic.
 
 ---
 
+Development Status
+
+Current status: early MVP repository.
+
+Primary objective: build the HBCE IPR Onboarding App as the bank-grade onboarding layer for operational identity verification and governed AI access.
+
+The current implementation is intended as an R&D and MVP surface.
+
+
+---
+
 Development Commands
 
 npm run dev
@@ -464,6 +480,7 @@ HERMETICUM B.C.E. S.r.l.
 Canonical Trademark
 
 HERMETICUM - BLINDATA · COMPUTABILE · EVOLUTIVA
-
 HERMETICUM B.C.E. S.r.l.
+
+
 
