@@ -14,27 +14,27 @@ import { OnboardingStepper } from "@/components/OnboardingStepper";
 
 const ONBOARDING_OPERATIONS = [
   "Personal identity data collection",
-  "Official document submission",
-  "Fiscal identifier or national tax identifier linkage",
+  "Official identity document submission",
+  "Fiscal code, national tax identifier or national identification number linkage",
   "Photo and video verification step",
   "Internal HBCE review",
   "IPR Verified status assignment",
   "IPR Card issuance",
   "Operational certificate activation",
   "Governed JOKER-C2 access decision"
-];
+] as const;
 
 const ACCESS_CONTROL_STATES = [
   "Pending onboarding",
   "Identity data received",
   "Document review required",
-  "Photo/video verification required",
+  "Photo and video verification required",
   "Manual review required",
   "IPR Verified",
   "IPR Card issued",
   "Operational certificate active",
   "JOKER-C2 access enabled"
-];
+] as const;
 
 const TRUST_BOUNDARIES = [
   {
@@ -48,11 +48,34 @@ const TRUST_BOUNDARIES = [
       "The onboarding process is designed to link the subject to official identity evidence, tax or national identifiers and reviewable verification steps."
   },
   {
-    title: "Governed AI access only after verification",
+    title: "Governed AI access after verification",
     text:
       "JOKER-C2 is not exposed as a generic email-and-password AI interface. Access is conditioned by the verified operational state of the subject."
   }
-];
+] as const;
+
+const OPERATIONAL_LAYERS = [
+  {
+    title: "IPR Onboarding Gateway",
+    text:
+      "The application collects and organizes the identity evidence required to create an internal operational identity record."
+  },
+  {
+    title: "IPR Card",
+    text:
+      "The IPR Card represents the operational access key issued after verification inside the HBCE framework."
+  },
+  {
+    title: "Operational Certificate",
+    text:
+      "The certificate reference links the verified subject to governed workflows, audit continuity and controlled runtime access."
+  },
+  {
+    title: "JOKER-C2 Access Gate",
+    text:
+      "JOKER-C2 access is enabled only when the subject state, IPR Card state and certificate state are compatible with governed access."
+  }
+] as const;
 
 export default function HomePage() {
   return (
@@ -85,7 +108,7 @@ export default function HomePage() {
 
       <section className="hbce-section">
         <div className="hbce-card hbce-card--soft">
-          <p className="hbce-kicker">Core rule</p>
+          <p className="hbce-kicker">Core product rule</p>
           <h2>{CORE_PRODUCT_RULE}</h2>
           <p>{PUBLIC_WEBSITE_FORMULA}</p>
         </div>
@@ -94,13 +117,12 @@ export default function HomePage() {
       <section className="hbce-section">
         <div className="hbce-grid hbce-grid--2">
           <div className="hbce-card">
-            <p className="hbce-kicker">Market distinction</p>
-            <h2>Classic AI access</h2>
+            <p className="hbce-kicker">Classic AI model</p>
+            <h2>Email, payment and model access</h2>
             <p>
               Generic AI platforms usually reduce access to account creation,
-              authentication and payment. The model is simple: the user creates
-              an account, pays or subscribes, and receives access to the AI
-              interface.
+              authentication and payment. The user creates an account, pays or
+              subscribes, and receives direct access to the AI interface.
             </p>
 
             <ul className="hbce-list">
@@ -111,13 +133,13 @@ export default function HomePage() {
           </div>
 
           <div className="hbce-card hbce-card--soft">
-            <p className="hbce-kicker">HBCE distinction</p>
-            <h2>Governed AI access</h2>
+            <p className="hbce-kicker">HBCE model</p>
+            <h2>Identity first, governed AI after</h2>
             <p>
               HBCE separates ordinary login from operational authorization. The
               subject is onboarded, verified, reviewed, assigned an IPR state,
-              issued an IPR Card and connected to a certificate before JOKER-C2
-              access can be enabled.
+              issued an IPR Card and connected to an operational certificate
+              before JOKER-C2 access can be enabled.
             </p>
 
             <ul className="hbce-list">
@@ -135,10 +157,9 @@ export default function HomePage() {
             <p className="hbce-kicker">Operational sequence</p>
             <h2>Bank-grade onboarding logic</h2>
             <p>
-              The app is designed around a verification process comparable in
-              structure to regulated digital onboarding flows: identity data,
-              official documents, fiscal identifiers, photo/video verification,
-              internal review and controlled activation.
+              The application follows a structured digital onboarding model:
+              identity data, official documents, fiscal identifiers, photo and
+              video verification, internal review and controlled activation.
             </p>
 
             <ul className="hbce-list">
@@ -150,7 +171,7 @@ export default function HomePage() {
 
           <div className="hbce-card">
             <p className="hbce-kicker">Runtime protection</p>
-            <h2>Fail-closed access</h2>
+            <h2>Fail-closed access state</h2>
             <p>
               If identity evidence is incomplete, the IPR state is not verified,
               the IPR Card is missing, the operational certificate is inactive or
@@ -171,43 +192,22 @@ export default function HomePage() {
       </section>
 
       <section className="hbce-section">
-        <div className="hbce-grid hbce-grid--3">
-          <div className="hbce-card">
-            <p className="hbce-kicker">Step 01</p>
-            <h3>Identity evidence</h3>
-            <p>
-              The subject provides personal data, official document references,
-              tax or national identifier information and verification material
-              required for operational review.
-            </p>
-          </div>
-
-          <div className="hbce-card">
-            <p className="hbce-kicker">Step 02</p>
-            <h3>IPR Card issuance</h3>
-            <p>
-              After review, HBCE can assign IPR Verified status and issue an
-              internal IPR Card as the operational access key for governed
-              workflows.
-            </p>
-          </div>
-
-          <div className="hbce-card">
-            <p className="hbce-kicker">Step 03</p>
-            <h3>JOKER-C2 access gate</h3>
-            <p>
-              JOKER-C2 access is decided through the operational state of the
-              subject, the IPR Card, the certificate status and the verification
-              boundary.
-            </p>
-          </div>
+        <div className="hbce-grid hbce-grid--4">
+          {OPERATIONAL_LAYERS.map((layer) => (
+            <div className="hbce-card" key={layer.title}>
+              <h3>{layer.title}</h3>
+              <p>{layer.text}</p>
+            </div>
+          ))}
         </div>
       </section>
 
       <section className="hbce-section">
         <div className="hbce-card hbce-card--soft">
           <p className="hbce-kicker">Trust boundary</p>
-          <h2>IPR is an operational identity layer, not a state identity system.</h2>
+          <h2>
+            IPR is an operational identity layer, not a state identity system.
+          </h2>
           <p>
             HBCE issues a verifiable operational identity layer that can be
             connected to official identity systems and evidence. It does not
