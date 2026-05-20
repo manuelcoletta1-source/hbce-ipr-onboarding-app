@@ -1,0 +1,45 @@
+{
+  "name": "hbce-ipr-onboarding-app",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Bank-grade operational identity onboarding for IPR Verified, IPR Card issuance and governed JOKER-C2 access.",
+  "author": "HERMETICUM B.C.E. S.r.l.",
+  "license": "UNLICENSED",
+  "type": "module",
+  "engines": {
+    "node": ">=20.9.0"
+  },
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "eslint .",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "next": "16.2.6",
+    "react": "19.2.6",
+    "react-dom": "19.2.6"
+  },
+  "devDependencies": {
+    "@types/node": "25.9.1",
+    "@types/react": "latest",
+    "@types/react-dom": "19.2.3",
+    "eslint": "latest",
+    "eslint-config-next": "16.2.6",
+    "typescript": "6.0.3"
+  },
+  "keywords": [
+    "hbce",
+    "ipr",
+    "identity-onboarding",
+    "ipr-card",
+    "joker-c2",
+    "governed-ai",
+    "operational-identity",
+    "fail-closed",
+    "evt",
+    "opc",
+    "matrix"
+  ]
+}
