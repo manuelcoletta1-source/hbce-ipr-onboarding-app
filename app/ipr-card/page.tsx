@@ -1,15 +1,27 @@
 import Link from "next/link";
 
-import { LEGAL_BOUNDARY_TEXT, ROUTES } from "@/lib/constants";
+import {
+  LEGAL_BOUNDARY_TEXT,
+  NON_REPLACEMENT_BOUNDARY,
+  ROUTES
+} from "@/lib/constants";
 import {
   approvedIprCardRecord,
   approvedOnboardingRecord
-} from "@/lib/mock-onboarding";
+} from "@/lib/mock-data";
 
 import { BoundaryNotice } from "@/components/BoundaryNotice";
 import { IPRCardPreview } from "@/components/IPRCardPreview";
 import { OnboardingStepper } from "@/components/OnboardingStepper";
 import { StatusBadge } from "@/components/StatusBadge";
+
+const ISSUANCE_CONDITIONS = [
+  "Review status must be approved",
+  "IPR status must be verified",
+  "IPR Card status must be issued",
+  "Revocation state must be clear",
+  "Raw identity material must not be exposed"
+] as const;
 
 export default function IPRCardPage() {
   return (
@@ -30,12 +42,14 @@ export default function IPRCardPage() {
       <section className="hbce-section">
         <div className="hbce-grid hbce-grid--2">
           <div className="hbce-card hbce-card--soft">
-            <h2>Issuance conditions</h2>
+            <p className="hbce-kicker">Issuance conditions</p>
+            <h2>IPR Card issuance requires verified IPR.</h2>
+
             <p>
-              IPR Card issuance requires verified IPR status and clear
-              revocation state. The card does not expose raw identity data,
-              document numbers, fiscal identifiers, photos, videos or biometric
-              material.
+              IPR Card issuance requires approved review, verified IPR status
+              and clear revocation state. The card does not expose raw identity
+              data, document numbers, fiscal identifiers, photos, videos or
+              biometric material.
             </p>
 
             <div className="hbce-card-preview__meta">
@@ -63,19 +77,41 @@ export default function IPRCardPage() {
               <div className="hbce-meta">
                 <span className="hbce-meta__label">Revocation state</span>
                 <span className="hbce-meta__value">
-                  <StatusBadge status={approvedOnboardingRecord.revocationState} />
+                  <StatusBadge
+                    status={approvedOnboardingRecord.revocationState}
+                  />
                 </span>
               </div>
             </div>
+
+            <div className="hbce-divider" />
+
+            <ul className="hbce-list">
+              {ISSUANCE_CONDITIONS.map((condition) => (
+                <li key={condition}>{condition}</li>
+              ))}
+            </ul>
           </div>
 
           <div className="hbce-card">
-            <h2>Operational meaning</h2>
+            <p className="hbce-kicker">Operational meaning</p>
+            <h2>IPR Card is the operational key.</h2>
+
             <p>
               The IPR Card is the operational key inside the HBCE ecosystem. It
-              does not replace official identity documents and does not grant
-              public legal identity status by itself.
+              links the verified subject to an internal access scope and prepares
+              the certificate step, but it does not replace official public
+              identity systems.
             </p>
+
+            <div className="hbce-divider" />
+
+            <h3>It does not replace</h3>
+            <ul className="hbce-list">
+              {NON_REPLACEMENT_BOUNDARY.map((item) => (
+                <li key={item}>{item}</li>
+              ))}
+            </ul>
 
             <div className="hbce-actions">
               <Link className="hbce-btn" href={ROUTES.onboardingReview}>
