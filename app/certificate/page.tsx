@@ -22,6 +22,12 @@ import type {
 
 const phase = getPhaseDefinitionByNumber(9);
 
+const ACCESS_BOUNDARY =
+  "This HBCE Operational Certificate enables eligibility for JOKER-C2 access evaluation. Runtime access still requires fail-closed certificate validation.";
+
+const LEGAL_BOUNDARY =
+  "This is an internal HBCE operational certificate. It is not a qualified eIDAS certificate unless formally integrated with a recognized trust service.";
+
 function createCompactId(prefix: string, source: string): string {
   const normalized = source.replace(/[^a-zA-Z0-9]/g, "").slice(0, 18);
 
@@ -64,7 +70,10 @@ export default function CertificatePage() {
       typeof cardPayload.subject_id === "string"
         ? cardPayload.subject_id
         : previousUpload.certificate.subject.subject_id ??
-          createCompactId("SUBJECT", previousUpload.certificate.subject.subject_ref);
+          createCompactId(
+            "SUBJECT",
+            previousUpload.certificate.subject.subject_ref
+          );
 
     const cardSerial =
       typeof cardPayload.card_serial === "string"
@@ -116,7 +125,10 @@ export default function CertificatePage() {
         typeof cardPayload.subject_id === "string"
           ? cardPayload.subject_id
           : previousUpload.certificate.subject.subject_id ??
-            createCompactId("SUBJECT", previousUpload.certificate.subject.subject_ref);
+            createCompactId(
+              "SUBJECT",
+              previousUpload.certificate.subject.subject_ref
+            );
 
       const cardSerial =
         typeof cardPayload.card_serial === "string"
@@ -125,22 +137,7 @@ export default function CertificatePage() {
 
       const certificateId = createCompactId("HBCE-CERT", fallbackSource);
 
-      const verificationHash = await sha256Canonical({
-        kind: "HBCE_IPR_PHASE_9_OPERATIONAL_CERTIFICATE",
-        certificate_id: certificateId,
-        ipr_id: iprId,
-        subject_id: subjectId,
-        card_serial: cardSerial,
-        certificate_status: "ACTIVE",
-        certificate_scope: "JOKER_C2_ACCESS",
-        operator_reference: operatorReference.trim(),
-        previous_payload_sha256:
-          previousUpload.certificate.hash_integrity.payload_sha256,
-        issued_at: issuedAt,
-        valid_until: validUntil
-      });
-
-      const phaseData: JsonObject = {
+      const privateFields = {
         certificate_id: certificateId,
         ipr_id: iprId,
         subject_id: subjectId,
@@ -148,21 +145,110 @@ export default function CertificatePage() {
         certificate_status: "ACTIVE",
         certificate_scope: "JOKER_C2_ACCESS",
         issuer: "HERMETICUM B.C.E. S.r.l.",
+        operator_reference: operatorReference.trim(),
         issued_at: issuedAt,
         valid_until: validUntil,
-        verification_hash: verificationHash,
+        next_required_phase: "JOKER_C2_ACCESS",
+        access_boundary: ACCESS_BOUNDARY,
+        legal_boundary: LEGAL_BOUNDARY
+      };
+
+      const hashFields = {
+        certificate_id_hash: await sha256Canonical({
+          kind: "HBCE_IPR_PHASE_9_CERTIFICATE_ID",
+          value: certificateId,
+          issued_at: issuedAt
+        }),
+        ipr_id_hash: await sha256Canonical({
+          kind: "HBCE_IPR_PHASE_9_IPR_ID",
+          value: iprId,
+          issued_at: issuedAt
+        }),
+        subject_id_hash: await sha256Canonical({
+          kind: "HBCE_IPR_PHASE_9_SUBJECT_ID",
+          value: subjectId,
+          issued_at: issuedAt
+        }),
+        card_serial_hash: await sha256Canonical({
+          kind: "HBCE_IPR_PHASE_9_CARD_SERIAL",
+          value: cardSerial,
+          issued_at: issuedAt
+        }),
+        certificate_status_hash: await sha256Canonical({
+          kind: "HBCE_IPR_PHASE_9_CERTIFICATE_STATUS",
+          value: "ACTIVE",
+          issued_at: issuedAt
+        }),
+        certificate_scope_hash: await sha256Canonical({
+          kind: "HBCE_IPR_PHASE_9_CERTIFICATE_SCOPE",
+          value: "JOKER_C2_ACCESS",
+          issued_at: issuedAt
+        }),
         operator_reference_hash: await sha256Canonical({
           kind: "HBCE_IPR_PHASE_9_OPERATOR_REFERENCE",
           value: operatorReference.trim(),
           issued_at: issuedAt
         }),
+        validity_hash: await sha256Canonical({
+          kind: "HBCE_IPR_PHASE_9_VALIDITY",
+          issued_at: issuedAt,
+          valid_until: validUntil
+        }),
+        access_boundary_hash: await sha256Canonical({
+          kind: "HBCE_IPR_PHASE_9_ACCESS_BOUNDARY",
+          value: ACCESS_BOUNDARY,
+          issued_at: issuedAt
+        }),
+        legal_boundary_hash: await sha256Canonical({
+          kind: "HBCE_IPR_PHASE_9_LEGAL_BOUNDARY",
+          value: LEGAL_BOUNDARY,
+          issued_at: issuedAt
+        })
+      };
+
+      const verificationHash = await sha256Canonical({
+        kind: "HBCE_IPR_PHASE_9_OPERATIONAL_CERTIFICATE",
+        private_fields: privateFields,
+        hash_fields: hashFields,
+        previous_payload_sha256:
+          previousUpload.certificate.hash_integrity.payload_sha256,
+        issued_at: issuedAt
+      });
+
+      const phaseData: JsonObject = {
+        certificate_visibility: "PRIVATE_PORTABLE_CERTIFICATE",
+        public_registry_mode: "HASH_ONLY",
+        phase_scope: "OPERATIONAL_CERTIFICATE",
+
+        private_fields: privateFields,
+        certificate_fields: privateFields,
+        hash_fields: hashFields,
+
+        certificate_id: privateFields.certificate_id,
+        ipr_id: privateFields.ipr_id,
+        subject_id: privateFields.subject_id,
+        card_serial: privateFields.card_serial,
+        certificate_status: privateFields.certificate_status,
+        certificate_scope: privateFields.certificate_scope,
+        issuer: privateFields.issuer,
+        issued_at: privateFields.issued_at,
+        valid_until: privateFields.valid_until,
+
+        verification_hash: verificationHash,
+        operator_reference_hash: hashFields.operator_reference_hash,
+
         previous_payload_sha256:
           previousUpload.certificate.hash_integrity.payload_sha256,
         next_required_phase: "JOKER_C2_ACCESS",
-        access_boundary:
-          "This HBCE Operational Certificate enables eligibility for JOKER-C2 access evaluation. Runtime access still requires fail-closed certificate validation.",
-        legal_boundary:
-          "This is an internal HBCE operational certificate. It is not a qualified eIDAS certificate unless formally integrated with a recognized trust service."
+
+        access_boundary: ACCESS_BOUNDARY,
+        legal_boundary: LEGAL_BOUNDARY,
+
+        privacy_boundary:
+          "This is a private portable HBCE-IPR certificate downloaded by the subject. Operational certificate fields are stored inside private_fields. Public verification must expose hash-only references, not private certificate fields.",
+
+        trust_boundary:
+          "This certificate enables eligibility for JOKER-C2 access evaluation only. JOKER-C2 must still validate protocol, issuer, phase, status, scope, previous hash and payload hash before granting access."
       };
 
       const generated = await generateHbceIprCertificate({
@@ -232,7 +318,9 @@ export default function CertificatePage() {
               <h2>Issue the HBCE operational certificate.</h2>
               <p className="hbce-muted">
                 The app generates a certificate ID and binds it to the IPR ID,
-                subject ID, IPR Card serial and JOKER-C2 access scope.
+                subject ID, IPR Card serial and JOKER-C2 access scope. These
+                values are written inside the private operational certificate and
+                also hashed for verification.
               </p>
             </div>
 
@@ -245,6 +333,10 @@ export default function CertificatePage() {
                   placeholder="HBCE-OPERATOR"
                   onChange={(event) => setOperatorReference(event.target.value)}
                 />
+                <small>
+                  This value is written inside the private operational
+                  certificate and also hashed.
+                </small>
               </label>
 
               <label className="hbce-field">
@@ -312,8 +404,10 @@ export default function CertificatePage() {
             <h2>{generatedCertificate.file_name}</h2>
 
             <p>
-              The HBCE operational certificate has been generated and downloaded.
-              Upload this file on JOKER-C2 access gate.
+              The private HBCE operational certificate has been generated and
+              downloaded. It contains certificate fields, the corresponding
+              hashes and the JOKER-C2 access boundary. Upload this file on the
+              JOKER-C2 access gate.
             </p>
 
             <p className="hbce-mono">
