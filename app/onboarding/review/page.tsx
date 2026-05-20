@@ -1,226 +1,72 @@
-import Link from "next/link";
+"use client";
 
-import { evaluateJokerC2Access } from "@/lib/access-gate";
-import { ROUTES, SECURITY_BOUNDARY_TEXT } from "@/lib/constants";
-import {
-  approvedOnboardingRecord,
-  deniedOnboardingRecord,
-  pendingOnboardingRecord,
-  revokedOnboardingRecord
-} from "@/lib/mock-data";
+import IprPhaseForm from "@/components/IprPhaseForm";
 
-import { BoundaryNotice } from "@/components/BoundaryNotice";
-import { OnboardingStepper } from "@/components/OnboardingStepper";
-import { StatusBadge } from "@/components/StatusBadge";
+import { sha256Canonical } from "@/lib/ipr-certificate-chain";
+import { getPhaseDefinitionByNumber } from "@/lib/ipr-phase-map";
 
-const reviewCases = [
+import type {
+  IprPhaseFieldDefinition,
+  IprPhaseFormBuildDataContext
+} from "@/components/IprPhaseForm";
+
+import type { JsonObject } from "@/lib/types";
+
+const phase = getPhaseDefinitionByNumber(6);
+
+const fields: IprPhaseFieldDefinition[] = [
   {
-    title: "Approved case",
-    description:
-      "All required onboarding states are valid. The subject may proceed to IPR Card issuance and operational certificate activation.",
-    record: approvedOnboardingRecord
-  },
-  {
-    title: "Pending case",
-    description:
-      "The onboarding case is still under review. IPR Verified cannot be assigned and JOKER-C2 access remains unavailable.",
-    record: pendingOnboardingRecord
-  },
-  {
-    title: "Denied case",
-    description:
-      "The onboarding case failed verification. IPR Verified cannot be issued and governed AI access remains blocked.",
-    record: deniedOnboardingRecord
-  },
-  {
-    title: "Revoked case",
-    description:
-      "The operational identity state has been revoked. Revocation overrides previous approval, card state and certificate state.",
-    record: revokedOnboardingRecord
+    name: "submit_for_review",
+    label: "Submit this HBCE-IPR onboarding package for HBCE review.",
+    type: "checkbox",
+    helperText:
+      "This does not approve the IPR. It only creates the pending review certificate."
   }
-] as const;
+];
 
-const REVIEW_RULES = [
-  "Review approval is required before IPR Verified status.",
-  "Pending review cannot issue an IPR Card.",
-  "Rejected review blocks operational certificate activation.",
-  "Revoked state overrides every previous approval.",
-  "Frontend approval is never a valid source of trust."
-] as const;
+function getBooleanValue(
+  context: IprPhaseFormBuildDataContext,
+  fieldName: string
+): boolean {
+  return Boolean(context.values[fieldName]);
+}
+
+async function buildPhase6ReviewPendingData(
+  context: IprPhaseFormBuildDataContext
+): Promise<JsonObject> {
+  const previousPayloadSha256 =
+    context.previousCertificate?.hash_integrity.payload_sha256 ?? null;
+
+  const reviewPackageHash = await sha256Canonical({
+    kind: "HBCE_IPR_PHASE_6_REVIEW_PACKAGE",
+    submit_for_review: getBooleanValue(context, "submit_for_review"),
+    previous_payload_sha256: previousPayloadSha256,
+    submitted_at: context.issuedAt
+  });
+
+  return {
+    review_package_hash: reviewPackageHash,
+    submitted_at: context.issuedAt,
+    previous_payload_sha256: previousPayloadSha256,
+    next_required_phase: "HBCE_APPROVAL",
+    review_status: "PENDING_REVIEW",
+    user_self_approval_allowed: false,
+    backend_or_admin_review_required: true,
+    issued_at: context.issuedAt
+  };
+}
 
 export default function OnboardingReviewPage() {
   return (
     <div className="hbce-container">
-      <section className="hbce-hero">
-        <p className="hbce-kicker">Step 06 · Review</p>
-
-        <h1 className="hbce-title">Review the onboarding case.</h1>
-
-        <p className="hbce-lead">
-          Review is the decision layer between submitted onboarding data and IPR
-          Verified status. Only an approved review can create verified IPR,
-          enable IPR Card issuance and prepare the operational certificate path.
-        </p>
-      </section>
-
-      <section className="hbce-section">
-        <div className="hbce-card hbce-card--soft">
-          <p className="hbce-kicker">Fail-closed review rule</p>
-          <h2>Only approved review state may create IPR Verified.</h2>
-          <p>
-            Pending, rejected, expired, suspended or revoked states keep
-            JOKER-C2 access denied or unavailable. Review cannot be bypassed by
-            frontend state, button clicks, query parameters or local storage.
-          </p>
-
-          <div className="hbce-divider" />
-
-          <ul className="hbce-list">
-            {REVIEW_RULES.map((rule) => (
-              <li key={rule}>{rule}</li>
-            ))}
-          </ul>
-        </div>
-      </section>
-
-      <section className="hbce-section">
-        <div className="hbce-grid hbce-grid--2">
-          {reviewCases.map((item) => {
-            const accessResult = evaluateJokerC2Access(item.record);
-
-            return (
-              <div className="hbce-card" key={item.title}>
-                <div className="hbce-card-preview__top">
-                  <div>
-                    <h2>{item.title}</h2>
-                    <p>{item.description}</p>
-                  </div>
-
-                  <StatusBadge status={item.record.reviewStatus} />
-                </div>
-
-                <div className="hbce-divider" />
-
-                <div className="hbce-card-preview__meta">
-                  <div className="hbce-meta">
-                    <span className="hbce-meta__label">Onboarding</span>
-                    <span className="hbce-meta__value">
-                      <StatusBadge status={item.record.onboardingStatus} />
-                    </span>
-                  </div>
-
-                  <div className="hbce-meta">
-                    <span className="hbce-meta__label">Identity data</span>
-                    <span className="hbce-meta__value">
-                      <StatusBadge status={item.record.identityDataStatus} />
-                    </span>
-                  </div>
-
-                  <div className="hbce-meta">
-                    <span className="hbce-meta__label">Document</span>
-                    <span className="hbce-meta__value">
-                      <StatusBadge status={item.record.documentStatus} />
-                    </span>
-                  </div>
-
-                  <div className="hbce-meta">
-                    <span className="hbce-meta__label">Fiscal identifier</span>
-                    <span className="hbce-meta__value">
-                      <StatusBadge status={item.record.fiscalIdentifierStatus} />
-                    </span>
-                  </div>
-
-                  <div className="hbce-meta">
-                    <span className="hbce-meta__label">Photo</span>
-                    <span className="hbce-meta__value">
-                      <StatusBadge status={item.record.photoVerificationStatus} />
-                    </span>
-                  </div>
-
-                  <div className="hbce-meta">
-                    <span className="hbce-meta__label">Video</span>
-                    <span className="hbce-meta__value">
-                      <StatusBadge status={item.record.videoVerificationStatus} />
-                    </span>
-                  </div>
-
-                  <div className="hbce-meta">
-                    <span className="hbce-meta__label">IPR status</span>
-                    <span className="hbce-meta__value">
-                      <StatusBadge status={item.record.iprStatus} />
-                    </span>
-                  </div>
-
-                  <div className="hbce-meta">
-                    <span className="hbce-meta__label">Access decision</span>
-                    <span className="hbce-meta__value">
-                      <StatusBadge status={accessResult.decision} />
-                    </span>
-                  </div>
-                </div>
-
-                <div className="hbce-divider" />
-
-                <p className="hbce-small">{accessResult.decisionReason}</p>
-              </div>
-            );
-          })}
-        </div>
-      </section>
-
-      <section className="hbce-section">
-        <div className="hbce-grid hbce-grid--2">
-          <div className="hbce-card">
-            <p className="hbce-kicker">Approved path</p>
-            <h2>Proceed to IPR Card issuance</h2>
-            <p>
-              If review is approved, the subject can proceed to IPR Card
-              issuance and operational certificate activation. JOKER-C2 access
-              still requires the final access gate evaluation.
-            </p>
-
-            <div className="hbce-actions">
-              <Link className="hbce-btn hbce-btn--primary" href={ROUTES.iprCard}>
-                Continue to IPR Card
-              </Link>
-            </div>
-          </div>
-
-          <div className="hbce-card">
-            <p className="hbce-kicker">Denied path</p>
-            <h2>Keep governed runtime blocked</h2>
-            <p>
-              If review is pending, rejected, expired, suspended or revoked,
-              access remains blocked and the subject cannot reach governed
-              JOKER-C2 runtime.
-            </p>
-
-            <div className="hbce-actions">
-              <Link
-                className="hbce-btn hbce-btn--danger"
-                href={ROUTES.jokerC2Access}
-              >
-                View access gate
-              </Link>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <section className="hbce-section">
-        <div className="hbce-card">
-          <h2>Current onboarding position</h2>
-          <OnboardingStepper currentStep="review" />
-        </div>
-      </section>
-
-      <section className="hbce-section">
-        <BoundaryNotice title="Review security boundary" tone="danger">
-          {SECURITY_BOUNDARY_TEXT} The review decision must be enforced by
-          server-side logic in future production implementation. Client-side
-          approval is never a valid source of trust.
-        </BoundaryNotice>
-      </section>
+      <IprPhaseForm
+        phase={phase}
+        fields={fields}
+        buildPhaseData={buildPhase6ReviewPendingData}
+        submitLabel="Generate HBCE IPR Certificate 06"
+        successTitle="HBCE IPR Certificate 06 generated"
+        successDescription="The review pending certificate has been generated and downloaded. HBCE approval is now required before IPR Card issuance."
+      />
     </div>
   );
 }
