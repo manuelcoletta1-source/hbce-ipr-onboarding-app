@@ -4,6 +4,37 @@ import { ROUTES } from "@/lib/constants";
 
 import { BoundaryNotice } from "@/components/BoundaryNotice";
 
+const RECOVERY_ROUTES = [
+  {
+    title: "Onboarding",
+    text:
+      "Start from the canonical onboarding path: registration, identity, documents, fiscal identifier, photo/video and review.",
+    href: ROUTES.onboarding,
+    label: "Open Onboarding"
+  },
+  {
+    title: "IPR Card",
+    text:
+      "View the internal operational identity card preview issued after verified IPR status.",
+    href: ROUTES.iprCard,
+    label: "Open IPR Card"
+  },
+  {
+    title: "Certificate",
+    text:
+      "View the internal operational certificate reference connected to IPR Card issuance.",
+    href: ROUTES.certificate,
+    label: "Open Certificate"
+  },
+  {
+    title: "JOKER-C2 Access",
+    text:
+      "Evaluate the fail-closed access gate for governed JOKER-C2 runtime authorization.",
+    href: ROUTES.jokerC2Access,
+    label: "Open Access Gate"
+  }
+] as const;
+
 export default function NotFoundPage() {
   return (
     <div className="hbce-container">
@@ -30,45 +61,62 @@ export default function NotFoundPage() {
       </section>
 
       <section className="hbce-section">
+        <div className="hbce-grid hbce-grid--4">
+          {RECOVERY_ROUTES.map((route) => (
+            <div className="hbce-card" key={route.href}>
+              <h2>{route.title}</h2>
+              <p>{route.text}</p>
+
+              <div className="hbce-actions">
+                <Link className="hbce-btn" href={route.href}>
+                  {route.label}
+                </Link>
+              </div>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      <section className="hbce-section">
         <div className="hbce-grid hbce-grid--3">
           <div className="hbce-card">
-            <h2>Onboarding</h2>
+            <h3>Legal boundary</h3>
             <p>
-              Start from the canonical onboarding path: registration, identity,
-              documents, fiscal identifier, photo/video and review.
+              Unknown routes do not create official identity, operational
+              identity, IPR Verified status or legal authorization.
             </p>
 
             <div className="hbce-actions">
-              <Link className="hbce-btn" href={ROUTES.onboarding}>
-                Open Onboarding
+              <Link className="hbce-btn" href={ROUTES.legal}>
+                View Legal
               </Link>
             </div>
           </div>
 
           <div className="hbce-card">
-            <h2>IPR Card</h2>
+            <h3>Privacy boundary</h3>
             <p>
-              View the internal operational identity card preview issued after
-              verified IPR status.
+              Unknown routes must not expose identity data, document data,
+              fiscal identifiers, photos, videos or protected records.
             </p>
 
             <div className="hbce-actions">
-              <Link className="hbce-btn" href={ROUTES.iprCard}>
-                Open IPR Card
+              <Link className="hbce-btn" href={ROUTES.privacy}>
+                View Privacy
               </Link>
             </div>
           </div>
 
           <div className="hbce-card">
-            <h2>JOKER-C2 Access</h2>
+            <h3>Security boundary</h3>
             <p>
-              Evaluate the fail-closed access gate for governed JOKER-C2
-              runtime authorization.
+              Unknown routes must fail closed and must never authorize governed
+              runtime access.
             </p>
 
             <div className="hbce-actions">
-              <Link className="hbce-btn" href={ROUTES.jokerC2Access}>
-                Open Access Gate
+              <Link className="hbce-btn" href={ROUTES.security}>
+                View Security
               </Link>
             </div>
           </div>
