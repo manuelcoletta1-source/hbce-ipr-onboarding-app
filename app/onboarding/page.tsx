@@ -10,6 +10,33 @@ import {
 import { BoundaryNotice } from "@/components/BoundaryNotice";
 import { OnboardingStepper } from "@/components/OnboardingStepper";
 
+const ONBOARDING_PILLARS = [
+  {
+    title: "1. Collect",
+    text:
+      "The app collects registration data, identity data, official document metadata, fiscal identifier metadata and photo/video verification status."
+  },
+  {
+    title: "2. Review",
+    text:
+      "The onboarding case enters compliance-oriented review. Only an approved review state can create IPR Verified status inside the HBCE operational framework."
+  },
+  {
+    title: "3. Authorize",
+    text:
+      "IPR Card and operational certificate prepare the subject for JOKER-C2 access, but the access gate still denies by default until every condition is valid."
+  }
+] as const;
+
+const FUTURE_INTEGRATION_LAYERS = [
+  "Protected storage for identity documents, photos and videos",
+  "Hash-only public references for minimized verification",
+  "Human or provider-assisted identity review",
+  "EVT event continuity for onboarding operations",
+  "OPC proof references for audit reconstruction",
+  "Server-side JOKER-C2 access enforcement"
+] as const;
+
 export default function OnboardingPage() {
   return (
     <div className="hbce-container">
@@ -46,37 +73,20 @@ export default function OnboardingPage() {
           <p>
             This app does not grant JOKER-C2 access after a simple account
             registration. The subject must complete operational identity
-            verification and pass the access gate.
+            verification, receive IPR Verified status, obtain an IPR Card, hold
+            an active operational certificate and pass the access gate.
           </p>
         </div>
       </section>
 
       <section className="hbce-section">
         <div className="hbce-grid hbce-grid--3">
-          <div className="hbce-card">
-            <h2>1. Collect</h2>
-            <p>
-              The app collects registration data, identity data, official
-              document metadata, fiscal identifier metadata and photo/video
-              verification status.
-            </p>
-          </div>
-
-          <div className="hbce-card">
-            <h2>2. Review</h2>
-            <p>
-              The onboarding case enters review. Only approved review state can
-              create IPR Verified status inside the HBCE operational framework.
-            </p>
-          </div>
-
-          <div className="hbce-card">
-            <h2>3. Authorize</h2>
-            <p>
-              IPR Card and operational certificate prepare the subject for
-              JOKER-C2 access, but the access gate still denies by default.
-            </p>
-          </div>
+          {ONBOARDING_PILLARS.map((pillar) => (
+            <div className="hbce-card" key={pillar.title}>
+              <h2>{pillar.title}</h2>
+              <p>{pillar.text}</p>
+            </div>
+          ))}
         </div>
       </section>
 
@@ -85,9 +95,9 @@ export default function OnboardingPage() {
           <h2>Canonical onboarding path</h2>
           <p>
             Every step has an operational purpose. In the MVP, the flow uses
-            mock states only; in future implementation, the same structure can
-            connect to secure storage, verification providers, EVT, OPC and the
-            JOKER-C2 runtime bridge.
+            synthetic states only; in future implementation, the same structure
+            can connect to secure storage, verification providers, EVT, OPC and
+            the JOKER-C2 runtime bridge.
           </p>
 
           <div style={{ marginTop: "18px" }}>
@@ -97,12 +107,31 @@ export default function OnboardingPage() {
       </section>
 
       <section className="hbce-section">
+        <div className="hbce-card">
+          <p className="hbce-kicker">Implementation direction</p>
+          <h2>From demo onboarding to governed operational identity.</h2>
+          <p>
+            The current repository must remain safe for public development. It
+            should demonstrate the architecture without storing real identity
+            material, real documents, real fiscal identifiers, production
+            secrets or biometric evidence.
+          </p>
+
+          <ul className="hbce-list">
+            {FUTURE_INTEGRATION_LAYERS.map((layer) => (
+              <li key={layer}>{layer}</li>
+            ))}
+          </ul>
+        </div>
+      </section>
+
+      <section className="hbce-section">
         <div className="hbce-grid hbce-grid--2">
           <BoundaryNotice title="Privacy boundary">
             {PRIVACY_BOUNDARY_TEXT}
           </BoundaryNotice>
 
-          <BoundaryNotice title="Security boundary">
+          <BoundaryNotice title="Security boundary" tone="danger">
             {SECURITY_BOUNDARY_TEXT}
           </BoundaryNotice>
         </div>
