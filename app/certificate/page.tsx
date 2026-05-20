@@ -4,12 +4,28 @@ import { CERTIFICATE_BOUNDARY_TEXT, ROUTES } from "@/lib/constants";
 import {
   approvedCertificateRecord,
   approvedOnboardingRecord
-} from "@/lib/mock-onboarding";
+} from "@/lib/mock-data";
 
 import { BoundaryNotice } from "@/components/BoundaryNotice";
 import { CertificatePreview } from "@/components/CertificatePreview";
 import { OnboardingStepper } from "@/components/OnboardingStepper";
 import { StatusBadge } from "@/components/StatusBadge";
+
+const CERTIFICATE_ACTIVATION_CONDITIONS = [
+  "IPR status must be verified",
+  "IPR Card status must be issued",
+  "Operational certificate status must be active",
+  "Revocation state must be clear",
+  "JOKER-C2 access must still pass the final access gate"
+] as const;
+
+const CERTIFICATE_BOUNDARY_ITEMS = [
+  "Internal HBCE operational certificate reference",
+  "Linked to verified IPR status",
+  "Linked to issued IPR Card",
+  "Controlled by revocation state",
+  "Not a qualified eIDAS certificate unless formally integrated with a recognized trust service"
+] as const;
 
 export default function CertificatePage() {
   return (
@@ -21,19 +37,21 @@ export default function CertificatePage() {
 
         <p className="hbce-lead">
           The operational certificate is the internal HBCE authorization
-          reference that links verified IPR, issued IPR Card, access scope and
-          governed JOKER-C2 access evaluation.
+          reference that links verified IPR, issued IPR Card, access scope,
+          revocation state and governed JOKER-C2 access evaluation.
         </p>
       </section>
 
       <section className="hbce-section">
         <div className="hbce-grid hbce-grid--2">
           <div className="hbce-card hbce-card--soft">
-            <h2>Activation conditions</h2>
+            <p className="hbce-kicker">Activation conditions</p>
+            <h2>Certificate activation requires verified operational identity.</h2>
+
             <p>
               Certificate activation requires verified IPR, issued IPR Card and
-              clear revocation state. Without an active certificate, JOKER-C2
-              access remains denied.
+              clear revocation state. Without an active operational certificate,
+              JOKER-C2 access remains denied or unavailable by default.
             </p>
 
             <div className="hbce-card-preview__meta">
@@ -63,19 +81,40 @@ export default function CertificatePage() {
               <div className="hbce-meta">
                 <span className="hbce-meta__label">Revocation state</span>
                 <span className="hbce-meta__value">
-                  <StatusBadge status={approvedOnboardingRecord.revocationState} />
+                  <StatusBadge
+                    status={approvedOnboardingRecord.revocationState}
+                  />
                 </span>
               </div>
             </div>
+
+            <div className="hbce-divider" />
+
+            <ul className="hbce-list">
+              {CERTIFICATE_ACTIVATION_CONDITIONS.map((condition) => (
+                <li key={condition}>{condition}</li>
+              ))}
+            </ul>
           </div>
 
           <div className="hbce-card">
-            <h2>Operational meaning</h2>
+            <p className="hbce-kicker">Operational meaning</p>
+            <h2>The certificate bridges IPR Card and access gate.</h2>
+
             <p>
               The certificate defines the operational authorization scope. It is
               the internal bridge between IPR Card issuance and the JOKER-C2
-              access gate.
+              access gate, but it does not authorize runtime access without the
+              final fail-closed evaluation.
             </p>
+
+            <div className="hbce-divider" />
+
+            <ul className="hbce-list">
+              {CERTIFICATE_BOUNDARY_ITEMS.map((item) => (
+                <li key={item}>{item}</li>
+              ))}
+            </ul>
 
             <div className="hbce-actions">
               <Link className="hbce-btn" href={ROUTES.iprCard}>
