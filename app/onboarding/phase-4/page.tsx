@@ -23,7 +23,7 @@ const fields: IprPhaseFieldDefinition[] = [
     placeholder:
       "Confermo di essere il soggetto che richiede il certificato operativo HBCE IPR.",
     helperText:
-      "The subject must confirm the request in a clear operational declaration."
+      "This declaration is written inside the private HBCE-IPR certificate and also hashed for verification."
   }
 ];
 
@@ -32,7 +32,7 @@ const evidenceInputs: IprPhaseEvidenceInputDefinition[] = [
     kind: "SELFIE",
     label: "Upload front selfie",
     description:
-      "Upload a clear frontal selfie of the subject requesting the HBCE-IPR certificate.",
+      "Upload a clear frontal selfie of the subject requesting the HBCE-IPR certificate. The file itself is not embedded in the certificate; only its SHA-256 hash is stored.",
     accept: "image/*",
     required: true
   },
@@ -40,7 +40,7 @@ const evidenceInputs: IprPhaseEvidenceInputDefinition[] = [
     kind: "VIDEO_VERIFICATION",
     label: "Upload video verification",
     description:
-      "Upload a short video verification containing the liveness declaration.",
+      "Upload a short video verification containing the liveness declaration. The file itself is not embedded in the certificate; only its SHA-256 hash is stored.",
     accept: "video/*",
     required: true
   }
@@ -83,18 +83,55 @@ async function buildPhase4LivenessData(
   const selfieSha256 = getUploadHash(context, "SELFIE");
   const videoSha256 = getUploadHash(context, "VIDEO_VERIFICATION");
 
-  return {
-    selfie_sha256: selfieSha256,
-    video_sha256: videoSha256,
+  const privateFields = {
+    liveness_declaration: getStringValue(context, "liveness_declaration"),
+    liveness_timestamp: context.issuedAt
+  };
+
+  const hashFields = {
     liveness_declaration_sha256: await hashPhaseValue(
       context,
       "liveness_declaration"
-    ),
+    )
+  };
+
+  const evidenceHashes = {
+    selfie_sha256: selfieSha256,
+    video_sha256: videoSha256
+  };
+
+  const livenessMetadataHash = await sha256Canonical({
+    kind: "HBCE_IPR_PHASE_4_LIVENESS_METADATA",
+    private_fields: privateFields,
+    hash_fields: hashFields,
+    evidence_hashes: evidenceHashes,
+    previous_payload_sha256:
+      context.previousCertificate?.hash_integrity.payload_sha256 ?? null,
+    issued_at: context.issuedAt
+  });
+
+  return {
+    certificate_visibility: "PRIVATE_PORTABLE_CERTIFICATE",
+    public_registry_mode: "HASH_ONLY",
+    phase_scope: "LIVENESS_CHECK",
+
+    private_fields: privateFields,
+    hash_fields: hashFields,
+    evidence_hashes: evidenceHashes,
+
+    selfie_sha256: selfieSha256,
+    video_sha256: videoSha256,
+    liveness_declaration_sha256: hashFields.liveness_declaration_sha256,
+    liveness_metadata_hash: livenessMetadataHash,
     liveness_timestamp: context.issuedAt,
+
     previous_payload_sha256:
       context.previousCertificate?.hash_integrity.payload_sha256 ?? null,
     next_required_phase: "PRIVACY_COMPLIANCE",
-    issued_at: context.issuedAt
+    issued_at: context.issuedAt,
+
+    privacy_boundary:
+      "This is a private portable HBCE-IPR certificate downloaded by the subject. The liveness declaration is stored inside private_fields. Selfie and video evidence are represented only by SHA-256 hashes and must be stored in protected backend storage in production."
   };
 }
 
@@ -108,7 +145,7 @@ export default function Phase4LivenessPage() {
         buildPhaseData={buildPhase4LivenessData}
         submitLabel="Generate HBCE IPR Certificate 04"
         successTitle="HBCE IPR Certificate 04 generated"
-        successDescription="The liveness certificate has been generated and downloaded. Use this file in Phase 5 — Privacy & Compliance."
+        successDescription="The private liveness certificate has been generated and downloaded. It contains the liveness declaration, the corresponding hash and the SHA-256 hashes of selfie and video evidence. Use this file in Phase 5 — Privacy & Compliance."
       />
     </div>
   );
