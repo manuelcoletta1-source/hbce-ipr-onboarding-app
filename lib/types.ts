@@ -62,7 +62,10 @@ export type JokerAccessStatus =
   | "revoked"
   | "suspended";
 
-export type AccessDecision = "deny_access" | "allow_governed_access";
+export type AccessDecision =
+  | "deny_access"
+  | "allow_governed_access"
+  | "pending_access";
 
 export type OnboardingStep =
   | "start"
@@ -120,15 +123,26 @@ export type EventType =
   | "IPR_SUSPENDED"
   | "IPR_REVOKED";
 
+export type RecordTargetType =
+  | "ipr"
+  | "ipr_card"
+  | "certificate"
+  | "joker_c2_access"
+  | "onboarding_record";
+
+export type HashReference = string;
+export type IsoDateTime = string;
+export type StorageReference = string;
+
 export type SubjectRecord = {
   subjectId: string;
-  emailHash: string;
+  emailHash: HashReference;
   firstName: string;
   lastName: string;
   country: string;
   preferredLanguage: string;
-  createdAt: string;
-  updatedAt: string;
+  createdAt: IsoDateTime;
+  updatedAt: IsoDateTime;
 };
 
 export type IdentityProfile = {
@@ -144,8 +158,8 @@ export type IdentityProfile = {
   residentialRegion?: string;
   residentialCity?: string;
   identityDataStatus: VerificationStatus;
-  createdAt: string;
-  updatedAt: string;
+  createdAt: IsoDateTime;
+  updatedAt: IsoDateTime;
 };
 
 export type DocumentRecord = {
@@ -155,12 +169,12 @@ export type DocumentRecord = {
   documentType: DocumentType;
   documentCountry: string;
   documentExpiryDate: string;
-  documentNumberHash: string;
-  documentFileHash: string;
-  documentStorageReference: string;
+  documentNumberHash: HashReference;
+  documentFileHash: HashReference;
+  documentStorageReference: StorageReference;
   documentStatus: VerificationStatus;
-  createdAt: string;
-  updatedAt: string;
+  createdAt: IsoDateTime;
+  updatedAt: IsoDateTime;
 };
 
 export type FiscalIdentifierRecord = {
@@ -169,26 +183,26 @@ export type FiscalIdentifierRecord = {
   onboardingId: string;
   fiscalIdentifierType: FiscalIdentifierType;
   fiscalIdentifierCountry: string;
-  fiscalIdentifierHash: string;
+  fiscalIdentifierHash: HashReference;
   fiscalIdentifierMasked: string;
   fiscalIdentifierStatus: VerificationStatus;
-  createdAt: string;
-  updatedAt: string;
+  createdAt: IsoDateTime;
+  updatedAt: IsoDateTime;
 };
 
 export type PhotoVideoVerificationRecord = {
   photoVideoVerificationId: string;
   subjectId: string;
   onboardingId: string;
-  photoReference: string;
-  videoReference: string;
-  photoHash: string;
-  videoHash: string;
+  photoReference: StorageReference;
+  videoReference: StorageReference;
+  photoHash: HashReference;
+  videoHash: HashReference;
   photoVerificationStatus: VerificationStatus;
   videoVerificationStatus: VerificationStatus;
   livenessStatus: VerificationStatus;
-  createdAt: string;
-  updatedAt: string;
+  createdAt: IsoDateTime;
+  updatedAt: IsoDateTime;
 };
 
 export type ReviewRecord = {
@@ -199,9 +213,9 @@ export type ReviewRecord = {
   riskFlags: string[];
   reviewDecision: ReviewDecision;
   reviewerReference: string;
-  decisionTimestamp: string;
-  createdAt: string;
-  updatedAt: string;
+  decisionTimestamp: IsoDateTime;
+  createdAt: IsoDateTime;
+  updatedAt: IsoDateTime;
 };
 
 export type IprRecord = {
@@ -210,13 +224,13 @@ export type IprRecord = {
   onboardingId: string;
   iprStatus: IprStatus;
   issuer: string;
-  issuedAt: string;
-  expiresAt: string;
+  issuedAt: IsoDateTime;
+  expiresAt: IsoDateTime;
   scope: string;
-  hashReference: string;
+  hashReference: HashReference;
   previousIprReference?: string;
-  createdAt: string;
-  updatedAt: string;
+  createdAt: IsoDateTime;
+  updatedAt: IsoDateTime;
 };
 
 export type IprCardRecord = {
@@ -225,14 +239,14 @@ export type IprCardRecord = {
   subjectId: string;
   cardStatus: IprCardStatus;
   issuer: string;
-  issuedAt: string;
-  expiresAt: string;
+  issuedAt: IsoDateTime;
+  expiresAt: IsoDateTime;
   accessScope: string;
   certificateReference: string;
   revocationState: RevocationState;
-  cardHashReference: string;
-  createdAt: string;
-  updatedAt: string;
+  cardHashReference: HashReference;
+  createdAt: IsoDateTime;
+  updatedAt: IsoDateTime;
 };
 
 export type OperationalCertificateRecord = {
@@ -241,13 +255,13 @@ export type OperationalCertificateRecord = {
   subjectId: string;
   certificateStatus: CertificateStatus;
   issuer: string;
-  issuedAt: string;
-  expiresAt: string;
+  issuedAt: IsoDateTime;
+  expiresAt: IsoDateTime;
   scope: string;
-  hashReference: string;
+  hashReference: HashReference;
   revocationState: RevocationState;
-  createdAt: string;
-  updatedAt: string;
+  createdAt: IsoDateTime;
+  updatedAt: IsoDateTime;
 };
 
 export type OnboardingRecord = {
@@ -268,8 +282,8 @@ export type OnboardingRecord = {
   certificateStatus: CertificateStatus;
   revocationState: RevocationState;
   jokerC2AccessStatus: JokerAccessStatus;
-  createdAt: string;
-  updatedAt: string;
+  createdAt: IsoDateTime;
+  updatedAt: IsoDateTime;
 };
 
 export type AccessGateResult = {
@@ -285,7 +299,7 @@ export type AccessGateResult = {
   requiredConditions: string[];
   currentConditions: string[];
   gatewayReference: string;
-  decidedAt: string;
+  decidedAt: IsoDateTime;
 };
 
 export type AuditEventReference = {
@@ -295,27 +309,49 @@ export type AuditEventReference = {
   iprId: string;
   onboardingId: string;
   previousEventReference?: string;
-  eventHash: string;
-  eventTimestamp: string;
+  eventHash: HashReference;
+  eventTimestamp: IsoDateTime;
   decisionState: string;
-  createdAt: string;
+  createdAt: IsoDateTime;
 };
 
 export type RevocationRecord = {
   revocationId: string;
   subjectId: string;
   iprId: string;
-  targetType:
-    | "ipr"
-    | "ipr_card"
-    | "certificate"
-    | "joker_c2_access"
-    | "onboarding_record";
+  targetType: RecordTargetType;
   targetId: string;
   revocationState: RevocationState;
   reasonCode: string;
   issuedBy: string;
-  issuedAt: string;
-  createdAt: string;
-  updatedAt: string;
+  issuedAt: IsoDateTime;
+  createdAt: IsoDateTime;
+  updatedAt: IsoDateTime;
+};
+
+export type PublicIprCardView = {
+  iprId: string;
+  iprCardId: string;
+  subjectId: string;
+  issuer: string;
+  cardStatus: IprCardStatus;
+  certificateStatus: CertificateStatus;
+  accessScope: string;
+  revocationState: RevocationState;
+  issuedAt: IsoDateTime;
+  expiresAt: IsoDateTime;
+  cardHashReference: HashReference;
+};
+
+export type PublicCertificateView = {
+  certificateId: string;
+  iprId: string;
+  subjectId: string;
+  issuer: string;
+  certificateStatus: CertificateStatus;
+  scope: string;
+  revocationState: RevocationState;
+  issuedAt: IsoDateTime;
+  expiresAt: IsoDateTime;
+  hashReference: HashReference;
 };
