@@ -1,0 +1,81 @@
+# Dependencies
+node_modules/
+
+# Next.js
+.next/
+out/
+build/
+dist/
+
+# Production
+.vercel/
+.netlify/
+
+# TypeScript
+*.tsbuildinfo
+next-env.d.ts
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# Environment variables
+.env
+.env.*
+!.env.example
+
+# Local runtime data
+.tmp/
+tmp/
+temp/
+.cache/
+.local/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Sensitive onboarding material
+uploads/
+documents/
+identity-documents/
+fiscal-identifiers/
+photos/
+videos/
+biometric/
+liveness/
+private-storage/
+secure-storage/
+review-notes/
+production-records/
+
+# Local databases
+*.sqlite
+*.sqlite3
+*.db
+
+# Keys and certificates
+*.pem
+*.key
+*.p12
+*.pfx
+*.crt
+*.cer
+
+# Coverage
+coverage/
+
+# Package manager cache
+.pnpm-store/
+.yarn/
