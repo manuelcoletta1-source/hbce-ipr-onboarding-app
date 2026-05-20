@@ -80,6 +80,11 @@ button {
   border: 0;
 }
 
+button,
+a {
+  -webkit-tap-highlight-color: transparent;
+}
+
 code,
 pre,
 .hbce-mono {
@@ -243,6 +248,10 @@ svg {
 
 .hbce-grid--3 {
   grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.hbce-grid--4 {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
 }
 
 .hbce-card {
@@ -640,6 +649,12 @@ svg {
   color: var(--hbce-text);
 }
 
+@media (max-width: 1080px) {
+  .hbce-grid--4 {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
 @media (max-width: 880px) {
   .hbce-header {
     position: static;
@@ -656,7 +671,8 @@ svg {
   }
 
   .hbce-grid--2,
-  .hbce-grid--3 {
+  .hbce-grid--3,
+  .hbce-grid--4 {
     grid-template-columns: 1fr;
   }
 
