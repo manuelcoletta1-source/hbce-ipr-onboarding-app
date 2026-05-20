@@ -1,4 +1,4 @@
-import { formatAccessDecision } from "@/lib/format";
+import { formatAccessDecision, formatDate } from "@/lib/format";
 
 import type { AccessGateResult } from "@/lib/types";
 
@@ -9,18 +9,20 @@ type AccessGatePanelProps = {
   result: AccessGateResult;
 };
 
+function getPanelClassName(result: AccessGateResult): string {
+  if (result.decision === "allow_governed_access") {
+    return "hbce-access-panel hbce-access-panel--allow";
+  }
+
+  return "hbce-access-panel hbce-access-panel--deny";
+}
+
 export function AccessGatePanel({ result }: AccessGatePanelProps) {
   const isAllowed = result.decision === "allow_governed_access";
 
   return (
     <section className="hbce-section">
-      <div
-        className={
-          isAllowed
-            ? "hbce-access-panel hbce-access-panel--allow"
-            : "hbce-access-panel hbce-access-panel--deny"
-        }
-      >
+      <div className={getPanelClassName(result)}>
         <div className="hbce-card-preview__top">
           <div>
             <p className="hbce-kicker">JOKER-C2 Access Gate</p>
@@ -58,6 +60,13 @@ export function AccessGatePanel({ result }: AccessGatePanelProps) {
         <div className="hbce-divider" />
 
         <div className="hbce-card-preview__meta">
+          <div className="hbce-meta">
+            <span className="hbce-meta__label">Subject ID</span>
+            <span className="hbce-meta__value hbce-mono">
+              {result.subjectId}
+            </span>
+          </div>
+
           <div className="hbce-meta">
             <span className="hbce-meta__label">IPR ID</span>
             <span className="hbce-meta__value hbce-mono">{result.iprId}</span>
@@ -97,6 +106,13 @@ export function AccessGatePanel({ result }: AccessGatePanelProps) {
               <StatusBadge status={result.jokerC2AccessStatus} />
             </span>
           </div>
+
+          <div className="hbce-meta">
+            <span className="hbce-meta__label">Decision time</span>
+            <span className="hbce-meta__value">
+              {formatDate(result.decidedAt)}
+            </span>
+          </div>
         </div>
 
         {isAllowed ? (
@@ -119,8 +135,8 @@ export function AccessGatePanel({ result }: AccessGatePanelProps) {
           tone={isAllowed ? "info" : "danger"}
         >
           {isAllowed
-            ? "Governed access is enabled because all operational identity requirements are valid."
-            : "JOKER-C2 remains blocked until verified IPR, issued IPR Card, active operational certificate and clear revocation state are present."}
+            ? "Governed access is enabled because all operational identity requirements are valid. In production, this authorization must be enforced server-side."
+            : "JOKER-C2 remains blocked until verified IPR, issued IPR Card, active operational certificate and clear revocation state are present. Frontend state must never authorize runtime access."}
         </BoundaryNotice>
       </div>
     </section>
