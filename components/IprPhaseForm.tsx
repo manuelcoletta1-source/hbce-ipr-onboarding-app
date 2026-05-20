@@ -133,7 +133,7 @@ async function buildDefaultPhaseData(
 
   return {
     values_hash: valueHash,
-    upload_hashes,
+    upload_hashes: uploadHashes,
     generated_from_previous_payload_sha256:
       context.previousCertificate?.hash_integrity.payload_sha256 ?? null,
     issued_at: context.issuedAt
@@ -178,8 +178,12 @@ export default function IprPhaseForm({
     useState<HbceGeneratedCertificate<JsonObject> | null>(null);
 
   const requiresPreviousCertificate = phase.requires_previous_certificate;
+
   const requiredFieldNames = useMemo(
-    () => fields.filter((field) => field.required !== false).map((field) => field.name),
+    () =>
+      fields
+        .filter((field) => field.required !== false)
+        .map((field) => field.name),
     [fields]
   );
 
@@ -256,7 +260,9 @@ export default function IprPhaseForm({
     setMissingUploads(uploadValidation.missing_uploads);
 
     if (!fieldValidation.valid || !uploadValidation.valid) {
-      setError("Complete all required fields and uploads before generating the certificate.");
+      setError(
+        "Complete all required fields and uploads before generating the certificate."
+      );
       return;
     }
 
