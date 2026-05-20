@@ -68,7 +68,7 @@ const fields: IprPhaseFieldDefinition[] = [
   }
 ];
 
-const CONSENT_LABELS: Record<string, string> = {
+const CONSENT_LABELS = {
   privacy_consent: "I accept data processing for IPR verification.",
   hash_only_acknowledgement:
     "I accept the hash-only portable certificate logic.",
@@ -81,23 +81,29 @@ const CONSENT_LABELS: Record<string, string> = {
     "I accept that IPR does not replace CIE, SPID, EUDI Wallet or official state identity.",
   internal_operational_identity_acknowledgement:
     "I accept that the HBCE-IPR certificate is an internal HBCE operational identity certificate."
-};
+} as const;
+
+type ConsentFieldName = keyof typeof CONSENT_LABELS;
+
+function getConsentLabel(fieldName: ConsentFieldName): string {
+  return CONSENT_LABELS[fieldName];
+}
 
 function getBooleanValue(
   context: IprPhaseFormBuildDataContext,
-  fieldName: string
+  fieldName: ConsentFieldName
 ): boolean {
   return Boolean(context.values[fieldName]);
 }
 
 async function hashConsent(
   context: IprPhaseFormBuildDataContext,
-  fieldName: string
+  fieldName: ConsentFieldName
 ): Promise<string> {
   return sha256Canonical({
     kind: "HBCE_IPR_PHASE_5_CONSENT",
     field: fieldName,
-    label: CONSENT_LABELS[fieldName],
+    label: getConsentLabel(fieldName),
     accepted: getBooleanValue(context, fieldName),
     issued_at: context.issuedAt
   });
@@ -108,34 +114,34 @@ async function buildPhase5PrivacyComplianceData(
 ): Promise<JsonObject> {
   const privateFields = {
     privacy_consent: {
-      label: CONSENT_LABELS.privacy_consent,
+      label: getConsentLabel("privacy_consent"),
       accepted: getBooleanValue(context, "privacy_consent")
     },
     hash_only_acknowledgement: {
-      label: CONSENT_LABELS.hash_only_acknowledgement,
+      label: getConsentLabel("hash_only_acknowledgement"),
       accepted: getBooleanValue(context, "hash_only_acknowledgement")
     },
     data_accuracy_confirmation: {
-      label: CONSENT_LABELS.data_accuracy_confirmation,
+      label: getConsentLabel("data_accuracy_confirmation"),
       accepted: getBooleanValue(context, "data_accuracy_confirmation")
     },
     document_authenticity_confirmation: {
-      label: CONSENT_LABELS.document_authenticity_confirmation,
+      label: getConsentLabel("document_authenticity_confirmation"),
       accepted: getBooleanValue(context, "document_authenticity_confirmation")
     },
     hbce_policy_acceptance: {
-      label: CONSENT_LABELS.hbce_policy_acceptance,
+      label: getConsentLabel("hbce_policy_acceptance"),
       accepted: getBooleanValue(context, "hbce_policy_acceptance")
     },
     no_state_identity_claim_acknowledgement: {
-      label: CONSENT_LABELS.no_state_identity_claim_acknowledgement,
+      label: getConsentLabel("no_state_identity_claim_acknowledgement"),
       accepted: getBooleanValue(
         context,
         "no_state_identity_claim_acknowledgement"
       )
     },
     internal_operational_identity_acknowledgement: {
-      label: CONSENT_LABELS.internal_operational_identity_acknowledgement,
+      label: getConsentLabel("internal_operational_identity_acknowledgement"),
       accepted: getBooleanValue(
         context,
         "internal_operational_identity_acknowledgement"
