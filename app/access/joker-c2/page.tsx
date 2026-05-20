@@ -1,13 +1,13 @@
 import Link from "next/link";
 
-import { evaluateJokerC2Access } from "@/lib/access-decision";
+import { evaluateJokerC2Access } from "@/lib/access-gate";
 import { ROUTES, SECURITY_BOUNDARY_TEXT } from "@/lib/constants";
 import {
   approvedOnboardingRecord,
   deniedOnboardingRecord,
   pendingOnboardingRecord,
   revokedOnboardingRecord
-} from "@/lib/mock-onboarding";
+} from "@/lib/mock-data";
 
 import { AccessGatePanel } from "@/components/AccessGatePanel";
 import { BoundaryNotice } from "@/components/BoundaryNotice";
@@ -18,28 +18,28 @@ const demoCases = [
   {
     title: "Approved operational identity",
     description:
-      "Verified IPR, issued IPR Card, active certificate and clear revocation state are present.",
+      "Verified IPR, issued IPR Card, active operational certificate and clear revocation state are present.",
     record: approvedOnboardingRecord
   },
   {
     title: "Pending onboarding",
     description:
-      "The onboarding case is still pending. The access gate must deny JOKER-C2 access.",
+      "The onboarding case is still pending or under review. The access gate must keep JOKER-C2 unavailable until verification is complete.",
     record: pendingOnboardingRecord
   },
   {
     title: "Denied onboarding",
     description:
-      "The onboarding case failed verification. IPR Verified cannot be used for access.",
+      "The onboarding case failed verification. IPR Verified cannot be assigned and governed AI access remains blocked.",
     record: deniedOnboardingRecord
   },
   {
     title: "Revoked operational identity",
     description:
-      "The identity state is revoked. Revocation overrides every previous approval.",
+      "The operational identity state is revoked. Revocation overrides every previous approval and access state.",
     record: revokedOnboardingRecord
   }
-];
+] as const;
 
 export default function JokerC2AccessPage() {
   const primaryAccessResult = evaluateJokerC2Access(approvedOnboardingRecord);
@@ -55,7 +55,7 @@ export default function JokerC2AccessPage() {
           JOKER-C2 access is not granted through a simple email account,
           password or subscription. The access gate evaluates verified IPR,
           issued IPR Card, active operational certificate and clear revocation
-          state.
+          state before governed runtime access can be enabled.
         </p>
       </section>
 
@@ -64,8 +64,9 @@ export default function JokerC2AccessPage() {
           <p className="hbce-kicker">Final access rule</p>
           <h2>No verified IPR, no governed JOKER-C2 access.</h2>
           <p>
-            The default decision is denial. The access gate becomes permissive
-            only when all required operational identity conditions are valid.
+            The default posture is fail-closed. The access gate becomes
+            permissive only when every required operational identity condition is
+            valid, current and not revoked.
           </p>
 
           <div className="hbce-actions">
@@ -86,8 +87,10 @@ export default function JokerC2AccessPage() {
         <div className="hbce-card">
           <h2>Demo access decisions</h2>
           <p>
-            These mock states prove that the access gate is not decorative. Only
-            the approved operational identity produces allow_governed_access.
+            These synthetic states demonstrate that the access gate is not
+            decorative. Only the approved operational identity produces governed
+            access. Pending, denied and revoked states remain unavailable or
+            blocked according to fail-closed logic.
           </p>
 
           <div className="hbce-grid hbce-grid--2" style={{ marginTop: "18px" }}>
