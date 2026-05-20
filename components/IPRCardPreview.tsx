@@ -10,6 +10,14 @@ type IPRCardPreviewProps = {
   card: IprCardRecord;
 };
 
+const CARD_BOUNDARY_ITEMS = [
+  "Internal HBCE operational credential",
+  "Connected to verified IPR status",
+  "Linked to operational certificate reference",
+  "Controlled by revocation state",
+  "Does not expose raw identity material"
+] as const;
+
 export function IPRCardPreview({ card }: IPRCardPreviewProps) {
   return (
     <section className="hbce-section">
@@ -20,6 +28,8 @@ export function IPRCardPreview({ card }: IPRCardPreviewProps) {
             <h2 className="hbce-card-preview__title">IPR Card</h2>
             <p className="hbce-small">
               Operational identity credential issued inside the HBCE ecosystem.
+              It connects verified IPR status to access scope, certificate
+              reference, revocation state and governed runtime authorization.
             </p>
           </div>
 
@@ -40,6 +50,13 @@ export function IPRCardPreview({ card }: IPRCardPreviewProps) {
           </div>
 
           <div className="hbce-meta">
+            <span className="hbce-meta__label">Subject ID</span>
+            <span className="hbce-meta__value hbce-mono">
+              {card.subjectId}
+            </span>
+          </div>
+
+          <div className="hbce-meta">
             <span className="hbce-meta__label">Issuer</span>
             <span className="hbce-meta__value">{card.issuer}</span>
           </div>
@@ -48,6 +65,13 @@ export function IPRCardPreview({ card }: IPRCardPreviewProps) {
             <span className="hbce-meta__label">Access scope</span>
             <span className="hbce-meta__value hbce-mono">
               {card.accessScope}
+            </span>
+          </div>
+
+          <div className="hbce-meta">
+            <span className="hbce-meta__label">Card status</span>
+            <span className="hbce-meta__value">
+              <StatusBadge status={card.cardStatus} />
             </span>
           </div>
 
@@ -86,10 +110,18 @@ export function IPRCardPreview({ card }: IPRCardPreviewProps) {
             </span>
           </div>
         </div>
+
+        <div className="hbce-divider" />
+
+        <ul className="hbce-list">
+          {CARD_BOUNDARY_ITEMS.map((item) => (
+            <li key={item}>{item}</li>
+          ))}
+        </ul>
       </div>
 
       <div style={{ marginTop: "18px" }}>
-        <BoundaryNotice title="Legal boundary">
+        <BoundaryNotice title="IPR Card legal boundary">
           {LEGAL_BOUNDARY_TEXT}
         </BoundaryNotice>
       </div>
