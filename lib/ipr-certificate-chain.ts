@@ -308,6 +308,16 @@ function buildInitialVerificationState(): JsonObject {
   };
 }
 
+function getVerificationStateForSubjectCreated(
+  phaseData: JsonObject
+): JsonObject {
+  if (isPlainRecord(phaseData.verification_state)) {
+    return canonicalize(phaseData.verification_state) as JsonObject;
+  }
+
+  return buildInitialVerificationState();
+}
+
 function enrichSubjectCreatedPhaseData(params: {
   phaseData: JsonObject;
   issuedAt: IsoDateTime;
@@ -317,16 +327,17 @@ function enrichSubjectCreatedPhaseData(params: {
     ...params.phaseData,
     certificate_role: "STEP_1_CLIENT_INTAKE",
     certificate_boundary:
+      params.phaseData.certificate_boundary ??
       "This file records the creation of the HBCE IPR customer profile request. It does not certify verified identity, it does not issue an IPR Card and it does not grant JOKER-C2 access.",
-    ipr_status: "NOT_YET_ISSUED",
-    ipr_card_status: "NOT_ISSUED",
-    joker_c2_access: "DENIED",
+    ipr_status: params.phaseData.ipr_status ?? "NOT_YET_ISSUED",
+    ipr_card_status: params.phaseData.ipr_card_status ?? "NOT_ISSUED",
+    joker_c2_access: params.phaseData.joker_c2_access ?? "DENIED",
     next_required_phase: params.nextRequiredPhase,
     created_at: buildHbceTimestamp(params.issuedAt),
     created_at_utc: params.issuedAt,
     created_at_local: toEuropeRomeIso(params.issuedAt),
     timezone: HBCE_TIMEZONE,
-    verification_state: buildInitialVerificationState()
+    verification_state: getVerificationStateForSubjectCreated(params.phaseData)
   };
 
   if (
