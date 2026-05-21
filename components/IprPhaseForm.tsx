@@ -1,6 +1,7 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 
 import IprCertificateUploader from "./IprCertificateUploader";
 
@@ -11,10 +12,12 @@ import {
   nowIso,
   sha256Canonical,
   sha256File,
-  toEuropeRomeIso
+  toEuropeRomeIso,
+  validatePreviousHbceIprCertificate
 } from "../lib/ipr-certificate-chain";
 
 import {
+  getContinuationRouteFromCertificate,
   validateRequiredFields,
   validateRequiredUploads
 } from "../lib/ipr-phase-map";
@@ -24,6 +27,7 @@ import type {
   HbceEvidenceUploadKind,
   HbceGeneratedCertificate,
   HbceIprCertificate,
+  HbceIprNextPhaseCode,
   HbceIprPhaseDefinition,
   HbceIprPhaseRuntimeStatus,
   HbceIprSubject,
@@ -76,6 +80,58 @@ export type IprPhaseFormProps = {
   onGenerated?: (certificate: HbceGeneratedCertificate<JsonObject>) => void;
 };
 
+const SESSION_CERTIFICATE_PREFIX = "HBCE_IPR_CERTIFICATE_FOR_NEXT_PHASE";
+
+function getSessionCertificateKey(nextPhase: HbceIprNextPhaseCode): string {
+  return `${SESSION_CERTIFICATE_PREFIX}:${nextPhase}`;
+}
+
+function storeCertificateForNextPhase(certificate: HbceIprCertificate): void {
+  if (typeof window === "undefined") {
+    return;
+  }
+
+  const nextPhase = certificate.next.next_phase;
+
+  if (nextPhase === "COMPLETED" || nextPhase === "JOKER_C2_ACCESS") {
+    return;
+  }
+
+  window.sessionStorage.setItem(
+    getSessionCertificateKey(nextPhase),
+    JSON.stringify(certificate)
+  );
+}
+
+function readStoredCertificateForPhase(
+  nextPhase: HbceIprNextPhaseCode
+): unknown | null {
+  if (typeof window === "undefined") {
+    return null;
+  }
+
+  const raw = window.sessionStorage.getItem(getSessionCertificateKey(nextPhase));
+
+  if (!raw) {
+    return null;
+  }
+
+  try {
+    return JSON.parse(raw) as unknown;
+  } catch {
+    window.sessionStorage.removeItem(getSessionCertificateKey(nextPhase));
+    return null;
+  }
+}
+
+function clearStoredCertificateForPhase(nextPhase: HbceIprNextPhaseCode): void {
+  if (typeof window === "undefined") {
+    return;
+  }
+
+  window.sessionStorage.removeItem(getSessionCertificateKey(nextPhase));
+}
+
 function getRuntimeStatus(
   phaseCode: HbceIprPhaseDefinition["phase_code"]
 ): HbceIprPhaseRuntimeStatus {
@@ -111,7 +167,10 @@ function normalizeFieldValue(value: string | boolean): string | boolean {
   return value.trim();
 }
 
-function normalizeSubjectValue(fieldName: string, value: string | boolean): string | boolean {
+function normalizeSubjectValue(
+  fieldName: string,
+  value: string | boolean
+): string | boolean {
   if (typeof value === "boolean") {
     return value;
   }
@@ -229,11 +288,16 @@ export default function IprPhaseForm({
   buildPhaseData,
   onGenerated
 }: IprPhaseFormProps) {
+  const router = useRouter();
+
   const [values, setValues] = useState<IprPhaseFormValues>(() =>
     createInitialValues(fields)
   );
   const [previousCertificate, setPreviousCertificate] =
     useState<HbceIprCertificate | null>(null);
+  const [previousCertificateSource, setPreviousCertificateSource] = useState<
+    "session" | "upload" | null
+  >(null);
   const [uploads, setUploads] = useState<HbceEvidenceUpload[]>([]);
   const [missingFields, setMissingFields] = useState<string[]>([]);
   const [missingUploads, setMissingUploads] = useState<
@@ -266,11 +330,76 @@ export default function IprPhaseForm({
     return phase.required_uploads;
   }, [evidenceInputs, phase.required_uploads]);
 
+  useEffect(() => {
+    let cancelled = false;
+
+    async function restorePreviousCertificateFromSession() {
+      if (!requiresPreviousCertificate) {
+        return;
+      }
+
+      if (!phase.expected_previous_phase) {
+        return;
+      }
+
+      if (previousCertificate) {
+        return;
+      }
+
+      const stored = readStoredCertificateForPhase(phase.next_required_phase);
+
+      if (!stored) {
+        return;
+      }
+
+      const validation = await validatePreviousHbceIprCertificate({
+        certificate: stored,
+        expected_previous_phase: phase.expected_previous_phase,
+        expected_next_phase: phase.next_required_phase
+      });
+
+      if (cancelled) {
+        return;
+      }
+
+      if (validation.valid) {
+        setPreviousCertificate(stored as HbceIprCertificate);
+        setPreviousCertificateSource("session");
+        setError("");
+        return;
+      }
+
+      clearStoredCertificateForPhase(phase.next_required_phase);
+      setPreviousCertificate(null);
+      setPreviousCertificateSource(null);
+      setError(
+        "The stored previous HBCE IPR certificate was rejected. Upload the required previous certificate manually."
+      );
+    }
+
+    void restorePreviousCertificateFromSession();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    phase.expected_previous_phase,
+    phase.next_required_phase,
+    previousCertificate,
+    requiresPreviousCertificate
+  ]);
+
   function updateValue(name: string, value: string | boolean) {
     setValues((current) => ({
       ...current,
       [name]: value
     }));
+  }
+
+  function clearPreviousCertificate() {
+    clearStoredCertificateForPhase(phase.next_required_phase);
+    setPreviousCertificate(null);
+    setPreviousCertificateSource(null);
   }
 
   async function handleEvidenceUpload(
@@ -375,7 +504,16 @@ export default function IprPhaseForm({
       setGeneratedCertificate(generated);
       onGenerated?.(generated);
 
+      storeCertificateForNextPhase(generated.certificate);
       downloadHbceIprCertificate(generated.certificate, generated.file_name);
+
+      const nextRoute = getContinuationRouteFromCertificate(
+        generated.certificate
+      );
+
+      window.setTimeout(() => {
+        router.push(nextRoute);
+      }, 250);
     } catch (generationError) {
       setError(
         generationError instanceof Error
@@ -395,17 +533,53 @@ export default function IprPhaseForm({
         <p>{phase.description}</p>
       </section>
 
-      {requiresPreviousCertificate ? (
+      {requiresPreviousCertificate && previousCertificate ? (
+        <section className="hbce-card hbce-card--soft">
+          <p className="hbce-kicker">
+            {previousCertificateSource === "session"
+              ? "Previous certificate loaded from session"
+              : "Previous certificate accepted"}
+          </p>
+          <h2>Certificate chain continuity ready.</h2>
+          <p>
+            The required previous HBCE-IPR certificate is already available for
+            this phase. You can now complete the phase data and required
+            evidence uploads.
+          </p>
+          <p className="hbce-mono">
+            previous_phase: {previousCertificate.phase.code}
+          </p>
+          <p className="hbce-mono">
+            payload_sha256: {previousCertificate.hash_integrity.payload_sha256}
+          </p>
+          <p className="hbce-mono">
+            previous_payload_sha256:{" "}
+            {previousCertificate.hash_integrity.previous_payload_sha256 ?? "null"}
+          </p>
+
+          <div className="hbce-actions">
+            <button
+              className="hbce-btn hbce-btn--ghost"
+              type="button"
+              onClick={clearPreviousCertificate}
+            >
+              Use another certificate
+            </button>
+          </div>
+        </section>
+      ) : requiresPreviousCertificate ? (
         <IprCertificateUploader
           expectedPreviousPhase={phase.expected_previous_phase}
           expectedNextPhase={phase.next_required_phase}
           onCertificateAccepted={(upload) => {
             setPreviousCertificate(upload.certificate);
+            setPreviousCertificateSource("upload");
             setError("");
           }}
           onValidation={(validation) => {
             if (!validation.valid) {
               setPreviousCertificate(null);
+              setPreviousCertificateSource(null);
             }
           }}
         />
