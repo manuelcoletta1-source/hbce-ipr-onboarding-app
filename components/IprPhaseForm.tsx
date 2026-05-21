@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 
+import EmailOtpVerification from "./EmailOtpVerification";
 import IprCertificateUploader from "./IprCertificateUploader";
 
 import {
@@ -21,6 +22,8 @@ import {
   validateRequiredFields,
   validateRequiredUploads
 } from "../lib/ipr-phase-map";
+
+import type { EmailOtpVerificationPayload } from "./EmailOtpVerification";
 
 import type {
   HbceEvidenceUpload,
@@ -64,6 +67,7 @@ export type IprPhaseFormBuildDataContext = {
   uploads: HbceEvidenceUpload[];
   previousCertificate: HbceIprCertificate | null;
   issuedAt: string;
+  emailVerification: EmailOtpVerificationPayload | null;
 };
 
 export type IprPhaseFormProps = {
@@ -184,6 +188,10 @@ function createInitialValues(
   }, {});
 }
 
+function normalizeEmail(value: string): string {
+  return value.trim().toLowerCase();
+}
+
 function normalizeFieldValue(value: string | boolean): string | boolean {
   if (typeof value === "boolean") {
     return value;
@@ -203,7 +211,7 @@ function normalizeSubjectValue(
   const trimmedValue = value.trim();
 
   if (fieldName === "email") {
-    return trimmedValue.toLowerCase();
+    return normalizeEmail(trimmedValue);
   }
 
   if (fieldName === "phone_number") {
@@ -211,6 +219,16 @@ function normalizeSubjectValue(
   }
 
   return trimmedValue;
+}
+
+function getEmailValue(values: IprPhaseFormValues): string {
+  const value = values.email;
+
+  if (typeof value !== "string") {
+    return "";
+  }
+
+  return normalizeEmail(value);
 }
 
 function buildNormalizedValues(values: IprPhaseFormValues): JsonObject {
@@ -267,7 +285,10 @@ async function buildDefaultPhaseData(
     upload_hashes: uploadHashes,
     generated_from_previous_payload_sha256:
       context.previousCertificate?.hash_integrity.payload_sha256 ?? null,
-    issued_at: context.issuedAt
+    issued_at: context.issuedAt,
+    ...(context.emailVerification
+      ? { email_verification: context.emailVerification }
+      : {})
   };
 }
 
@@ -323,6 +344,8 @@ export default function IprPhaseForm({
   const [previousCertificateSource, setPreviousCertificateSource] = useState<
     "session" | "upload" | null
   >(null);
+  const [emailVerification, setEmailVerification] =
+    useState<EmailOtpVerificationPayload | null>(null);
   const [uploads, setUploads] = useState<HbceEvidenceUpload[]>([]);
   const [missingFields, setMissingFields] = useState<string[]>([]);
   const [missingUploads, setMissingUploads] = useState<
@@ -334,6 +357,13 @@ export default function IprPhaseForm({
     useState<HbceGeneratedCertificate<JsonObject> | null>(null);
 
   const requiresPreviousCertificate = phase.requires_previous_certificate;
+  const requiresEmailVerification = phase.phase_code === "SUBJECT_CREATED";
+
+  const currentEmailValue = useMemo(() => getEmailValue(values), [values]);
+
+  const emailIsVerifiedForCurrentValue =
+    Boolean(emailVerification?.email_verified) &&
+    emailVerification?.email === currentEmailValue;
 
   const expectedPreviousCertificateNextPhase = useMemo(
     () => getExpectedPreviousCertificateNextPhase(phase),
@@ -426,10 +456,22 @@ export default function IprPhaseForm({
   ]);
 
   function updateValue(name: string, value: string | boolean) {
-    setValues((current) => ({
-      ...current,
-      [name]: value
-    }));
+    setValues((current) => {
+      const nextValues = {
+        ...current,
+        [name]: value
+      };
+
+      if (name === "email") {
+        const nextEmail = typeof value === "string" ? normalizeEmail(value) : "";
+
+        if (emailVerification && emailVerification.email !== nextEmail) {
+          setEmailVerification(null);
+        }
+      }
+
+      return nextValues;
+    });
   }
 
   function clearPreviousCertificate() {
@@ -501,6 +543,13 @@ export default function IprPhaseForm({
       return;
     }
 
+    if (requiresEmailVerification && !emailIsVerifiedForCurrentValue) {
+      setError(
+        "Verify the customer email with the one-time code before generating Certificate 01."
+      );
+      return;
+    }
+
     setIsGenerating(true);
 
     try {
@@ -511,13 +560,15 @@ export default function IprPhaseForm({
             values,
             uploads,
             previousCertificate,
-            issuedAt
+            issuedAt,
+            emailVerification
           })
         : await buildDefaultPhaseData({
             values,
             uploads,
             previousCertificate,
-            issuedAt
+            issuedAt,
+            emailVerification
           });
 
       const subjectRef =
@@ -713,6 +764,20 @@ export default function IprPhaseForm({
           </div>
         </div>
       </section>
+
+      {requiresEmailVerification ? (
+        <EmailOtpVerification
+          emailValue={currentEmailValue}
+          disabled={isGenerating}
+          onVerified={(payload) => {
+            setEmailVerification(payload);
+            setError("");
+          }}
+          onReset={() => {
+            setEmailVerification(null);
+          }}
+        />
+      ) : null}
 
       {evidenceInputs.length > 0 ? (
         <section className="hbce-card">
