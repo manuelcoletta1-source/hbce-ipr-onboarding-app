@@ -13,6 +13,26 @@ import type {
 
 import type { JsonObject } from "@/lib/types";
 
+type Phase2FiscalPrivateFields = {
+  tax_id: string;
+  citizenship: string;
+  fiscal_country: string;
+  fiscal_document_type: string;
+};
+
+type Phase2FiscalHashFields = {
+  tax_id_value_hash: string;
+  citizenship_hash: string;
+  fiscal_country_hash: string;
+  fiscal_document_type_hash: string;
+};
+
+type Phase2FiscalEvidenceHashes = {
+  tax_id_document_front_sha256?: string;
+  tax_id_document_back_sha256?: string;
+  tax_id_document_sha256?: string;
+};
+
 const phase = getPhaseDefinitionByNumber(2);
 
 const fields: IprPhaseFieldDefinition[] = [
@@ -22,7 +42,7 @@ const fields: IprPhaseFieldDefinition[] = [
     type: "text",
     placeholder: "RSSMRA88B05A944X",
     helperText:
-      "This value is written inside the private HBCE-IPR certificate and also hashed for verification."
+      "Fiscal identity value. It is included in the private HBCE-IPR certificate and hashed for audit verification."
   },
   {
     name: "citizenship",
@@ -30,7 +50,7 @@ const fields: IprPhaseFieldDefinition[] = [
     type: "text",
     placeholder: "IT",
     helperText:
-      "This value is written inside the private HBCE-IPR certificate and also hashed for verification."
+      "Citizenship value declared by the subject. It is included in the private certificate and hashed."
   },
   {
     name: "fiscal_country",
@@ -38,7 +58,7 @@ const fields: IprPhaseFieldDefinition[] = [
     type: "text",
     placeholder: "IT",
     helperText:
-      "This value is written inside the private HBCE-IPR certificate and also hashed for verification."
+      "Fiscal jurisdiction declared by the subject. It is included in the private certificate and hashed."
   },
   {
     name: "fiscal_document_type",
@@ -67,7 +87,7 @@ const fields: IprPhaseFieldDefinition[] = [
       }
     ],
     helperText:
-      "The selected value is written inside the private certificate. Uploaded fiscal evidence is represented only by SHA-256 hashes."
+      "The selected fiscal evidence type is included in the private certificate. Uploaded documents are represented only by SHA-256 hashes."
   }
 ];
 
@@ -98,7 +118,7 @@ const evidenceInputs: IprPhaseEvidenceInputDefinition[] = [
   }
 ];
 
-function getStringValue(
+function getRawStringValue(
   context: IprPhaseFormBuildDataContext,
   fieldName: string
 ): string {
@@ -111,14 +131,48 @@ function getStringValue(
   return String(value ?? "").trim();
 }
 
+function normalizeTaxId(value: string): string {
+  return value.replace(/\s+/g, "").trim().toUpperCase();
+}
+
+function normalizeCountryCode(value: string): string {
+  return value.trim().toUpperCase();
+}
+
+function normalizeDocumentType(value: string): string {
+  return value.trim().toUpperCase();
+}
+
+function getNormalizedPhase2Value(
+  context: IprPhaseFormBuildDataContext,
+  fieldName: string
+): string {
+  const rawValue = getRawStringValue(context, fieldName);
+
+  switch (fieldName) {
+    case "tax_id":
+      return normalizeTaxId(rawValue);
+    case "citizenship":
+    case "fiscal_country":
+      return normalizeCountryCode(rawValue);
+    case "fiscal_document_type":
+      return normalizeDocumentType(rawValue);
+    default:
+      return rawValue;
+  }
+}
+
 async function hashPhaseValue(
   context: IprPhaseFormBuildDataContext,
   fieldName: string
 ): Promise<string> {
   return sha256Canonical({
-    kind: "HBCE_IPR_PHASE_2_FIELD",
+    kind: "HBCE_IPR_PHASE_2_FISCAL_FIELD",
+    phase: "FISCAL_IDENTITY_COLLECTED",
     field: fieldName,
-    value: getStringValue(context, fieldName)
+    value: getNormalizedPhase2Value(context, fieldName),
+    previous_payload_sha256:
+      context.previousCertificate?.hash_integrity.payload_sha256 ?? null
   });
 }
 
@@ -132,9 +186,48 @@ function getUploadHash(
   return context.uploads.find((upload) => upload.kind === kind)?.sha256 ?? null;
 }
 
-async function buildPhase2FiscalIdentityData(
+function buildSubmittedPrivateFields(
   context: IprPhaseFormBuildDataContext
-): Promise<JsonObject> {
+): Phase2FiscalPrivateFields {
+  return {
+    tax_id: getRawStringValue(context, "tax_id"),
+    citizenship: getRawStringValue(context, "citizenship"),
+    fiscal_country: getRawStringValue(context, "fiscal_country"),
+    fiscal_document_type: getRawStringValue(context, "fiscal_document_type")
+  };
+}
+
+function buildNormalizedPrivateFields(
+  context: IprPhaseFormBuildDataContext
+): Phase2FiscalPrivateFields {
+  return {
+    tax_id: getNormalizedPhase2Value(context, "tax_id"),
+    citizenship: getNormalizedPhase2Value(context, "citizenship"),
+    fiscal_country: getNormalizedPhase2Value(context, "fiscal_country"),
+    fiscal_document_type: getNormalizedPhase2Value(
+      context,
+      "fiscal_document_type"
+    )
+  };
+}
+
+async function buildHashFields(
+  context: IprPhaseFormBuildDataContext
+): Promise<Phase2FiscalHashFields> {
+  return {
+    tax_id_value_hash: await hashPhaseValue(context, "tax_id"),
+    citizenship_hash: await hashPhaseValue(context, "citizenship"),
+    fiscal_country_hash: await hashPhaseValue(context, "fiscal_country"),
+    fiscal_document_type_hash: await hashPhaseValue(
+      context,
+      "fiscal_document_type"
+    )
+  };
+}
+
+function buildEvidenceHashes(
+  context: IprPhaseFormBuildDataContext
+): Phase2FiscalEvidenceHashes {
   const taxIdDocumentFrontSha256 = getUploadHash(
     context,
     "TAX_ID_DOCUMENT_FRONT"
@@ -148,62 +241,7 @@ async function buildPhase2FiscalIdentityData(
     "TAX_ID_DOCUMENT_SINGLE"
   );
 
-  const privateFields = {
-    tax_id: getStringValue(context, "tax_id"),
-    citizenship: getStringValue(context, "citizenship"),
-    fiscal_country: getStringValue(context, "fiscal_country"),
-    fiscal_document_type: getStringValue(context, "fiscal_document_type")
-  };
-
-  const hashFields = {
-    tax_id_value_hash: await hashPhaseValue(context, "tax_id"),
-    citizenship_hash: await hashPhaseValue(context, "citizenship"),
-    fiscal_country_hash: await hashPhaseValue(context, "fiscal_country"),
-    fiscal_document_type_hash: await hashPhaseValue(
-      context,
-      "fiscal_document_type"
-    )
-  };
-
-  const evidenceHashes = {
-    tax_id_document_front_sha256: taxIdDocumentFrontSha256,
-    tax_id_document_back_sha256: taxIdDocumentBackSha256,
-    tax_id_document_sha256: taxIdDocumentSingleSha256
-  };
-
-  const metadataHash = await sha256Canonical({
-    kind: "HBCE_IPR_PHASE_2_FISCAL_METADATA",
-    private_fields: privateFields,
-    hash_fields: hashFields,
-    evidence_hashes: evidenceHashes,
-    previous_payload_sha256:
-      context.previousCertificate?.hash_integrity.payload_sha256 ?? null,
-    issued_at: context.issuedAt
-  });
-
   return {
-    certificate_visibility: "PRIVATE_PORTABLE_CERTIFICATE",
-    public_registry_mode: "HASH_ONLY",
-    phase_scope: "FISCAL_IDENTITY",
-
-    private_fields: privateFields,
-    hash_fields: hashFields,
-    evidence_hashes: evidenceHashes,
-
-    tax_id_value_hash: hashFields.tax_id_value_hash,
-    citizenship_hash: hashFields.citizenship_hash,
-    fiscal_country_hash: hashFields.fiscal_country_hash,
-    fiscal_document_type_hash: hashFields.fiscal_document_type_hash,
-    tax_id_metadata_hash: metadataHash,
-
-    previous_payload_sha256:
-      context.previousCertificate?.hash_integrity.payload_sha256 ?? null,
-    next_required_phase: "OFFICIAL_ID_DOCUMENT",
-    issued_at: context.issuedAt,
-
-    privacy_boundary:
-      "This is a private portable HBCE-IPR certificate downloaded by the subject. Fiscal identity values are stored inside private_fields. Uploaded fiscal evidence is represented only by SHA-256 hashes and must be stored in protected backend storage in production.",
-
     ...(taxIdDocumentFrontSha256
       ? { tax_id_document_front_sha256: taxIdDocumentFrontSha256 }
       : {}),
@@ -213,6 +251,87 @@ async function buildPhase2FiscalIdentityData(
     ...(taxIdDocumentSingleSha256
       ? { tax_id_document_sha256: taxIdDocumentSingleSha256 }
       : {})
+  };
+}
+
+async function buildPhase2FiscalIdentityData(
+  context: IprPhaseFormBuildDataContext
+): Promise<JsonObject> {
+  const submittedPrivateFields = buildSubmittedPrivateFields(context);
+  const privateFields = buildNormalizedPrivateFields(context);
+  const hashFields = await buildHashFields(context);
+  const evidenceHashes = buildEvidenceHashes(context);
+
+  const previousPayloadSha256 =
+    context.previousCertificate?.hash_integrity.payload_sha256 ?? null;
+
+  const metadataHash = await sha256Canonical({
+    kind: "HBCE_IPR_PHASE_2_FISCAL_METADATA",
+    phase: "FISCAL_IDENTITY_COLLECTED",
+    private_fields: privateFields,
+    hash_fields: hashFields,
+    evidence_hashes: evidenceHashes,
+    previous_payload_sha256: previousPayloadSha256,
+    issued_at: context.issuedAt
+  });
+
+  return {
+    certificate_role: "STEP_2_FISCAL_IDENTITY_COLLECTION",
+    certificate_visibility: "PRIVATE_PORTABLE_CERTIFICATE",
+    public_registry_mode: "HASH_ONLY",
+    phase_scope: "FISCAL_IDENTITY",
+
+    private_fields: privateFields,
+    submitted_private_fields: submittedPrivateFields,
+    fiscal_private_data: privateFields,
+    fiscal_private_data_included: true,
+
+    hash_fields: hashFields,
+    evidence_hashes: evidenceHashes,
+
+    tax_id_value_hash: hashFields.tax_id_value_hash,
+    citizenship_hash: hashFields.citizenship_hash,
+    fiscal_country_hash: hashFields.fiscal_country_hash,
+    fiscal_document_type_hash: hashFields.fiscal_document_type_hash,
+    tax_id_metadata_hash: metadataHash,
+
+    fiscal_identity_collected: true,
+    fiscal_identity_verified: false,
+    official_document_uploaded: false,
+    official_document_verified: false,
+    liveness_verified: false,
+    ipr_status: "NOT_YET_ISSUED",
+    ipr_card_status: "NOT_ISSUED",
+    joker_c2_access: "DENIED",
+
+    verification_state: {
+      email_verified: false,
+      phone_verified: false,
+      fiscal_identity_collected: true,
+      fiscal_identity_verified: false,
+      official_document_uploaded: false,
+      official_document_verified: false,
+      liveness_verified: false,
+      privacy_compliance_accepted: false,
+      hbce_review_status: "NOT_STARTED",
+      ipr_approved: false,
+      ipr_card_issued: false,
+      operational_certificate_issued: false,
+      joker_c2_access: "DENIED"
+    },
+
+    previous_payload_sha256: previousPayloadSha256,
+    next_required_phase: "OFFICIAL_ID_DOCUMENT",
+    issued_at: context.issuedAt,
+    issued_at_utc: context.issuedAt,
+
+    certificate_boundary:
+      "This file records fiscal identity collection for the HBCE IPR onboarding chain. It does not certify final identity verification, it does not issue an IPR Card and it does not grant JOKER-C2 access.",
+
+    privacy_boundary:
+      "This is a private portable HBCE-IPR certificate downloaded by the subject. It may contain fiscal identity values. Uploaded fiscal evidence is represented only by SHA-256 hashes and must be stored in protected backend storage in production.",
+
+    ...evidenceHashes
   };
 }
 
@@ -226,7 +345,7 @@ export default function Phase2FiscalIdentityPage() {
         buildPhaseData={buildPhase2FiscalIdentityData}
         submitLabel="Generate HBCE IPR Certificate 02"
         successTitle="HBCE IPR Certificate 02 generated"
-        successDescription="The private fiscal identity certificate has been generated and downloaded. It contains the inserted fiscal data, the corresponding hashes and the SHA-256 hashes of uploaded fiscal evidence. Use this file in Phase 3 — Official ID Document."
+        successDescription="The private fiscal identity certificate has been generated and downloaded. It links Certificate 01 to the declared fiscal identity, records the corresponding hashes and stores only SHA-256 hashes for uploaded fiscal evidence. Use this file in Phase 3 — Official ID Document."
       />
     </div>
   );
