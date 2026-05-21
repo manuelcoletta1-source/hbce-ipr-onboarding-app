@@ -30,6 +30,13 @@ type Phase1HashFields = {
   date_of_birth_hash: string;
 };
 
+type Phase1EmailVerificationFields = {
+  email_verified: true;
+  email_verified_at: string;
+  email_verification_channel: "EMAIL_OTP";
+  email_verification_hash: string;
+};
+
 const phase = getPhaseDefinitionByNumber(1);
 
 const fields: IprPhaseFieldDefinition[] = [
@@ -39,7 +46,7 @@ const fields: IprPhaseFieldDefinition[] = [
     type: "email",
     placeholder: "name@example.com",
     helperText:
-      "Customer email. It is included in the private portable certificate and hashed for audit verification."
+      "Customer email. It must be verified by one-time code before Certificate 01 can be generated."
   },
   {
     name: "phone_number",
@@ -138,6 +145,24 @@ function getNormalizedPhase1Value(
   }
 }
 
+function buildEmailVerificationFields(
+  context: IprPhaseFormBuildDataContext
+): Phase1EmailVerificationFields {
+  if (!context.emailVerification?.email_verified) {
+    throw new Error(
+      "Email verification is required before generating Certificate 01."
+    );
+  }
+
+  return {
+    email_verified: true,
+    email_verified_at: context.emailVerification.email_verified_at,
+    email_verification_channel:
+      context.emailVerification.email_verification_channel,
+    email_verification_hash: context.emailVerification.email_verification_hash
+  };
+}
+
 async function hashPhaseValue(
   context: IprPhaseFormBuildDataContext,
   fieldName: string
@@ -189,12 +214,35 @@ async function buildHashFields(
   };
 }
 
+async function buildEmailVerificationAuditHash(
+  context: IprPhaseFormBuildDataContext,
+  emailVerificationFields: Phase1EmailVerificationFields
+): Promise<string> {
+  return sha256Canonical({
+    kind: "HBCE_IPR_PHASE_1_EMAIL_VERIFICATION_AUDIT",
+    phase: "SUBJECT_CREATED",
+    email: getNormalizedPhase1Value(context, "email"),
+    email_verified: emailVerificationFields.email_verified,
+    email_verified_at: emailVerificationFields.email_verified_at,
+    email_verification_channel:
+      emailVerificationFields.email_verification_channel,
+    email_verification_hash: emailVerificationFields.email_verification_hash,
+    issued_at: context.issuedAt
+  });
+}
+
 async function buildPhase1SubjectData(
   context: IprPhaseFormBuildDataContext
 ): Promise<JsonObject> {
   const submittedPrivateFields = buildSubmittedPrivateFields(context);
   const privateFields = buildNormalizedPrivateFields(context);
   const hashFields = await buildHashFields(context);
+  const emailVerificationFields = buildEmailVerificationFields(context);
+
+  const emailVerificationAuditHash = await buildEmailVerificationAuditHash(
+    context,
+    emailVerificationFields
+  );
 
   return {
     certificate_role: "STEP_1_CLIENT_INTAKE",
@@ -207,7 +255,10 @@ async function buildPhase1SubjectData(
     client_private_data: privateFields,
     client_private_data_included: true,
 
-    hash_fields: hashFields,
+    hash_fields: {
+      ...hashFields,
+      email_verification_audit_hash: emailVerificationAuditHash
+    },
 
     email_hash: hashFields.email_hash,
     phone_hash: hashFields.phone_hash,
@@ -216,12 +267,22 @@ async function buildPhase1SubjectData(
     country_hash: hashFields.country_hash,
     date_of_birth_hash: hashFields.date_of_birth_hash,
 
+    email_verified: emailVerificationFields.email_verified,
+    email_verified_at: emailVerificationFields.email_verified_at,
+    email_verification_channel:
+      emailVerificationFields.email_verification_channel,
+    email_verification_hash: emailVerificationFields.email_verification_hash,
+    email_verification_audit_hash: emailVerificationAuditHash,
+
     ipr_status: "NOT_YET_ISSUED",
     ipr_card_status: "NOT_ISSUED",
     joker_c2_access: "DENIED",
 
     verification_state: {
-      email_verified: false,
+      email_verified: true,
+      email_verified_at: emailVerificationFields.email_verified_at,
+      email_verification_channel:
+        emailVerificationFields.email_verification_channel,
       phone_verified: false,
       fiscal_identity_verified: false,
       official_document_uploaded: false,
@@ -241,10 +302,10 @@ async function buildPhase1SubjectData(
     created_at_utc: context.issuedAt,
 
     certificate_boundary:
-      "This file records the creation of the HBCE IPR customer profile request. It does not certify verified identity, it does not issue an IPR Card and it does not grant JOKER-C2 access.",
+      "This file records the creation of the HBCE IPR customer profile request after email OTP verification. It does not certify verified identity, it does not issue an IPR Card and it does not grant JOKER-C2 access.",
 
     privacy_boundary:
-      "This is a private portable HBCE-IPR certificate downloaded by the subject. It may contain customer intake data. Public verification must expose hash-only references, not private identity fields."
+      "This is a private portable HBCE-IPR certificate downloaded by the subject. It may contain customer intake data and email verification references. Public verification must expose hash-only references, not private identity fields. The OTP code is never written inside the certificate."
   };
 }
 
@@ -257,7 +318,7 @@ export default function Phase1SubjectCreatedPage() {
         buildPhaseData={buildPhase1SubjectData}
         submitLabel="Generate HBCE IPR Certificate 01"
         successTitle="HBCE IPR Certificate 01 generated"
-        successDescription="The first private HBCE-IPR certificate has been generated and downloaded. It records the customer profile creation, the exact creation timestamp and the corresponding hash references. It does not verify the identity yet. Use this file in Phase 2 — Fiscal Identity."
+        successDescription="The first private HBCE-IPR certificate has been generated and downloaded after email OTP verification. It records the customer profile creation, the exact creation timestamp and the corresponding hash references. It does not verify the identity yet. Use this file in Phase 2 — Fiscal Identity."
       />
     </div>
   );
