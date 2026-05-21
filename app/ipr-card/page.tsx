@@ -1,6 +1,7 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 
 import IprCertificateUploader from "@/components/IprCertificateUploader";
 
@@ -8,14 +9,31 @@ import {
   downloadHbceIprCertificate,
   generateHbceIprCertificate,
   nowIso,
-  sha256Canonical
+  sha256Canonical,
+  validatePreviousHbceIprCertificate
 } from "@/lib/ipr-certificate-chain";
 
-import { getPhaseDefinitionByNumber } from "@/lib/ipr-phase-map";
+import {
+  getContinuationRouteFromCertificate,
+  getPhaseDefinitionByNumber
+} from "@/lib/ipr-phase-map";
 
 import type { AcceptedIprCertificateUpload } from "@/components/IprCertificateUploader";
 
-import type { HbceGeneratedCertificate, JsonObject } from "@/lib/types";
+import type {
+  HbceGeneratedCertificate,
+  HbceIprCertificate,
+  HbceIprNextPhaseCode,
+  JsonObject
+} from "@/lib/types";
+
+type ActiveIprCardUpload = {
+  certificate: HbceIprCertificate;
+  fileName: string;
+  payloadSha256: string;
+  previousPayloadSha256: string | null;
+  source: "session" | "upload";
+};
 
 type Phase8CardPreview = {
   iprId: string;
@@ -48,8 +66,60 @@ type Phase8IprCardHashFields = JsonObject & {
 
 const phase = getPhaseDefinitionByNumber(8);
 
+const SESSION_CERTIFICATE_PREFIX = "HBCE_IPR_CERTIFICATE_FOR_NEXT_PHASE";
+
 const NON_REPLACEMENT_BOUNDARY =
   "HBCE IPR Card is an internal operational identity card. It does not replace CIE, SPID, EUDI Wallet, passport, driving licence, national identity card, qualified eIDAS certificate or official state identity.";
+
+function getSessionCertificateKey(nextPhase: HbceIprNextPhaseCode): string {
+  return `${SESSION_CERTIFICATE_PREFIX}:${nextPhase}`;
+}
+
+function readStoredCertificateForPhase(
+  nextPhase: HbceIprNextPhaseCode
+): unknown | null {
+  if (typeof window === "undefined") {
+    return null;
+  }
+
+  const raw = window.sessionStorage.getItem(getSessionCertificateKey(nextPhase));
+
+  if (!raw) {
+    return null;
+  }
+
+  try {
+    return JSON.parse(raw) as unknown;
+  } catch {
+    window.sessionStorage.removeItem(getSessionCertificateKey(nextPhase));
+    return null;
+  }
+}
+
+function clearStoredCertificateForPhase(nextPhase: HbceIprNextPhaseCode): void {
+  if (typeof window === "undefined") {
+    return;
+  }
+
+  window.sessionStorage.removeItem(getSessionCertificateKey(nextPhase));
+}
+
+function storeCertificateForNextPhase(certificate: HbceIprCertificate): void {
+  if (typeof window === "undefined") {
+    return;
+  }
+
+  const nextPhase = certificate.next.next_phase;
+
+  if (nextPhase === "COMPLETED" || nextPhase === "JOKER_C2_ACCESS") {
+    return;
+  }
+
+  window.sessionStorage.setItem(
+    getSessionCertificateKey(nextPhase),
+    JSON.stringify(certificate)
+  );
+}
 
 function createCompactId(prefix: string, source: string): string {
   const normalized = source.replace(/[^a-zA-Z0-9]/g, "").toUpperCase();
@@ -69,7 +139,31 @@ function normalizeOperatorReference(value: string): string {
   return value.trim();
 }
 
-function buildCardPreview(previousUpload: AcceptedIprCertificateUpload): Phase8CardPreview {
+function buildActiveUploadFromAcceptedUpload(
+  upload: AcceptedIprCertificateUpload
+): ActiveIprCardUpload {
+  return {
+    certificate: upload.certificate,
+    fileName: upload.fileName,
+    payloadSha256: upload.payloadSha256,
+    previousPayloadSha256: upload.previousPayloadSha256,
+    source: "upload"
+  };
+}
+
+function buildActiveUploadFromSession(
+  certificate: HbceIprCertificate
+): ActiveIprCardUpload {
+  return {
+    certificate,
+    fileName: "hbce-ipr-07-ipr-approved.hbce.json",
+    payloadSha256: certificate.hash_integrity.payload_sha256,
+    previousPayloadSha256: certificate.hash_integrity.previous_payload_sha256,
+    source: "session"
+  };
+}
+
+function buildCardPreview(previousUpload: ActiveIprCardUpload): Phase8CardPreview {
   const baseHash = previousUpload.payloadSha256;
   const subjectId =
     previousUpload.certificate.subject.subject_id ??
@@ -140,14 +234,60 @@ async function buildHashFields(params: {
 }
 
 export default function IPRCardPage() {
+  const router = useRouter();
+
   const [previousUpload, setPreviousUpload] =
-    useState<AcceptedIprCertificateUpload | null>(null);
+    useState<ActiveIprCardUpload | null>(null);
   const [operatorReference, setOperatorReference] = useState("HBCE-OPERATOR");
   const [validUntil, setValidUntil] = useState(getOneYearValidity());
   const [error, setError] = useState("");
   const [isGenerating, setIsGenerating] = useState(false);
   const [generatedCertificate, setGeneratedCertificate] =
     useState<HbceGeneratedCertificate<JsonObject> | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function restoreApprovedCertificateFromSession() {
+      if (previousUpload) {
+        return;
+      }
+
+      const stored = readStoredCertificateForPhase("IPR_CARD_ISSUANCE");
+
+      if (!stored) {
+        return;
+      }
+
+      const validation = await validatePreviousHbceIprCertificate({
+        certificate: stored,
+        expected_previous_phase: "IPR_APPROVED",
+        expected_next_phase: "IPR_CARD_ISSUANCE"
+      });
+
+      if (cancelled) {
+        return;
+      }
+
+      if (!validation.valid) {
+        clearStoredCertificateForPhase("IPR_CARD_ISSUANCE");
+        setPreviousUpload(null);
+        setError(
+          "The stored approved certificate was rejected. Upload Certificate 07 manually."
+        );
+        return;
+      }
+
+      setPreviousUpload(buildActiveUploadFromSession(stored as HbceIprCertificate));
+      setError("");
+    }
+
+    void restoreApprovedCertificateFromSession();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [previousUpload]);
 
   const generatedPreview = useMemo(() => {
     if (!previousUpload) {
@@ -156,6 +296,11 @@ export default function IPRCardPage() {
 
     return buildCardPreview(previousUpload);
   }, [previousUpload]);
+
+  function clearPreviousUpload() {
+    clearStoredCertificateForPhase("IPR_CARD_ISSUANCE");
+    setPreviousUpload(null);
+  }
 
   async function issueIprCardCertificate() {
     setError("");
@@ -311,7 +456,16 @@ export default function IPRCardPage() {
       });
 
       setGeneratedCertificate(generated);
+      storeCertificateForNextPhase(generated.certificate);
       downloadHbceIprCertificate(generated.certificate, generated.file_name);
+
+      const nextRoute = getContinuationRouteFromCertificate(
+        generated.certificate
+      );
+
+      window.setTimeout(() => {
+        router.push(nextRoute);
+      }, 250);
     } catch (generationError) {
       setError(
         generationError instanceof Error
@@ -339,21 +493,68 @@ export default function IPRCardPage() {
           </p>
         </section>
 
-        <IprCertificateUploader
-          expectedPreviousPhase={phase.expected_previous_phase}
-          expectedNextPhase={phase.next_required_phase}
-          title="Upload HBCE Approved IPR Certificate"
-          description="Upload hbce-ipr-07-ipr-approved.hbce.json. The app verifies the approved phase before issuing the IPR Card certificate."
-          onCertificateAccepted={(upload) => {
-            setPreviousUpload(upload);
-            setError("");
-          }}
-          onValidation={(validation) => {
-            if (!validation.valid) {
-              setPreviousUpload(null);
-            }
-          }}
-        />
+        {previousUpload ? (
+          <section className="hbce-card hbce-card--soft">
+            <p className="hbce-kicker">
+              {previousUpload.source === "session"
+                ? "Approved certificate loaded from session"
+                : "Approved certificate accepted"}
+            </p>
+
+            <h2>Certificate 07 ready for IPR Card issuance.</h2>
+
+            <p>
+              The required approved certificate is already available for this
+              phase. You can now issue the internal HBCE IPR Card.
+            </p>
+
+            <p className="hbce-mono">file_name: {previousUpload.fileName}</p>
+
+            <p className="hbce-mono">
+              current_phase: {previousUpload.certificate.phase.code}
+            </p>
+
+            <p className="hbce-mono">
+              unlocks_phase: {previousUpload.certificate.next.next_phase}
+            </p>
+
+            <p className="hbce-mono">
+              payload_sha256: {previousUpload.payloadSha256}
+            </p>
+
+            {previousUpload.previousPayloadSha256 ? (
+              <p className="hbce-mono">
+                previous_payload_sha256: {previousUpload.previousPayloadSha256}
+              </p>
+            ) : null}
+
+            <div className="hbce-actions">
+              <button
+                className="hbce-btn hbce-btn--ghost"
+                type="button"
+                onClick={clearPreviousUpload}
+              >
+                Use another Certificate 07
+              </button>
+            </div>
+          </section>
+        ) : (
+          <IprCertificateUploader
+            expectedPreviousPhase={phase.expected_previous_phase}
+            expectedNextPhase="IPR_CARD_ISSUANCE"
+            title="Upload HBCE Approved IPR Certificate"
+            description="Upload hbce-ipr-07-ipr-approved.hbce.json. The app verifies the approved phase before issuing the IPR Card certificate."
+            onCertificateAccepted={(upload) => {
+              setPreviousUpload(buildActiveUploadFromAcceptedUpload(upload));
+              setError("");
+            }}
+            onValidation={(validation) => {
+              if (!validation.valid) {
+                setPreviousUpload(null);
+              }
+            }}
+          />
+        )}
 
         <section className="hbce-card">
           <div className="hbce-stack">
