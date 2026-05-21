@@ -5,10 +5,7 @@ export type RouteReference = string;
 
 export type JsonPrimitive = string | number | boolean | null;
 
-export type JsonValue =
-  | JsonPrimitive
-  | JsonObject
-  | JsonValue[];
+export type JsonValue = JsonPrimitive | JsonObject | JsonValue[];
 
 export type JsonObject = {
   [key: string]: JsonValue;
@@ -38,6 +35,8 @@ export type HbceHashAlgorithm = "SHA-256";
 
 export type HbceCanonicalization = "stableStringify(keys-sorted)";
 
+export type HbceTimezone = "Europe/Rome";
+
 export type HbceIssuer = {
   hallmark: "HERMETICUM - BLINDATA · COMPUTABILE · EVOLUTIVA";
   legal_name: "HERMETICUM B.C.E. S.r.l.";
@@ -54,16 +53,7 @@ export type HbceIprPolicy = {
   NO_PUBLIC_IDENTITY_CUSTODY: true;
 };
 
-export type HbceIprPhaseNumber =
-  | 1
-  | 2
-  | 3
-  | 4
-  | 5
-  | 6
-  | 7
-  | 8
-  | 9;
+export type HbceIprPhaseNumber = 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9;
 
 export type HbceIprCertificatePhaseCode =
   | "SUBJECT_CREATED"
@@ -127,7 +117,9 @@ export type HbceIprHashIntegrity = {
   payload_sha256: HashReference;
 };
 
-export type HbceIprPayloadEnvelope<TPhaseData extends JsonObject = JsonObject> = {
+export type HbceIprPayloadEnvelope<
+  TPhaseData extends JsonObject = JsonObject
+> = {
   proto: HbceIprPayloadProtocol;
   jurisdiction: HbceJurisdiction;
   policy: HbceIprPolicy;
@@ -154,7 +146,9 @@ export type HbceIprNext = {
   next_phase: HbceIprNextPhaseCode;
 };
 
-export type HbceIprCertificateBase<TPhaseData extends JsonObject = JsonObject> = {
+export type HbceIprCertificateBase<
+  TPhaseData extends JsonObject = JsonObject
+> = {
   proto: HbceIprReleaseProtocol;
   kind: HbceIprCertificateKind;
   issuer: HbceIssuer;
@@ -167,17 +161,19 @@ export type HbceIprCertificateBase<TPhaseData extends JsonObject = JsonObject> =
   issued_at: IsoDateTime;
 };
 
-export type HbceIprPhaseCertificate<TPhaseData extends JsonObject = JsonObject> =
-  HbceIprCertificateBase<TPhaseData> & {
-    kind: "IPR_PHASE_CERTIFICATE";
-  };
+export type HbceIprPhaseCertificate<
+  TPhaseData extends JsonObject = JsonObject
+> = HbceIprCertificateBase<TPhaseData> & {
+  kind: "IPR_PHASE_CERTIFICATE";
+};
 
-export type HbceIprOperationalCertificate<TPhaseData extends JsonObject = JsonObject> =
-  HbceIprCertificateBase<TPhaseData> & {
-    kind: "IPR_OPERATIONAL_CERTIFICATE";
-    certificate_status: "ACTIVE" | "EXPIRED" | "REVOKED" | "SUSPENDED";
-    certificate_scope: "JOKER_C2_ACCESS";
-  };
+export type HbceIprOperationalCertificate<
+  TPhaseData extends JsonObject = JsonObject
+> = HbceIprCertificateBase<TPhaseData> & {
+  kind: "IPR_OPERATIONAL_CERTIFICATE";
+  certificate_status: "ACTIVE" | "EXPIRED" | "REVOKED" | "SUSPENDED";
+  certificate_scope: "JOKER_C2_ACCESS";
+};
 
 export type HbceIprCertificate<TPhaseData extends JsonObject = JsonObject> =
   | HbceIprPhaseCertificate<TPhaseData>
@@ -224,10 +220,16 @@ export type HbceIprPhaseDefinition = {
   required_uploads: HbceEvidenceUploadKind[];
 };
 
-/**
- * Phase 1 payload.
- */
-export type HbcePhase1SubjectCreatedData = {
+export type HbcePrivateCustomerFields = JsonObject & {
+  email: string;
+  phone_number: string;
+  first_name: string;
+  last_name: string;
+  country: string;
+  date_of_birth: string;
+};
+
+export type HbceSubjectCreatedHashFields = JsonObject & {
   email_hash: HashReference;
   phone_hash: HashReference;
   first_name_hash: HashReference;
@@ -236,10 +238,66 @@ export type HbcePhase1SubjectCreatedData = {
   date_of_birth_hash: HashReference;
 };
 
+export type HbceLocalTimestamp = JsonObject & {
+  utc: IsoDateTime;
+  local: IsoDateTime;
+  timezone: HbceTimezone;
+};
+
+export type HbceInitialVerificationState = JsonObject & {
+  email_verified: false;
+  phone_verified: false;
+  fiscal_identity_verified: false;
+  official_document_uploaded: false;
+  official_document_verified: false;
+  liveness_verified: false;
+  privacy_compliance_accepted: false;
+  hbce_review_status: "NOT_STARTED";
+  ipr_approved: false;
+  ipr_card_issued: false;
+  operational_certificate_issued: false;
+  joker_c2_access: "DENIED";
+};
+
+/**
+ * Phase 1 payload.
+ *
+ * This is the first HBCE IPR step.
+ * It records customer profile creation and client intake.
+ * It does not certify verified identity, it does not issue an IPR Card
+ * and it does not grant JOKER-C2 access.
+ */
+export type HbcePhase1SubjectCreatedData = JsonObject &
+  HbceSubjectCreatedHashFields & {
+    certificate_role?: "STEP_1_CLIENT_INTAKE";
+    certificate_visibility?: "PRIVATE_PORTABLE_CERTIFICATE";
+    certificate_boundary?: string;
+    privacy_boundary?: string;
+    public_registry_mode?: "HASH_ONLY";
+    subject_creation_mode?: "SELF_INITIATED_IPR_REQUEST";
+    ipr_status?: "NOT_YET_ISSUED";
+    ipr_card_status?: "NOT_ISSUED";
+    joker_c2_access?: "DENIED";
+    issued_at?: IsoDateTime;
+    issued_at_utc?: IsoDateTime;
+    issued_at_local?: IsoDateTime;
+    created_at?: HbceLocalTimestamp;
+    created_at_utc?: IsoDateTime;
+    created_at_local?: IsoDateTime;
+    timezone?: HbceTimezone;
+    previous_payload_sha256?: HashReference | null;
+    next_required_phase?: HbceIprNextPhaseCode;
+    private_fields?: HbcePrivateCustomerFields;
+    client_private_data?: HbcePrivateCustomerFields | JsonValue;
+    client_private_data_included?: boolean;
+    hash_fields?: HbceSubjectCreatedHashFields;
+    verification_state?: HbceInitialVerificationState;
+  };
+
 /**
  * Phase 2 payload.
  */
-export type HbcePhase2FiscalIdentityData = {
+export type HbcePhase2FiscalIdentityData = JsonObject & {
   tax_id_value_hash: HashReference;
   tax_id_document_front_sha256?: HashReference;
   tax_id_document_back_sha256?: HashReference;
@@ -247,12 +305,18 @@ export type HbcePhase2FiscalIdentityData = {
   tax_id_metadata_hash: HashReference;
   citizenship_hash: HashReference;
   fiscal_country_hash: HashReference;
+  issued_at?: IsoDateTime;
+  issued_at_utc?: IsoDateTime;
+  issued_at_local?: IsoDateTime;
+  timezone?: HbceTimezone;
+  previous_payload_sha256?: HashReference | null;
+  next_required_phase?: HbceIprNextPhaseCode;
 };
 
 /**
  * Phase 3 payload.
  */
-export type HbcePhase3OfficialDocumentData = {
+export type HbcePhase3OfficialDocumentData = JsonObject & {
   document_type: HbceOfficialDocumentType;
   document_country: string;
   document_number_hash: HashReference;
@@ -263,22 +327,34 @@ export type HbcePhase3OfficialDocumentData = {
   document_back_sha256?: HashReference;
   document_passport_page_sha256?: HashReference;
   document_metadata_hash: HashReference;
+  issued_at?: IsoDateTime;
+  issued_at_utc?: IsoDateTime;
+  issued_at_local?: IsoDateTime;
+  timezone?: HbceTimezone;
+  previous_payload_sha256?: HashReference | null;
+  next_required_phase?: HbceIprNextPhaseCode;
 };
 
 /**
  * Phase 4 payload.
  */
-export type HbcePhase4LivenessData = {
+export type HbcePhase4LivenessData = JsonObject & {
   selfie_sha256: HashReference;
   video_sha256: HashReference;
   liveness_declaration_sha256: HashReference;
   liveness_timestamp: IsoDateTime;
+  issued_at?: IsoDateTime;
+  issued_at_utc?: IsoDateTime;
+  issued_at_local?: IsoDateTime;
+  timezone?: HbceTimezone;
+  previous_payload_sha256?: HashReference | null;
+  next_required_phase?: HbceIprNextPhaseCode;
 };
 
 /**
  * Phase 5 payload.
  */
-export type HbcePhase5PrivacyComplianceData = {
+export type HbcePhase5PrivacyComplianceData = JsonObject & {
   privacy_consent_hash: HashReference;
   terms_consent_hash: HashReference;
   identity_verification_consent_hash: HashReference;
@@ -286,43 +362,66 @@ export type HbcePhase5PrivacyComplianceData = {
   hash_only_acknowledgement: true;
   no_state_identity_claim_acknowledgement: true;
   internal_operational_identity_acknowledgement: true;
+  issued_at?: IsoDateTime;
+  issued_at_utc?: IsoDateTime;
+  issued_at_local?: IsoDateTime;
+  timezone?: HbceTimezone;
+  previous_payload_sha256?: HashReference | null;
+  next_required_phase?: HbceIprNextPhaseCode;
 };
 
 /**
  * Phase 6 payload.
  */
-export type HbcePhase6ReviewPendingData = {
+export type HbcePhase6ReviewPendingData = JsonObject & {
   review_package_hash: HashReference;
   submitted_at: IsoDateTime;
+  issued_at?: IsoDateTime;
+  issued_at_utc?: IsoDateTime;
+  issued_at_local?: IsoDateTime;
+  timezone?: HbceTimezone;
+  previous_payload_sha256?: HashReference | null;
+  next_required_phase?: HbceIprNextPhaseCode;
 };
 
 /**
  * Phase 7 payload.
  */
-export type HbcePhase7IprApprovedData = {
+export type HbcePhase7IprApprovedData = JsonObject & {
   approved_by: string;
   approved_at: IsoDateTime;
   approval_decision_hash: HashReference;
   approval_decision: "APPROVE";
+  issued_at?: IsoDateTime;
+  issued_at_utc?: IsoDateTime;
+  issued_at_local?: IsoDateTime;
+  timezone?: HbceTimezone;
+  previous_payload_sha256?: HashReference | null;
+  next_required_phase?: HbceIprNextPhaseCode;
 };
 
 /**
  * Phase 8 payload.
  */
-export type HbcePhase8IprCardData = {
+export type HbcePhase8IprCardData = JsonObject & {
   ipr_id: string;
   subject_id: string;
   card_serial: string;
   card_status: "ACTIVE";
   issuer: "HERMETICUM B.C.E. S.r.l.";
   issued_at: IsoDateTime;
+  issued_at_utc?: IsoDateTime;
+  issued_at_local?: IsoDateTime;
+  timezone?: HbceTimezone;
   valid_until: IsoDateTime;
+  previous_payload_sha256?: HashReference | null;
+  next_required_phase?: HbceIprNextPhaseCode;
 };
 
 /**
  * Phase 9 payload.
  */
-export type HbcePhase9OperationalCertificateData = {
+export type HbcePhase9OperationalCertificateData = JsonObject & {
   certificate_id: string;
   ipr_id: string;
   subject_id: string;
@@ -331,7 +430,12 @@ export type HbcePhase9OperationalCertificateData = {
   certificate_scope: "JOKER_C2_ACCESS";
   issuer: "HERMETICUM B.C.E. S.r.l.";
   issued_at: IsoDateTime;
+  issued_at_utc?: IsoDateTime;
+  issued_at_local?: IsoDateTime;
+  timezone?: HbceTimezone;
   valid_until: IsoDateTime;
+  previous_payload_sha256?: HashReference | null;
+  next_required_phase?: HbceIprNextPhaseCode;
 };
 
 export type HbceIprPhaseData =
@@ -391,7 +495,9 @@ export type HbcePreviousCertificateUpload = {
   uploaded_at: IsoDateTime;
 };
 
-export type HbceCertificateGenerationInput<TPhaseData extends JsonObject = JsonObject> = {
+export type HbceCertificateGenerationInput<
+  TPhaseData extends JsonObject = JsonObject
+> = {
   phase_number: HbceIprPhaseNumber;
   phase_code: HbceIprCertificatePhaseCode;
   phase_status: HbceIprPhaseRuntimeStatus;
@@ -404,7 +510,9 @@ export type HbceCertificateGenerationInput<TPhaseData extends JsonObject = JsonO
   issued_at: IsoDateTime;
 };
 
-export type HbceGeneratedCertificate<TPhaseData extends JsonObject = JsonObject> = {
+export type HbceGeneratedCertificate<
+  TPhaseData extends JsonObject = JsonObject
+> = {
   file_name: HbceIprCertificateFileName;
   certificate: HbceIprCertificate<TPhaseData>;
   payload_sha256: HashReference;
@@ -432,9 +540,7 @@ export type HbceFailClosedReason =
   | "NOT_OPERATIONAL_CERTIFICATE"
   | "INVALID_CERTIFICATE_SCOPE";
 
-export type HbceCertificateValidationDecision =
-  | "VALID"
-  | "FAIL_CLOSED";
+export type HbceCertificateValidationDecision = "VALID" | "FAIL_CLOSED";
 
 export type HbceCertificateValidationResult = {
   decision: HbceCertificateValidationDecision;
