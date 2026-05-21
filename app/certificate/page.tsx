@@ -15,10 +15,43 @@ import { getPhaseDefinitionByNumber } from "@/lib/ipr-phase-map";
 
 import type { AcceptedIprCertificateUpload } from "@/components/IprCertificateUploader";
 
-import type {
-  HbceGeneratedCertificate,
-  JsonObject
-} from "@/lib/types";
+import type { HbceGeneratedCertificate, JsonObject } from "@/lib/types";
+
+type Phase9OperationalPreview = {
+  certificateId: string;
+  iprId: string;
+  subjectId: string;
+  cardSerial: string;
+};
+
+type Phase9OperationalPrivateFields = JsonObject & {
+  certificate_id: string;
+  ipr_id: string;
+  subject_id: string;
+  card_serial: string;
+  certificate_status: "ACTIVE";
+  certificate_scope: "JOKER_C2_ACCESS";
+  issuer: "HERMETICUM B.C.E. S.r.l.";
+  operator_reference: string;
+  issued_at: string;
+  valid_until: string;
+  next_required_phase: "JOKER_C2_ACCESS";
+  access_boundary: string;
+  legal_boundary: string;
+};
+
+type Phase9OperationalHashFields = JsonObject & {
+  certificate_id_hash: string;
+  ipr_id_hash: string;
+  subject_id_hash: string;
+  card_serial_hash: string;
+  certificate_status_hash: string;
+  certificate_scope_hash: string;
+  operator_reference_hash: string;
+  validity_hash: string;
+  access_boundary_hash: string;
+  legal_boundary_hash: string;
+};
 
 const phase = getPhaseDefinitionByNumber(9);
 
@@ -29,11 +62,10 @@ const LEGAL_BOUNDARY =
   "This is an internal HBCE operational certificate. It is not a qualified eIDAS certificate unless formally integrated with a recognized trust service.";
 
 function createCompactId(prefix: string, source: string): string {
-  const normalized = source.replace(/[^a-zA-Z0-9]/g, "").slice(0, 18);
+  const normalized = source.replace(/[^a-zA-Z0-9]/g, "").toUpperCase();
+  const compact = normalized.slice(0, 24) || "HBCE";
 
-  return `${prefix}-${normalized || "HBCE"}-${Date.now()
-    .toString(36)
-    .toUpperCase()}`;
+  return `${prefix}-${compact}`;
 }
 
 function getOneYearValidity(): string {
@@ -41,6 +73,129 @@ function getOneYearValidity(): string {
   date.setFullYear(date.getFullYear() + 1);
 
   return date.toISOString();
+}
+
+function normalizeOperatorReference(value: string): string {
+  return value.trim();
+}
+
+function readStringFromPayload(
+  payload: JsonObject,
+  key: string
+): string | null {
+  const value = payload[key];
+
+  return typeof value === "string" && value.trim().length > 0
+    ? value.trim()
+    : null;
+}
+
+function buildOperationalPreview(
+  previousUpload: AcceptedIprCertificateUpload
+): Phase9OperationalPreview {
+  const cardPayload = previousUpload.certificate.payload.phase_data;
+  const fallbackSource = previousUpload.payloadSha256;
+
+  const iprId =
+    readStringFromPayload(cardPayload, "ipr_id") ??
+    createCompactId("IPR", fallbackSource);
+
+  const subjectId =
+    readStringFromPayload(cardPayload, "subject_id") ??
+    previousUpload.certificate.subject.subject_id ??
+    createCompactId(
+      "SUBJECT",
+      previousUpload.certificate.subject.subject_ref
+    );
+
+  const cardSerial =
+    readStringFromPayload(cardPayload, "card_serial") ??
+    createCompactId("IPR-CARD", fallbackSource);
+
+  return {
+    certificateId: createCompactId("HBCE-CERT", fallbackSource),
+    iprId,
+    subjectId,
+    cardSerial
+  };
+}
+
+async function buildHashFields(params: {
+  privateFields: Phase9OperationalPrivateFields;
+  previousPayloadSha256: string;
+}): Promise<Phase9OperationalHashFields> {
+  return {
+    certificate_id_hash: await sha256Canonical({
+      kind: "HBCE_IPR_PHASE_9_CERTIFICATE_ID",
+      phase: "IPR_VERIFIED",
+      value: params.privateFields.certificate_id,
+      previous_payload_sha256: params.previousPayloadSha256,
+      issued_at: params.privateFields.issued_at
+    }),
+    ipr_id_hash: await sha256Canonical({
+      kind: "HBCE_IPR_PHASE_9_IPR_ID",
+      phase: "IPR_VERIFIED",
+      value: params.privateFields.ipr_id,
+      previous_payload_sha256: params.previousPayloadSha256,
+      issued_at: params.privateFields.issued_at
+    }),
+    subject_id_hash: await sha256Canonical({
+      kind: "HBCE_IPR_PHASE_9_SUBJECT_ID",
+      phase: "IPR_VERIFIED",
+      value: params.privateFields.subject_id,
+      previous_payload_sha256: params.previousPayloadSha256,
+      issued_at: params.privateFields.issued_at
+    }),
+    card_serial_hash: await sha256Canonical({
+      kind: "HBCE_IPR_PHASE_9_CARD_SERIAL",
+      phase: "IPR_VERIFIED",
+      value: params.privateFields.card_serial,
+      previous_payload_sha256: params.previousPayloadSha256,
+      issued_at: params.privateFields.issued_at
+    }),
+    certificate_status_hash: await sha256Canonical({
+      kind: "HBCE_IPR_PHASE_9_CERTIFICATE_STATUS",
+      phase: "IPR_VERIFIED",
+      value: params.privateFields.certificate_status,
+      previous_payload_sha256: params.previousPayloadSha256,
+      issued_at: params.privateFields.issued_at
+    }),
+    certificate_scope_hash: await sha256Canonical({
+      kind: "HBCE_IPR_PHASE_9_CERTIFICATE_SCOPE",
+      phase: "IPR_VERIFIED",
+      value: params.privateFields.certificate_scope,
+      previous_payload_sha256: params.previousPayloadSha256,
+      issued_at: params.privateFields.issued_at
+    }),
+    operator_reference_hash: await sha256Canonical({
+      kind: "HBCE_IPR_PHASE_9_OPERATOR_REFERENCE",
+      phase: "IPR_VERIFIED",
+      value: params.privateFields.operator_reference,
+      previous_payload_sha256: params.previousPayloadSha256,
+      issued_at: params.privateFields.issued_at
+    }),
+    validity_hash: await sha256Canonical({
+      kind: "HBCE_IPR_PHASE_9_VALIDITY",
+      phase: "IPR_VERIFIED",
+      previous_payload_sha256: params.previousPayloadSha256,
+      issued_at: params.privateFields.issued_at,
+      valid_until: params.privateFields.valid_until
+    }),
+    access_boundary_hash: await sha256Canonical({
+      kind: "HBCE_IPR_PHASE_9_ACCESS_BOUNDARY",
+      phase: "IPR_VERIFIED",
+      value: ACCESS_BOUNDARY,
+      previous_payload_sha256: params.previousPayloadSha256,
+      issued_at: params.privateFields.issued_at
+    }),
+    legal_boundary_hash: await sha256Canonical({
+      kind: "HBCE_IPR_PHASE_9_LEGAL_BOUNDARY",
+      phase: "IPR_VERIFIED",
+      value: LEGAL_BOUNDARY,
+      previous_payload_sha256: params.previousPayloadSha256,
+      issued_at: params.privateFields.issued_at
+    })
+  };
 }
 
 export default function CertificatePage() {
@@ -58,34 +213,7 @@ export default function CertificatePage() {
       return null;
     }
 
-    const cardPayload = previousUpload.certificate.payload.phase_data;
-    const fallbackSource = previousUpload.payloadSha256;
-
-    const iprId =
-      typeof cardPayload.ipr_id === "string"
-        ? cardPayload.ipr_id
-        : createCompactId("IPR", fallbackSource);
-
-    const subjectId =
-      typeof cardPayload.subject_id === "string"
-        ? cardPayload.subject_id
-        : previousUpload.certificate.subject.subject_id ??
-          createCompactId(
-            "SUBJECT",
-            previousUpload.certificate.subject.subject_ref
-          );
-
-    const cardSerial =
-      typeof cardPayload.card_serial === "string"
-        ? cardPayload.card_serial
-        : createCompactId("IPR-CARD", fallbackSource);
-
-    return {
-      certificateId: createCompactId("HBCE-CERT", fallbackSource),
-      iprId,
-      subjectId,
-      cardSerial
-    };
+    return buildOperationalPreview(previousUpload);
   }, [previousUpload]);
 
   async function issueOperationalCertificate() {
@@ -97,7 +225,10 @@ export default function CertificatePage() {
       return;
     }
 
-    if (!operatorReference.trim()) {
+    const normalizedOperatorReference =
+      normalizeOperatorReference(operatorReference);
+
+    if (!normalizedOperatorReference) {
       setError(
         "Insert the HBCE issuer/operator reference before issuing the operational certificate."
       );
@@ -113,39 +244,19 @@ export default function CertificatePage() {
 
     try {
       const issuedAt = nowIso();
-      const cardPayload = previousUpload.certificate.payload.phase_data;
-      const fallbackSource = previousUpload.payloadSha256;
+      const previousPayloadSha256 =
+        previousUpload.certificate.hash_integrity.payload_sha256;
+      const operationalPreview = buildOperationalPreview(previousUpload);
 
-      const iprId =
-        typeof cardPayload.ipr_id === "string"
-          ? cardPayload.ipr_id
-          : createCompactId("IPR", fallbackSource);
-
-      const subjectId =
-        typeof cardPayload.subject_id === "string"
-          ? cardPayload.subject_id
-          : previousUpload.certificate.subject.subject_id ??
-            createCompactId(
-              "SUBJECT",
-              previousUpload.certificate.subject.subject_ref
-            );
-
-      const cardSerial =
-        typeof cardPayload.card_serial === "string"
-          ? cardPayload.card_serial
-          : createCompactId("IPR-CARD", fallbackSource);
-
-      const certificateId = createCompactId("HBCE-CERT", fallbackSource);
-
-      const privateFields = {
-        certificate_id: certificateId,
-        ipr_id: iprId,
-        subject_id: subjectId,
-        card_serial: cardSerial,
+      const privateFields: Phase9OperationalPrivateFields = {
+        certificate_id: operationalPreview.certificateId,
+        ipr_id: operationalPreview.iprId,
+        subject_id: operationalPreview.subjectId,
+        card_serial: operationalPreview.cardSerial,
         certificate_status: "ACTIVE",
         certificate_scope: "JOKER_C2_ACCESS",
         issuer: "HERMETICUM B.C.E. S.r.l.",
-        operator_reference: operatorReference.trim(),
+        operator_reference: normalizedOperatorReference,
         issued_at: issuedAt,
         valid_until: validUntil,
         next_required_phase: "JOKER_C2_ACCESS",
@@ -153,75 +264,31 @@ export default function CertificatePage() {
         legal_boundary: LEGAL_BOUNDARY
       };
 
-      const hashFields = {
-        certificate_id_hash: await sha256Canonical({
-          kind: "HBCE_IPR_PHASE_9_CERTIFICATE_ID",
-          value: certificateId,
-          issued_at: issuedAt
-        }),
-        ipr_id_hash: await sha256Canonical({
-          kind: "HBCE_IPR_PHASE_9_IPR_ID",
-          value: iprId,
-          issued_at: issuedAt
-        }),
-        subject_id_hash: await sha256Canonical({
-          kind: "HBCE_IPR_PHASE_9_SUBJECT_ID",
-          value: subjectId,
-          issued_at: issuedAt
-        }),
-        card_serial_hash: await sha256Canonical({
-          kind: "HBCE_IPR_PHASE_9_CARD_SERIAL",
-          value: cardSerial,
-          issued_at: issuedAt
-        }),
-        certificate_status_hash: await sha256Canonical({
-          kind: "HBCE_IPR_PHASE_9_CERTIFICATE_STATUS",
-          value: "ACTIVE",
-          issued_at: issuedAt
-        }),
-        certificate_scope_hash: await sha256Canonical({
-          kind: "HBCE_IPR_PHASE_9_CERTIFICATE_SCOPE",
-          value: "JOKER_C2_ACCESS",
-          issued_at: issuedAt
-        }),
-        operator_reference_hash: await sha256Canonical({
-          kind: "HBCE_IPR_PHASE_9_OPERATOR_REFERENCE",
-          value: operatorReference.trim(),
-          issued_at: issuedAt
-        }),
-        validity_hash: await sha256Canonical({
-          kind: "HBCE_IPR_PHASE_9_VALIDITY",
-          issued_at: issuedAt,
-          valid_until: validUntil
-        }),
-        access_boundary_hash: await sha256Canonical({
-          kind: "HBCE_IPR_PHASE_9_ACCESS_BOUNDARY",
-          value: ACCESS_BOUNDARY,
-          issued_at: issuedAt
-        }),
-        legal_boundary_hash: await sha256Canonical({
-          kind: "HBCE_IPR_PHASE_9_LEGAL_BOUNDARY",
-          value: LEGAL_BOUNDARY,
-          issued_at: issuedAt
-        })
-      };
+      const hashFields = await buildHashFields({
+        privateFields,
+        previousPayloadSha256
+      });
 
       const verificationHash = await sha256Canonical({
         kind: "HBCE_IPR_PHASE_9_OPERATIONAL_CERTIFICATE",
+        phase: "IPR_VERIFIED",
         private_fields: privateFields,
         hash_fields: hashFields,
-        previous_payload_sha256:
-          previousUpload.certificate.hash_integrity.payload_sha256,
+        previous_payload_sha256: previousPayloadSha256,
         issued_at: issuedAt
       });
 
       const phaseData: JsonObject = {
+        certificate_role: "STEP_9_OPERATIONAL_CERTIFICATE",
         certificate_visibility: "PRIVATE_PORTABLE_CERTIFICATE",
         public_registry_mode: "HASH_ONLY",
         phase_scope: "OPERATIONAL_CERTIFICATE",
 
         private_fields: privateFields,
         certificate_fields: privateFields,
+        operational_certificate_private_data: privateFields,
+        operational_certificate_private_data_included: true,
+
         hash_fields: hashFields,
 
         certificate_id: privateFields.certificate_id,
@@ -232,17 +299,63 @@ export default function CertificatePage() {
         certificate_scope: privateFields.certificate_scope,
         issuer: privateFields.issuer,
         issued_at: privateFields.issued_at,
+        issued_at_utc: privateFields.issued_at,
         valid_until: privateFields.valid_until,
 
-        verification_hash: verificationHash,
+        certificate_id_hash: hashFields.certificate_id_hash,
+        ipr_id_hash: hashFields.ipr_id_hash,
+        subject_id_hash: hashFields.subject_id_hash,
+        card_serial_hash: hashFields.card_serial_hash,
+        certificate_status_hash: hashFields.certificate_status_hash,
+        certificate_scope_hash: hashFields.certificate_scope_hash,
         operator_reference_hash: hashFields.operator_reference_hash,
+        validity_hash: hashFields.validity_hash,
+        access_boundary_hash: hashFields.access_boundary_hash,
+        legal_boundary_hash: hashFields.legal_boundary_hash,
+        verification_hash: verificationHash,
 
-        previous_payload_sha256:
-          previousUpload.certificate.hash_integrity.payload_sha256,
+        fiscal_identity_collected: true,
+        fiscal_identity_verified: true,
+        official_document_uploaded: true,
+        official_document_verified: true,
+        liveness_submitted: true,
+        liveness_verified: true,
+        privacy_compliance_accepted: true,
+        hbce_review_status: "APPROVED",
+        ipr_approved: true,
+        ipr_status: "VERIFIED",
+        ipr_card_issued: true,
+        ipr_card_status: "ACTIVE",
+        operational_certificate_issued: true,
+        operational_certificate_status: "ACTIVE",
+        joker_c2_access: "ELIGIBLE_FOR_GATE_VALIDATION",
+
+        verification_state: {
+          email_verified: true,
+          phone_verified: true,
+          fiscal_identity_collected: true,
+          fiscal_identity_verified: true,
+          official_document_uploaded: true,
+          official_document_verified: true,
+          liveness_submitted: true,
+          liveness_verified: true,
+          privacy_compliance_accepted: true,
+          hbce_review_status: "APPROVED",
+          ipr_approved: true,
+          ipr_card_issued: true,
+          operational_certificate_issued: true,
+          operational_certificate_status: "ACTIVE",
+          joker_c2_access: "ELIGIBLE_FOR_GATE_VALIDATION"
+        },
+
+        previous_payload_sha256: previousPayloadSha256,
         next_required_phase: "JOKER_C2_ACCESS",
 
         access_boundary: ACCESS_BOUNDARY,
         legal_boundary: LEGAL_BOUNDARY,
+
+        certificate_boundary:
+          "This file records the final HBCE operational certificate for the IPR onboarding chain. It enables JOKER-C2 access evaluation, but JOKER-C2 must still validate the certificate fail-closed before granting runtime access.",
 
         privacy_boundary:
           "This is a private portable HBCE-IPR certificate downloaded by the subject. Operational certificate fields are stored inside private_fields. Public verification must expose hash-only references, not private certificate fields.",
@@ -258,11 +371,10 @@ export default function CertificatePage() {
         next_required_phase: phase.next_required_phase,
         subject: {
           ...previousUpload.certificate.subject,
-          subject_id: subjectId
+          subject_id: operationalPreview.subjectId
         },
         previous_certificate: previousUpload.certificate,
-        previous_payload_sha256:
-          previousUpload.certificate.hash_integrity.payload_sha256,
+        previous_payload_sha256: previousPayloadSha256,
         phase_data: phaseData,
         issued_at: issuedAt
       });
@@ -317,10 +429,10 @@ export default function CertificatePage() {
               <p className="hbce-kicker">Certificate activation data</p>
               <h2>Issue the HBCE operational certificate.</h2>
               <p className="hbce-muted">
-                The app generates a certificate ID and binds it to the IPR ID,
-                subject ID, IPR Card serial and JOKER-C2 access scope. These
-                values are written inside the private operational certificate and
-                also hashed for verification.
+                The app generates a deterministic certificate ID and binds it to
+                the IPR ID, subject ID, IPR Card serial and JOKER-C2 access
+                scope. These values are written inside the private operational
+                certificate and also hashed for verification.
               </p>
             </div>
 
@@ -377,6 +489,9 @@ export default function CertificatePage() {
             </p>
             <p className="hbce-mono">certificate_status: ACTIVE</p>
             <p className="hbce-mono">certificate_scope: JOKER_C2_ACCESS</p>
+            <p className="hbce-mono">
+              joker_c2_access: ELIGIBLE_FOR_GATE_VALIDATION
+            </p>
           </section>
         ) : null}
 
@@ -408,6 +523,14 @@ export default function CertificatePage() {
               downloaded. It contains certificate fields, the corresponding
               hashes and the JOKER-C2 access boundary. Upload this file on the
               JOKER-C2 access gate.
+            </p>
+
+            <p className="hbce-mono">
+              phase: {generatedCertificate.certificate.phase.code}
+            </p>
+
+            <p className="hbce-mono">
+              status: {generatedCertificate.certificate.phase.status}
             </p>
 
             <p className="hbce-mono">
