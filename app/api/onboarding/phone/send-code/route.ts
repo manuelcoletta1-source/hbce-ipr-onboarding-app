@@ -12,6 +12,10 @@ type SendPhoneCodeRequestBody = {
   phone_number?: unknown;
 };
 
+function isOtpDevEchoEnabled(): boolean {
+  return process.env.HBCE_OTP_DEV_ECHO === "true";
+}
+
 async function sendSmsWithProvider(params: {
   to: string;
   code: string;
@@ -22,20 +26,10 @@ async function sendSmsWithProvider(params: {
   const fromNumber = process.env.TWILIO_FROM_NUMBER;
 
   if (provider !== "twilio") {
-    if (process.env.NODE_ENV !== "production") {
-      console.log(`[HBCE DEV SMS OTP] ${params.to}: ${params.code}`);
-      return;
-    }
-
     throw new Error("Unsupported SMS provider.");
   }
 
   if (!accountSid || !authToken || !fromNumber) {
-    if (process.env.NODE_ENV !== "production") {
-      console.log(`[HBCE DEV SMS OTP] ${params.to}: ${params.code}`);
-      return;
-    }
-
     throw new Error("SMS provider is not configured.");
   }
 
@@ -50,9 +44,9 @@ async function sendSmsWithProvider(params: {
     {
       method: "POST",
       headers: {
-        Authorization: `Basic ${Buffer.from(`${accountSid}:${authToken}`).toString(
-          "base64"
-        )}`,
+        Authorization: `Basic ${Buffer.from(
+          `${accountSid}:${authToken}`
+        ).toString("base64")}`,
         "Content-Type": "application/x-www-form-urlencoded"
       },
       body
@@ -97,6 +91,17 @@ export async function POST(request: Request) {
   try {
     const challenge = createPhoneOtpChallenge(phoneNumber);
 
+    if (isOtpDevEchoEnabled()) {
+      return NextResponse.json({
+        ok: true,
+        phone_number: challenge.phone_number,
+        message:
+          "Phone verification code generated in HBCE_OTP_DEV_ECHO mode. No SMS was sent.",
+        dev_code: challenge.code,
+        dev_echo: true
+      });
+    }
+
     try {
       await sendSmsWithProvider({
         to: challenge.phone_number,
@@ -122,9 +127,7 @@ export async function POST(request: Request) {
       ok: true,
       phone_number: challenge.phone_number,
       message: "Phone verification code sent.",
-      ...(process.env.NODE_ENV !== "production"
-        ? { dev_code: challenge.code }
-        : {})
+      dev_echo: false
     });
   } catch (error) {
     return NextResponse.json(
