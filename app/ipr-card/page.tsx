@@ -52,6 +52,8 @@ type Phase8IprCardPrivateFields = JsonObject & {
   valid_until: string;
   next_required_phase: "OPERATIONAL_CERTIFICATE";
   non_replacement_boundary: string;
+  operational_certificate_issued: false;
+  joker_c2_access_authorized: false;
 };
 
 type Phase8IprCardHashFields = JsonObject & {
@@ -62,6 +64,7 @@ type Phase8IprCardHashFields = JsonObject & {
   operator_reference_hash: string;
   validity_hash: string;
   non_replacement_boundary_hash: string;
+  card_boundary_hash: string;
 };
 
 const phase = getPhaseDefinitionByNumber(8);
@@ -70,6 +73,9 @@ const SESSION_CERTIFICATE_PREFIX = "HBCE_IPR_CERTIFICATE_FOR_NEXT_PHASE";
 
 const NON_REPLACEMENT_BOUNDARY =
   "HBCE IPR Card is an internal operational identity card. It does not replace CIE, SPID, EUDI Wallet, passport, driving licence, national identity card, qualified eIDAS certificate or official state identity.";
+
+const CARD_ISSUANCE_BOUNDARY =
+  "Certificate 08 records internal HBCE IPR Card issuance. It does not issue the final operational certificate and it does not grant JOKER-C2 access.";
 
 function getSessionCertificateKey(nextPhase: HbceIprNextPhaseCode): string {
   return `${SESSION_CERTIFICATE_PREFIX}:${nextPhase}`;
@@ -139,6 +145,20 @@ function normalizeOperatorReference(value: string): string {
   return value.trim();
 }
 
+function normalizeValidUntil(value: string): string {
+  return value.trim();
+}
+
+function isValidFutureIsoDate(value: string): boolean {
+  const parsed = Date.parse(value);
+
+  if (Number.isNaN(parsed)) {
+    return false;
+  }
+
+  return parsed > Date.now();
+}
+
 function buildActiveUploadFromAcceptedUpload(
   upload: AcceptedIprCertificateUpload
 ): ActiveIprCardUpload {
@@ -165,6 +185,7 @@ function buildActiveUploadFromSession(
 
 function buildCardPreview(previousUpload: ActiveIprCardUpload): Phase8CardPreview {
   const baseHash = previousUpload.payloadSha256;
+
   const subjectId =
     previousUpload.certificate.subject.subject_id ??
     createCompactId("SUBJECT", previousUpload.certificate.subject.subject_ref);
@@ -180,56 +201,84 @@ async function buildHashFields(params: {
   privateFields: Phase8IprCardPrivateFields;
   previousPayloadSha256: string;
 }): Promise<Phase8IprCardHashFields> {
+  const iprIdHash = await sha256Canonical({
+    kind: "HBCE_IPR_PHASE_8_IPR_ID",
+    phase: "IPR_CARD_ISSUED",
+    value: params.privateFields.ipr_id,
+    previous_payload_sha256: params.previousPayloadSha256,
+    issued_at: params.privateFields.issued_at
+  });
+
+  const subjectIdHash = await sha256Canonical({
+    kind: "HBCE_IPR_PHASE_8_SUBJECT_ID",
+    phase: "IPR_CARD_ISSUED",
+    value: params.privateFields.subject_id,
+    previous_payload_sha256: params.previousPayloadSha256,
+    issued_at: params.privateFields.issued_at
+  });
+
+  const cardSerialHash = await sha256Canonical({
+    kind: "HBCE_IPR_PHASE_8_CARD_SERIAL",
+    phase: "IPR_CARD_ISSUED",
+    value: params.privateFields.card_serial,
+    previous_payload_sha256: params.previousPayloadSha256,
+    issued_at: params.privateFields.issued_at
+  });
+
+  const cardStatusHash = await sha256Canonical({
+    kind: "HBCE_IPR_PHASE_8_CARD_STATUS",
+    phase: "IPR_CARD_ISSUED",
+    value: params.privateFields.card_status,
+    previous_payload_sha256: params.previousPayloadSha256,
+    issued_at: params.privateFields.issued_at
+  });
+
+  const operatorReferenceHash = await sha256Canonical({
+    kind: "HBCE_IPR_PHASE_8_OPERATOR_REFERENCE",
+    phase: "IPR_CARD_ISSUED",
+    value: params.privateFields.operator_reference,
+    previous_payload_sha256: params.previousPayloadSha256,
+    issued_at: params.privateFields.issued_at
+  });
+
+  const validityHash = await sha256Canonical({
+    kind: "HBCE_IPR_PHASE_8_VALIDITY",
+    phase: "IPR_CARD_ISSUED",
+    previous_payload_sha256: params.previousPayloadSha256,
+    issued_at: params.privateFields.issued_at,
+    valid_until: params.privateFields.valid_until
+  });
+
+  const nonReplacementBoundaryHash = await sha256Canonical({
+    kind: "HBCE_IPR_PHASE_8_NON_REPLACEMENT_BOUNDARY",
+    phase: "IPR_CARD_ISSUED",
+    value: NON_REPLACEMENT_BOUNDARY,
+    previous_payload_sha256: params.previousPayloadSha256,
+    issued_at: params.privateFields.issued_at
+  });
+
+  const cardBoundaryHash = await sha256Canonical({
+    kind: "HBCE_IPR_PHASE_8_CARD_BOUNDARY",
+    phase: "IPR_CARD_ISSUED",
+    value: CARD_ISSUANCE_BOUNDARY,
+    operational_certificate_issued:
+      params.privateFields.operational_certificate_issued,
+    joker_c2_access_authorized:
+      params.privateFields.joker_c2_access_authorized,
+    next_required_phase: params.privateFields.next_required_phase,
+    previous_payload_sha256: params.previousPayloadSha256,
+    issued_at: params.privateFields.issued_at
+  });
+
   return {
-    ipr_id_hash: await sha256Canonical({
-      kind: "HBCE_IPR_PHASE_8_IPR_ID",
-      phase: "IPR_CARD_ISSUED",
-      value: params.privateFields.ipr_id,
-      previous_payload_sha256: params.previousPayloadSha256,
-      issued_at: params.privateFields.issued_at
-    }),
-    subject_id_hash: await sha256Canonical({
-      kind: "HBCE_IPR_PHASE_8_SUBJECT_ID",
-      phase: "IPR_CARD_ISSUED",
-      value: params.privateFields.subject_id,
-      previous_payload_sha256: params.previousPayloadSha256,
-      issued_at: params.privateFields.issued_at
-    }),
-    card_serial_hash: await sha256Canonical({
-      kind: "HBCE_IPR_PHASE_8_CARD_SERIAL",
-      phase: "IPR_CARD_ISSUED",
-      value: params.privateFields.card_serial,
-      previous_payload_sha256: params.previousPayloadSha256,
-      issued_at: params.privateFields.issued_at
-    }),
-    card_status_hash: await sha256Canonical({
-      kind: "HBCE_IPR_PHASE_8_CARD_STATUS",
-      phase: "IPR_CARD_ISSUED",
-      value: params.privateFields.card_status,
-      previous_payload_sha256: params.previousPayloadSha256,
-      issued_at: params.privateFields.issued_at
-    }),
-    operator_reference_hash: await sha256Canonical({
-      kind: "HBCE_IPR_PHASE_8_OPERATOR_REFERENCE",
-      phase: "IPR_CARD_ISSUED",
-      value: params.privateFields.operator_reference,
-      previous_payload_sha256: params.previousPayloadSha256,
-      issued_at: params.privateFields.issued_at
-    }),
-    validity_hash: await sha256Canonical({
-      kind: "HBCE_IPR_PHASE_8_VALIDITY",
-      phase: "IPR_CARD_ISSUED",
-      previous_payload_sha256: params.previousPayloadSha256,
-      issued_at: params.privateFields.issued_at,
-      valid_until: params.privateFields.valid_until
-    }),
-    non_replacement_boundary_hash: await sha256Canonical({
-      kind: "HBCE_IPR_PHASE_8_NON_REPLACEMENT_BOUNDARY",
-      phase: "IPR_CARD_ISSUED",
-      value: NON_REPLACEMENT_BOUNDARY,
-      previous_payload_sha256: params.previousPayloadSha256,
-      issued_at: params.privateFields.issued_at
-    })
+    ipr_id_hash: iprIdHash,
+    subject_id_hash: subjectIdHash,
+    card_serial_hash: cardSerialHash,
+    card_status_hash: cardStatusHash,
+    operator_reference_hash: operatorReferenceHash,
+    validity_hash: validityHash,
+    non_replacement_boundary_hash: nonReplacementBoundaryHash,
+    card_boundary_hash: cardBoundaryHash
   };
 }
 
@@ -278,7 +327,9 @@ export default function IPRCardPage() {
         return;
       }
 
-      setPreviousUpload(buildActiveUploadFromSession(stored as HbceIprCertificate));
+      setPreviousUpload(
+        buildActiveUploadFromSession(stored as HbceIprCertificate)
+      );
       setError("");
     }
 
@@ -300,6 +351,8 @@ export default function IPRCardPage() {
   function clearPreviousUpload() {
     clearStoredCertificateForPhase("IPR_CARD_ISSUANCE");
     setPreviousUpload(null);
+    setGeneratedCertificate(null);
+    setError("");
   }
 
   async function issueIprCardCertificate() {
@@ -321,17 +374,43 @@ export default function IPRCardPage() {
       return;
     }
 
-    if (!validUntil.trim()) {
+    const normalizedValidUntil = normalizeValidUntil(validUntil);
+
+    if (!normalizedValidUntil) {
       setError("Insert the IPR Card validity date.");
+      return;
+    }
+
+    if (!isValidFutureIsoDate(normalizedValidUntil)) {
+      setError(
+        "Insert a valid future date for the IPR Card validity boundary."
+      );
       return;
     }
 
     setIsGenerating(true);
 
     try {
+      const validation = await validatePreviousHbceIprCertificate({
+        certificate: previousUpload.certificate,
+        expected_previous_phase: "IPR_APPROVED",
+        expected_next_phase: "IPR_CARD_ISSUANCE"
+      });
+
+      if (!validation.valid) {
+        setPreviousUpload(null);
+        clearStoredCertificateForPhase("IPR_CARD_ISSUANCE");
+        setError(
+          validation.message || "The approved certificate failed validation."
+        );
+        return;
+      }
+
       const issuedAt = nowIso();
+
       const previousPayloadSha256 =
         previousUpload.certificate.hash_integrity.payload_sha256;
+
       const cardPreview = buildCardPreview(previousUpload);
 
       const privateFields: Phase8IprCardPrivateFields = {
@@ -342,9 +421,11 @@ export default function IPRCardPage() {
         issuer: "HERMETICUM B.C.E. S.r.l.",
         operator_reference: normalizedOperatorReference,
         issued_at: issuedAt,
-        valid_until: validUntil,
+        valid_until: normalizedValidUntil,
         next_required_phase: "OPERATIONAL_CERTIFICATE",
-        non_replacement_boundary: NON_REPLACEMENT_BOUNDARY
+        non_replacement_boundary: NON_REPLACEMENT_BOUNDARY,
+        operational_certificate_issued: false,
+        joker_c2_access_authorized: false
       };
 
       const hashFields = await buildHashFields({
@@ -391,6 +472,7 @@ export default function IPRCardPage() {
         validity_hash: hashFields.validity_hash,
         non_replacement_boundary_hash:
           hashFields.non_replacement_boundary_hash,
+        card_boundary_hash: hashFields.card_boundary_hash,
         card_metadata_hash: cardMetadataHash,
 
         fiscal_identity_collected: true,
@@ -400,6 +482,7 @@ export default function IPRCardPage() {
         liveness_submitted: true,
         liveness_verified: true,
         privacy_compliance_accepted: true,
+
         hbce_review_status: "APPROVED",
         ipr_approved: true,
         ipr_status: "APPROVED",
@@ -429,6 +512,7 @@ export default function IPRCardPage() {
         next_required_phase: "OPERATIONAL_CERTIFICATE",
 
         non_replacement_boundary: NON_REPLACEMENT_BOUNDARY,
+        card_issuance_boundary: CARD_ISSUANCE_BOUNDARY,
 
         certificate_boundary:
           "This file records internal HBCE IPR Card issuance. It does not replace any official state identity document, it does not issue a qualified eIDAS certificate and it does not grant JOKER-C2 access by itself.",
@@ -481,7 +565,7 @@ export default function IPRCardPage() {
     <div className="hbce-container">
       <main className="hbce-main">
         <section className="hbce-hero">
-          <p className="hbce-kicker">HBCE IPR Card</p>
+          <p className="hbce-kicker">HBCE IPR Card · Phase 08</p>
 
           <h1>{phase.title}</h1>
 
@@ -618,6 +702,7 @@ export default function IPRCardPage() {
               card_serial: {generatedPreview.cardSerial}
             </p>
             <p className="hbce-mono">card_status: ACTIVE</p>
+            <p className="hbce-mono">operational_certificate: NOT_ISSUED</p>
             <p className="hbce-mono">joker_c2_access: DENIED</p>
           </section>
         ) : null}
