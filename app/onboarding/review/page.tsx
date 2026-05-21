@@ -12,6 +12,14 @@ import type {
 
 import type { JsonObject } from "@/lib/types";
 
+const phase = getPhaseDefinitionByNumber(6);
+
+const REVIEW_STATEMENT =
+  "The subject submits the HBCE-IPR onboarding package for HBCE review. This certificate does not approve the IPR and does not authorize IPR Card issuance.";
+
+const SUBMIT_FOR_REVIEW_LABEL =
+  "Submit this HBCE-IPR onboarding package for HBCE review.";
+
 type Phase6ReviewPrivateFields = JsonObject & {
   submit_for_review: boolean;
   review_statement: string;
@@ -19,6 +27,10 @@ type Phase6ReviewPrivateFields = JsonObject & {
   submitted_at: string;
   user_self_approval_allowed: false;
   backend_or_admin_review_required: true;
+  hbce_operator_decision_required: true;
+  ipr_approval_granted: false;
+  ipr_card_issuance_authorized: false;
+  joker_c2_access_authorized: false;
   next_required_phase: "HBCE_APPROVAL";
 };
 
@@ -26,40 +38,49 @@ type Phase6ReviewHashFields = JsonObject & {
   submit_for_review_hash: string;
   review_statement_hash: string;
   review_status_hash: string;
+  review_boundary_hash: string;
 };
-
-const phase = getPhaseDefinitionByNumber(6);
-
-const REVIEW_STATEMENT =
-  "The subject submits the HBCE-IPR onboarding package for HBCE review. This certificate does not approve the IPR and does not authorize IPR Card issuance.";
 
 const fields: IprPhaseFieldDefinition[] = [
   {
     name: "submit_for_review",
-    label: "Submit this HBCE-IPR onboarding package for HBCE review.",
+    label: SUBMIT_FOR_REVIEW_LABEL,
     type: "checkbox",
     helperText:
       "This value is included in the private HBCE-IPR certificate. It does not approve the IPR. It only creates the pending review certificate."
   }
 ];
 
-function getBooleanValue(
-  context: IprPhaseFormBuildDataContext,
-  fieldName: string
+function getSubmitForReviewValue(
+  context: IprPhaseFormBuildDataContext
 ): boolean {
-  return Boolean(context.values[fieldName]);
+  return Boolean(context.values.submit_for_review);
+}
+
+function assertReviewSubmissionAccepted(
+  context: IprPhaseFormBuildDataContext
+): void {
+  if (!getSubmitForReviewValue(context)) {
+    throw new Error(
+      "HBCE fail-closed: Certificate 06 cannot be generated until the subject explicitly submits the onboarding package for HBCE review."
+    );
+  }
 }
 
 function buildPrivateFields(
   context: IprPhaseFormBuildDataContext
 ): Phase6ReviewPrivateFields {
   return {
-    submit_for_review: getBooleanValue(context, "submit_for_review"),
+    submit_for_review: getSubmitForReviewValue(context),
     review_statement: REVIEW_STATEMENT,
     review_status: "PENDING_REVIEW",
     submitted_at: context.issuedAt,
     user_self_approval_allowed: false,
     backend_or_admin_review_required: true,
+    hbce_operator_decision_required: true,
+    ipr_approval_granted: false,
+    ipr_card_issuance_authorized: false,
+    joker_c2_access_authorized: false,
     next_required_phase: "HBCE_APPROVAL"
   };
 }
@@ -69,39 +90,67 @@ async function buildHashFields(
   previousPayloadSha256: string | null,
   issuedAt: string
 ): Promise<Phase6ReviewHashFields> {
+  const submitForReviewHash = await sha256Canonical({
+    kind: "HBCE_IPR_PHASE_6_SUBMIT_FOR_REVIEW",
+    phase: "PENDING_REVIEW",
+    label: SUBMIT_FOR_REVIEW_LABEL,
+    accepted: privateFields.submit_for_review,
+    statement: REVIEW_STATEMENT,
+    previous_payload_sha256: previousPayloadSha256,
+    submitted_at: issuedAt
+  });
+
+  const reviewStatementHash = await sha256Canonical({
+    kind: "HBCE_IPR_PHASE_6_REVIEW_STATEMENT",
+    phase: "PENDING_REVIEW",
+    statement: REVIEW_STATEMENT,
+    previous_payload_sha256: previousPayloadSha256,
+    submitted_at: issuedAt
+  });
+
+  const reviewStatusHash = await sha256Canonical({
+    kind: "HBCE_IPR_PHASE_6_REVIEW_STATUS",
+    phase: "PENDING_REVIEW",
+    review_status: privateFields.review_status,
+    user_self_approval_allowed: privateFields.user_self_approval_allowed,
+    backend_or_admin_review_required:
+      privateFields.backend_or_admin_review_required,
+    hbce_operator_decision_required:
+      privateFields.hbce_operator_decision_required,
+    previous_payload_sha256: previousPayloadSha256,
+    submitted_at: issuedAt
+  });
+
+  const reviewBoundaryHash = await sha256Canonical({
+    kind: "HBCE_IPR_PHASE_6_REVIEW_BOUNDARY",
+    phase: "PENDING_REVIEW",
+    ipr_approval_granted: privateFields.ipr_approval_granted,
+    ipr_card_issuance_authorized:
+      privateFields.ipr_card_issuance_authorized,
+    joker_c2_access_authorized: privateFields.joker_c2_access_authorized,
+    next_required_phase: privateFields.next_required_phase,
+    previous_payload_sha256: previousPayloadSha256,
+    submitted_at: issuedAt
+  });
+
   return {
-    submit_for_review_hash: await sha256Canonical({
-      kind: "HBCE_IPR_PHASE_6_SUBMIT_FOR_REVIEW",
-      phase: "PENDING_REVIEW",
-      accepted: privateFields.submit_for_review,
-      statement: REVIEW_STATEMENT,
-      previous_payload_sha256: previousPayloadSha256,
-      submitted_at: issuedAt
-    }),
-    review_statement_hash: await sha256Canonical({
-      kind: "HBCE_IPR_PHASE_6_REVIEW_STATEMENT",
-      phase: "PENDING_REVIEW",
-      statement: REVIEW_STATEMENT,
-      previous_payload_sha256: previousPayloadSha256,
-      submitted_at: issuedAt
-    }),
-    review_status_hash: await sha256Canonical({
-      kind: "HBCE_IPR_PHASE_6_REVIEW_STATUS",
-      phase: "PENDING_REVIEW",
-      review_status: privateFields.review_status,
-      previous_payload_sha256: previousPayloadSha256,
-      submitted_at: issuedAt
-    })
+    submit_for_review_hash: submitForReviewHash,
+    review_statement_hash: reviewStatementHash,
+    review_status_hash: reviewStatusHash,
+    review_boundary_hash: reviewBoundaryHash
   };
 }
 
 async function buildPhase6ReviewPendingData(
   context: IprPhaseFormBuildDataContext
 ): Promise<JsonObject> {
+  assertReviewSubmissionAccepted(context);
+
   const previousPayloadSha256 =
     context.previousCertificate?.hash_integrity.payload_sha256 ?? null;
 
   const privateFields = buildPrivateFields(context);
+
   const hashFields = await buildHashFields(
     privateFields,
     previousPayloadSha256,
@@ -133,12 +182,14 @@ async function buildPhase6ReviewPendingData(
     submit_for_review_hash: hashFields.submit_for_review_hash,
     review_statement_hash: hashFields.review_statement_hash,
     review_status_hash: hashFields.review_status_hash,
+    review_boundary_hash: hashFields.review_boundary_hash,
     review_package_hash: reviewPackageHash,
 
     submitted_at: context.issuedAt,
     review_status: "PENDING_REVIEW",
     user_self_approval_allowed: false,
     backend_or_admin_review_required: true,
+    hbce_operator_decision_required: true,
 
     fiscal_identity_collected: true,
     fiscal_identity_verified: false,
@@ -147,10 +198,12 @@ async function buildPhase6ReviewPendingData(
     liveness_submitted: true,
     liveness_verified: false,
     privacy_compliance_accepted: true,
+
     hbce_review_status: "PENDING_REVIEW",
     ipr_approved: false,
     ipr_status: "PENDING",
     ipr_card_status: "NOT_ISSUED",
+    operational_certificate_issued: false,
     joker_c2_access: "DENIED",
 
     verification_state: {
