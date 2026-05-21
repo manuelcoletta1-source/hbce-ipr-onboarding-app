@@ -207,7 +207,7 @@ export default function OnboardingPhotoVideoPage() {
                 </select>
               </div>
 
-              <BoundaryNotice title="Manual review required" tone="warning">
+              <BoundaryNotice title="Manual review required" tone="danger">
                 Photo/video metadata can prepare the onboarding case for HBCE
                 review, but it cannot self-approve the subject, issue IPR
                 Verified status, issue an IPR Card or unlock JOKER-C2 access.
