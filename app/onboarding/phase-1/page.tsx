@@ -21,7 +21,7 @@ const fields: IprPhaseFieldDefinition[] = [
     type: "email",
     placeholder: "name@example.com",
     helperText:
-      "This value is written inside the private HBCE-IPR certificate and also hashed for verification."
+      "Customer email. It is included in the private portable certificate and hashed for audit verification."
   },
   {
     name: "phone_number",
@@ -29,7 +29,7 @@ const fields: IprPhaseFieldDefinition[] = [
     type: "tel",
     placeholder: "+39 000 000 0000",
     helperText:
-      "This value is written inside the private HBCE-IPR certificate and also hashed for verification."
+      "Customer phone number. It is included in the private portable certificate and hashed for audit verification."
   },
   {
     name: "first_name",
@@ -37,7 +37,7 @@ const fields: IprPhaseFieldDefinition[] = [
     type: "text",
     placeholder: "Mario",
     helperText:
-      "This value is written inside the private HBCE-IPR certificate and also hashed for verification."
+      "Customer first name. It is included in the private portable certificate and hashed for audit verification."
   },
   {
     name: "last_name",
@@ -45,26 +45,26 @@ const fields: IprPhaseFieldDefinition[] = [
     type: "text",
     placeholder: "Rossi",
     helperText:
-      "This value is written inside the private HBCE-IPR certificate and also hashed for verification."
+      "Customer last name. It is included in the private portable certificate and hashed for audit verification."
   },
   {
     name: "country",
     label: "Country",
     type: "text",
-    placeholder: "IT",
+    placeholder: "Italy / IT",
     helperText:
-      "Use the country code or country name provided by the subject."
+      "Customer country or country code. It is included in the private portable certificate and hashed."
   },
   {
     name: "date_of_birth",
     label: "Date of birth",
     type: "date",
     helperText:
-      "This value is written inside the private certificate and hashed."
+      "Customer date of birth. It is included in the private portable certificate and hashed."
   }
 ];
 
-function getStringValue(
+function getRawStringValue(
   context: IprPhaseFormBuildDataContext,
   fieldName: string
 ): string {
@@ -77,30 +77,91 @@ function getStringValue(
   return String(value ?? "").trim();
 }
 
+function normalizeEmail(value: string): string {
+  return value.trim().toLowerCase();
+}
+
+function normalizePhoneNumber(value: string): string {
+  return value.replace(/\s+/g, "").trim();
+}
+
+function normalizeName(value: string): string {
+  return value.trim();
+}
+
+function normalizeCountry(value: string): string {
+  return value.trim();
+}
+
+function normalizeDate(value: string): string {
+  return value.trim();
+}
+
+function getNormalizedPhase1Value(
+  context: IprPhaseFormBuildDataContext,
+  fieldName: string
+): string {
+  const rawValue = getRawStringValue(context, fieldName);
+
+  switch (fieldName) {
+    case "email":
+      return normalizeEmail(rawValue);
+    case "phone_number":
+      return normalizePhoneNumber(rawValue);
+    case "first_name":
+    case "last_name":
+      return normalizeName(rawValue);
+    case "country":
+      return normalizeCountry(rawValue);
+    case "date_of_birth":
+      return normalizeDate(rawValue);
+    default:
+      return rawValue;
+  }
+}
+
 async function hashPhaseValue(
   context: IprPhaseFormBuildDataContext,
   fieldName: string
 ): Promise<string> {
   return sha256Canonical({
-    kind: "HBCE_IPR_PHASE_1_FIELD",
+    kind: "HBCE_IPR_PHASE_1_CUSTOMER_FIELD",
+    phase: "SUBJECT_CREATED",
     field: fieldName,
-    value: getStringValue(context, fieldName)
+    value: getNormalizedPhase1Value(context, fieldName)
   });
 }
 
-async function buildPhase1SubjectData(
+function buildSubmittedPrivateFields(
+  context: IprPhaseFormBuildDataContext
+): JsonObject {
+  return {
+    email: getRawStringValue(context, "email"),
+    phone_number: getRawStringValue(context, "phone_number"),
+    first_name: getRawStringValue(context, "first_name"),
+    last_name: getRawStringValue(context, "last_name"),
+    country: getRawStringValue(context, "country"),
+    date_of_birth: getRawStringValue(context, "date_of_birth")
+  };
+}
+
+function buildNormalizedPrivateFields(
+  context: IprPhaseFormBuildDataContext
+): JsonObject {
+  return {
+    email: getNormalizedPhase1Value(context, "email"),
+    phone_number: getNormalizedPhase1Value(context, "phone_number"),
+    first_name: getNormalizedPhase1Value(context, "first_name"),
+    last_name: getNormalizedPhase1Value(context, "last_name"),
+    country: getNormalizedPhase1Value(context, "country"),
+    date_of_birth: getNormalizedPhase1Value(context, "date_of_birth")
+  };
+}
+
+async function buildHashFields(
   context: IprPhaseFormBuildDataContext
 ): Promise<JsonObject> {
-  const privateFields = {
-    email: getStringValue(context, "email"),
-    phone_number: getStringValue(context, "phone_number"),
-    first_name: getStringValue(context, "first_name"),
-    last_name: getStringValue(context, "last_name"),
-    country: getStringValue(context, "country"),
-    date_of_birth: getStringValue(context, "date_of_birth")
-  };
-
-  const hashFields = {
+  return {
     email_hash: await hashPhaseValue(context, "email"),
     phone_hash: await hashPhaseValue(context, "phone_number"),
     first_name_hash: await hashPhaseValue(context, "first_name"),
@@ -108,13 +169,26 @@ async function buildPhase1SubjectData(
     country_hash: await hashPhaseValue(context, "country"),
     date_of_birth_hash: await hashPhaseValue(context, "date_of_birth")
   };
+}
+
+async function buildPhase1SubjectData(
+  context: IprPhaseFormBuildDataContext
+): Promise<JsonObject> {
+  const submittedPrivateFields = buildSubmittedPrivateFields(context);
+  const privateFields = buildNormalizedPrivateFields(context);
+  const hashFields = await buildHashFields(context);
 
   return {
+    certificate_role: "STEP_1_CLIENT_INTAKE",
     certificate_visibility: "PRIVATE_PORTABLE_CERTIFICATE",
     public_registry_mode: "HASH_ONLY",
     subject_creation_mode: "SELF_INITIATED_IPR_REQUEST",
 
     private_fields: privateFields,
+    submitted_private_fields: submittedPrivateFields,
+    client_private_data: privateFields,
+    client_private_data_included: true,
+
     hash_fields: hashFields,
 
     email_hash: hashFields.email_hash,
@@ -124,12 +198,35 @@ async function buildPhase1SubjectData(
     country_hash: hashFields.country_hash,
     date_of_birth_hash: hashFields.date_of_birth_hash,
 
+    ipr_status: "NOT_YET_ISSUED",
+    ipr_card_status: "NOT_ISSUED",
+    joker_c2_access: "DENIED",
+
+    verification_state: {
+      email_verified: false,
+      phone_verified: false,
+      fiscal_identity_verified: false,
+      official_document_uploaded: false,
+      official_document_verified: false,
+      liveness_verified: false,
+      privacy_compliance_accepted: false,
+      hbce_review_status: "NOT_STARTED",
+      ipr_approved: false,
+      ipr_card_issued: false,
+      operational_certificate_issued: false,
+      joker_c2_access: "DENIED"
+    },
+
     previous_payload_sha256: null,
     next_required_phase: "FISCAL_IDENTITY",
     issued_at: context.issuedAt,
+    created_at_utc: context.issuedAt,
+
+    certificate_boundary:
+      "This file records the creation of the HBCE IPR customer profile request. It does not certify verified identity, it does not issue an IPR Card and it does not grant JOKER-C2 access.",
 
     privacy_boundary:
-      "This is a private portable HBCE-IPR certificate downloaded by the subject. Public verification must expose hash-only references, not private fields."
+      "This is a private portable HBCE-IPR certificate downloaded by the subject. It may contain customer intake data. Public verification must expose hash-only references, not private identity fields."
   };
 }
 
@@ -142,7 +239,7 @@ export default function Phase1SubjectCreatedPage() {
         buildPhaseData={buildPhase1SubjectData}
         submitLabel="Generate HBCE IPR Certificate 01"
         successTitle="HBCE IPR Certificate 01 generated"
-        successDescription="The first private HBCE-IPR certificate has been generated and downloaded. It contains the inserted subject data and the corresponding hashes. Use this file in Phase 2 — Fiscal Identity."
+        successDescription="The first private HBCE-IPR certificate has been generated and downloaded. It records the customer profile creation, the exact creation timestamp and the corresponding hash references. It does not verify the identity yet. Use this file in Phase 2 — Fiscal Identity."
       />
     </div>
   );
