@@ -51,6 +51,10 @@ export function isValidEmail(value: string): boolean {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value.trim());
 }
 
+function isOtpDevEchoEnabled(): boolean {
+  return process.env.HBCE_OTP_DEV_ECHO === "true";
+}
+
 function getOtpSecret(): string | null {
   const secret = process.env.HBCE_OTP_SECRET;
 
@@ -65,11 +69,14 @@ function getOtpSecret(): string | null {
   return null;
 }
 
-function getOtpTtlMs(): number {
+function getOtpTtlSeconds(): number {
   const raw = Number(process.env.HBCE_OTP_TTL_SECONDS ?? "600");
-  const seconds = Number.isFinite(raw) && raw > 0 ? raw : 600;
 
-  return seconds * 1000;
+  return Number.isFinite(raw) && raw > 0 ? raw : 600;
+}
+
+function getOtpTtlMs(): number {
+  return getOtpTtlSeconds() * 1000;
 }
 
 function getMaxAttempts(): number {
@@ -99,6 +106,26 @@ function safeEqualHex(left: string, right: string): boolean {
   return timingSafeEqual(leftBuffer, rightBuffer);
 }
 
+function getCurrentTimeBucket(): number {
+  return Math.floor(Date.now() / getOtpTtlMs());
+}
+
+function generateDeterministicDevOtpCode(email: string, bucket: number): string {
+  const digest = hmac(`HBCE_EMAIL_DEV_OTP:${email}:${bucket}`);
+  const numeric = Number.parseInt(digest.slice(0, 12), 16) % 1_000_000;
+
+  return String(numeric).padStart(6, "0");
+}
+
+function isValidDeterministicDevOtpCode(email: string, code: string): boolean {
+  const currentBucket = getCurrentTimeBucket();
+  const acceptedBuckets = [currentBucket, currentBucket - 1];
+
+  return acceptedBuckets.some(
+    (bucket) => generateDeterministicDevOtpCode(email, bucket) === code
+  );
+}
+
 export function generateOtpCode(): string {
   return String(randomInt(0, 1_000_000)).padStart(6, "0");
 }
@@ -114,9 +141,12 @@ export function createEmailOtpChallenge(emailInput: string): {
     throw new Error("INVALID_EMAIL");
   }
 
-  const code = generateOtpCode();
   const createdAt = new Date();
   const expiresAt = new Date(createdAt.getTime() + getOtpTtlMs());
+
+  const code = isOtpDevEchoEnabled()
+    ? generateDeterministicDevOtpCode(email, getCurrentTimeBucket())
+    : generateOtpCode();
 
   const challenge: HbceEmailOtpChallenge = {
     email,
@@ -128,7 +158,9 @@ export function createEmailOtpChallenge(emailInput: string): {
     verified_at: null
   };
 
-  getStore().set(email, challenge);
+  if (!isOtpDevEchoEnabled()) {
+    getStore().set(email, challenge);
+  }
 
   return {
     email,
@@ -139,6 +171,34 @@ export function createEmailOtpChallenge(emailInput: string): {
 
 export function deleteEmailOtpChallenge(emailInput: string): void {
   getStore().delete(normalizeEmail(emailInput));
+}
+
+function verifyEmailOtpCodeInDevEchoMode(
+  email: string,
+  code: string
+): HbceEmailOtpVerificationResult {
+  if (!isValidDeterministicDevOtpCode(email, code)) {
+    return {
+      valid: false,
+      reason: "INVALID_CODE",
+      message:
+        "Email verification failed. Invalid development code or expired time window."
+    };
+  }
+
+  const verifiedAt = new Date().toISOString();
+  const emailVerificationHash = hmac(
+    `HBCE_EMAIL_VERIFIED_DEV:${email}:${verifiedAt}:${code}`
+  );
+
+  return {
+    valid: true,
+    email,
+    email_verified: true,
+    email_verified_at: verifiedAt,
+    email_verification_channel: "EMAIL_OTP",
+    email_verification_hash: emailVerificationHash
+  };
 }
 
 export function verifyEmailOtpCode(
@@ -173,6 +233,10 @@ export function verifyEmailOtpCode(
       message:
         "Email verification failed. The OTP secret is missing in the server environment."
     };
+  }
+
+  if (isOtpDevEchoEnabled()) {
+    return verifyEmailOtpCodeInDevEchoMode(email, code);
   }
 
   const store = getStore();
