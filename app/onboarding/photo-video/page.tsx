@@ -8,16 +8,20 @@ import { StatusBadge } from "@/components/StatusBadge";
 
 const PHOTO_VIDEO_STATE_ITEMS = [
   {
-    label: "Photo verification",
+    label: "Photo evidence",
     status: "submitted"
   },
   {
-    label: "Video verification",
+    label: "Video evidence",
     status: "submitted"
   },
   {
     label: "Liveness state",
     status: "manual_review"
+  },
+  {
+    label: "IPR Verified",
+    status: "denied"
   },
   {
     label: "JOKER-C2 access",
@@ -29,35 +33,49 @@ const PHOTO_VIDEO_BOUNDARIES = [
   "Real photos must not be committed to this repository.",
   "Real videos must not be committed to this repository.",
   "Biometric templates must not be stored in public routes.",
+  "Face templates must not be generated or exposed by this MVP page.",
   "Liveness recordings must remain in protected processing environments.",
-  "Photo/video verification does not directly issue IPR Verified status.",
+  "Photo/video verification prepares review only.",
+  "Photo/video verification does not issue IPR Verified status.",
+  "Photo/video verification does not issue an IPR Card.",
+  "Photo/video verification does not activate the operational certificate.",
   "JOKER-C2 access remains denied by default."
 ] as const;
 
 const PHOTO_VIDEO_EVIDENCE_ITEMS = [
   "Protected photo reference",
   "Protected video reference",
-  "Photo hash",
-  "Video hash",
+  "Photo SHA-256 reference",
+  "Video SHA-256 reference",
   "Photo verification status",
   "Video verification status",
-  "Liveness status"
+  "Liveness review status",
+  "Manual review requirement"
+] as const;
+
+const PHOTO_VIDEO_REVIEW_RULES = [
+  "The subject must already have completed fiscal identity evidence.",
+  "The subject must already have submitted official identity document evidence.",
+  "The photo reference must point to protected storage in production.",
+  "The video reference must point to protected storage in production.",
+  "The liveness state must remain pending or under manual review until operator validation.",
+  "The onboarding case can move to review, but cannot self-approve."
 ] as const;
 
 export default function OnboardingPhotoVideoPage() {
   return (
     <div className="hbce-container">
       <section className="hbce-hero">
-        <p className="hbce-kicker">Step 05 · Photo / Video</p>
+        <p className="hbce-kicker">Onboarding Evidence · Photo / Video</p>
 
         <h1 className="hbce-title">
-          Prepare photo and video verification state.
+          Prepare photo, video and liveness verification state.
         </h1>
 
         <p className="hbce-lead">
-          This MVP page simulates the subject-document coherence and liveness
-          verification stage. It does not process real photos, real videos,
-          biometric templates, face templates or liveness recordings.
+          This page prepares the photo/video evidence layer required before HBCE
+          review. The MVP does not process real photos, real videos, biometric
+          templates, face templates or production liveness recordings.
         </p>
       </section>
 
@@ -65,13 +83,13 @@ export default function OnboardingPhotoVideoPage() {
         <div className="hbce-grid hbce-grid--2">
           <div className="hbce-card">
             <p className="hbce-kicker">Verification evidence</p>
-            <h2>Prepare photo/video verification metadata</h2>
+            <h2>Prepare protected photo/video metadata</h2>
 
             <p>
-              In production, this step may connect to protected storage,
-              verification providers and lawful identity verification workflows.
-              In the MVP, it only represents the operational state required
-              before review.
+              In production, this step must connect to protected storage,
+              authorized verification providers and lawful identity verification
+              workflows. In this MVP, the page records only the operational
+              metadata required to prepare the onboarding case for review.
             </p>
 
             <form className="hbce-form">
@@ -106,7 +124,7 @@ export default function OnboardingPhotoVideoPage() {
               <div className="hbce-grid hbce-grid--2">
                 <div className="hbce-field">
                   <label className="hbce-label" htmlFor="photo_hash">
-                    Photo hash
+                    Photo SHA-256 reference
                   </label>
                   <input
                     autoComplete="off"
@@ -120,7 +138,7 @@ export default function OnboardingPhotoVideoPage() {
 
                 <div className="hbce-field">
                   <label className="hbce-label" htmlFor="video_hash">
-                    Video hash
+                    Video SHA-256 reference
                   </label>
                   <input
                     autoComplete="off"
@@ -175,7 +193,7 @@ export default function OnboardingPhotoVideoPage() {
 
               <div className="hbce-field">
                 <label className="hbce-label" htmlFor="liveness_status">
-                  Liveness status
+                  Liveness review status
                 </label>
                 <select
                   className="hbce-select"
@@ -188,6 +206,12 @@ export default function OnboardingPhotoVideoPage() {
                   <option value="rejected">Rejected</option>
                 </select>
               </div>
+
+              <BoundaryNotice title="Manual review required" tone="warning">
+                Photo/video metadata can prepare the onboarding case for HBCE
+                review, but it cannot self-approve the subject, issue IPR
+                Verified status, issue an IPR Card or unlock JOKER-C2 access.
+              </BoundaryNotice>
 
               <div className="hbce-actions">
                 <Link className="hbce-btn" href={ROUTES.onboardingFiscal}>
@@ -209,9 +233,9 @@ export default function OnboardingPhotoVideoPage() {
             <h2>Photo/video verification prepares review, not access.</h2>
 
             <p>
-              Photo and video verification prepare the onboarding case for
-              review. They do not directly issue IPR Verified status, issue an
-              IPR Card, activate a certificate or unlock JOKER-C2.
+              Photo and video verification are evidence preparation layers. They
+              do not directly issue IPR Verified status, issue the IPR Card,
+              activate the operational certificate or grant access to JOKER-C2.
             </p>
 
             <div className="hbce-card-preview__meta">
@@ -236,6 +260,16 @@ export default function OnboardingPhotoVideoPage() {
 
             <div className="hbce-divider" />
 
+            <h3>Review rules</h3>
+            <ul className="hbce-list">
+              {PHOTO_VIDEO_REVIEW_RULES.map((rule) => (
+                <li key={rule}>{rule}</li>
+              ))}
+            </ul>
+
+            <div className="hbce-divider" />
+
+            <h3>Security boundaries</h3>
             <ul className="hbce-list">
               {PHOTO_VIDEO_BOUNDARIES.map((boundary) => (
                 <li key={boundary}>{boundary}</li>
