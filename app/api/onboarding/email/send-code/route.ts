@@ -29,8 +29,8 @@ type EmailProviderConfig = {
 
 class EmailSendError extends Error {
   readonly reason: EmailSendFailureReason;
-  readonly providerStatus?: number;
-  readonly providerError?: string;
+  readonly providerStatus: number | undefined;
+  readonly providerError: string | undefined;
 
   constructor(params: {
     reason: EmailSendFailureReason;
@@ -51,8 +51,14 @@ function isOtpDevEchoEnabled(): boolean {
 }
 
 function sanitizeProviderError(errorText: string): string {
+  const resendApiKey = process.env.RESEND_API_KEY?.trim();
+
+  if (!resendApiKey) {
+    return errorText.slice(0, 2000);
+  }
+
   return errorText
-    .replaceAll(process.env.RESEND_API_KEY ?? "", "[REDACTED_RESEND_API_KEY]")
+    .replaceAll(resendApiKey, "[REDACTED_RESEND_API_KEY]")
     .slice(0, 2000);
 }
 
