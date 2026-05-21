@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 
 import IprCertificateUploader from "@/components/IprCertificateUploader";
 
@@ -8,20 +9,33 @@ import {
   downloadHbceIprCertificate,
   generateHbceIprCertificate,
   nowIso,
-  sha256Canonical
+  sha256Canonical,
+  validatePreviousHbceIprCertificate
 } from "@/lib/ipr-certificate-chain";
 
-import { getPhaseDefinitionByNumber } from "@/lib/ipr-phase-map";
+import {
+  getContinuationRouteFromCertificate,
+  getPhaseDefinitionByNumber
+} from "@/lib/ipr-phase-map";
 
 import type { AcceptedIprCertificateUpload } from "@/components/IprCertificateUploader";
 
 import type {
   HbceGeneratedCertificate,
   HbceIprCertificate,
+  HbceIprNextPhaseCode,
   JsonObject
 } from "@/lib/types";
 
 type ApprovalDecision = "APPROVE" | "REJECT" | "REQUEST_MORE_DATA";
+
+type ActiveApprovalUpload = {
+  certificate: HbceIprCertificate;
+  fileName: string;
+  payloadSha256: string;
+  previousPayloadSha256: string | null;
+  source: "session" | "upload";
+};
 
 type Phase7ApprovalPrivateFields = JsonObject & {
   approved_by: string;
@@ -45,8 +59,60 @@ type Phase7ApprovalHashFields = JsonObject & {
 
 const phase = getPhaseDefinitionByNumber(7);
 
+const SESSION_CERTIFICATE_PREFIX = "HBCE_IPR_CERTIFICATE_FOR_NEXT_PHASE";
+
 const PRODUCTION_BOUNDARY =
   "MVP client-side approval is not a production trust source. Production approval requires authenticated backend enforcement, operator authentication, audit logging, revocation control and protected evidence storage.";
+
+function getSessionCertificateKey(nextPhase: HbceIprNextPhaseCode): string {
+  return `${SESSION_CERTIFICATE_PREFIX}:${nextPhase}`;
+}
+
+function readStoredCertificateForPhase(
+  nextPhase: HbceIprNextPhaseCode
+): unknown | null {
+  if (typeof window === "undefined") {
+    return null;
+  }
+
+  const raw = window.sessionStorage.getItem(getSessionCertificateKey(nextPhase));
+
+  if (!raw) {
+    return null;
+  }
+
+  try {
+    return JSON.parse(raw) as unknown;
+  } catch {
+    window.sessionStorage.removeItem(getSessionCertificateKey(nextPhase));
+    return null;
+  }
+}
+
+function clearStoredCertificateForPhase(nextPhase: HbceIprNextPhaseCode): void {
+  if (typeof window === "undefined") {
+    return;
+  }
+
+  window.sessionStorage.removeItem(getSessionCertificateKey(nextPhase));
+}
+
+function storeCertificateForNextPhase(certificate: HbceIprCertificate): void {
+  if (typeof window === "undefined") {
+    return;
+  }
+
+  const nextPhase = certificate.next.next_phase;
+
+  if (nextPhase === "COMPLETED" || nextPhase === "JOKER_C2_ACCESS") {
+    return;
+  }
+
+  window.sessionStorage.setItem(
+    getSessionCertificateKey(nextPhase),
+    JSON.stringify(certificate)
+  );
+}
 
 function normalizeOperatorReference(value: string): string {
   return value.trim();
@@ -62,6 +128,30 @@ function isApprovalDecision(value: string): value is ApprovalDecision {
     value === "REJECT" ||
     value === "REQUEST_MORE_DATA"
   );
+}
+
+function buildActiveUploadFromAcceptedUpload(
+  upload: AcceptedIprCertificateUpload
+): ActiveApprovalUpload {
+  return {
+    certificate: upload.certificate,
+    fileName: upload.fileName,
+    payloadSha256: upload.payloadSha256,
+    previousPayloadSha256: upload.previousPayloadSha256,
+    source: "upload"
+  };
+}
+
+function buildActiveUploadFromSession(
+  certificate: HbceIprCertificate
+): ActiveApprovalUpload {
+  return {
+    certificate,
+    fileName: "hbce-ipr-06-review-pending.hbce.json",
+    payloadSha256: certificate.hash_integrity.payload_sha256,
+    previousPayloadSha256: certificate.hash_integrity.previous_payload_sha256,
+    source: "session"
+  };
 }
 
 async function buildApprovalDecisionHash(params: {
@@ -136,8 +226,10 @@ async function buildApprovalHashFields(params: {
 }
 
 export default function AdminReviewPage() {
+  const router = useRouter();
+
   const [previousUpload, setPreviousUpload] =
-    useState<AcceptedIprCertificateUpload | null>(null);
+    useState<ActiveApprovalUpload | null>(null);
   const [approvedBy, setApprovedBy] = useState("");
   const [approvalDecision, setApprovalDecision] =
     useState<ApprovalDecision>("APPROVE");
@@ -146,6 +238,55 @@ export default function AdminReviewPage() {
   const [isGenerating, setIsGenerating] = useState(false);
   const [generatedCertificate, setGeneratedCertificate] =
     useState<HbceGeneratedCertificate<JsonObject> | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function restoreReviewPendingCertificateFromSession() {
+      if (previousUpload) {
+        return;
+      }
+
+      const stored = readStoredCertificateForPhase("HBCE_APPROVAL");
+
+      if (!stored) {
+        return;
+      }
+
+      const validation = await validatePreviousHbceIprCertificate({
+        certificate: stored,
+        expected_previous_phase: "PENDING_REVIEW",
+        expected_next_phase: "HBCE_APPROVAL"
+      });
+
+      if (cancelled) {
+        return;
+      }
+
+      if (!validation.valid) {
+        clearStoredCertificateForPhase("HBCE_APPROVAL");
+        setPreviousUpload(null);
+        setError(
+          "The stored review pending certificate was rejected. Upload Certificate 06 manually."
+        );
+        return;
+      }
+
+      setPreviousUpload(buildActiveUploadFromSession(stored as HbceIprCertificate));
+      setError("");
+    }
+
+    void restoreReviewPendingCertificateFromSession();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [previousUpload]);
+
+  function clearPreviousUpload() {
+    clearStoredCertificateForPhase("HBCE_APPROVAL");
+    setPreviousUpload(null);
+  }
 
   async function issueApprovalCertificate() {
     setError("");
@@ -294,7 +435,16 @@ export default function AdminReviewPage() {
       });
 
       setGeneratedCertificate(generated);
+      storeCertificateForNextPhase(generated.certificate);
       downloadHbceIprCertificate(generated.certificate, generated.file_name);
+
+      const nextRoute = getContinuationRouteFromCertificate(
+        generated.certificate
+      );
+
+      window.setTimeout(() => {
+        router.push(nextRoute);
+      }, 250);
     } catch (generationError) {
       setError(
         generationError instanceof Error
@@ -321,21 +471,68 @@ export default function AdminReviewPage() {
           </p>
         </section>
 
-        <IprCertificateUploader
-          expectedPreviousPhase={phase.expected_previous_phase}
-          expectedNextPhase={phase.next_required_phase}
-          title="Upload Review Pending HBCE IPR Certificate"
-          description="Upload hbce-ipr-06-review-pending.hbce.json. The page verifies the previous phase before issuing the HBCE approval certificate."
-          onCertificateAccepted={(upload) => {
-            setPreviousUpload(upload);
-            setError("");
-          }}
-          onValidation={(validation) => {
-            if (!validation.valid) {
-              setPreviousUpload(null);
-            }
-          }}
-        />
+        {previousUpload ? (
+          <section className="hbce-card hbce-card--soft">
+            <p className="hbce-kicker">
+              {previousUpload.source === "session"
+                ? "Review pending certificate loaded from session"
+                : "Review pending certificate accepted"}
+            </p>
+
+            <h2>Certificate 06 ready for HBCE approval.</h2>
+
+            <p>
+              The required review pending certificate is already available for
+              this admin phase. The operator can now issue Certificate 07.
+            </p>
+
+            <p className="hbce-mono">file_name: {previousUpload.fileName}</p>
+
+            <p className="hbce-mono">
+              current_phase: {previousUpload.certificate.phase.code}
+            </p>
+
+            <p className="hbce-mono">
+              unlocks_phase: {previousUpload.certificate.next.next_phase}
+            </p>
+
+            <p className="hbce-mono">
+              payload_sha256: {previousUpload.payloadSha256}
+            </p>
+
+            {previousUpload.previousPayloadSha256 ? (
+              <p className="hbce-mono">
+                previous_payload_sha256: {previousUpload.previousPayloadSha256}
+              </p>
+            ) : null}
+
+            <div className="hbce-actions">
+              <button
+                className="hbce-btn hbce-btn--ghost"
+                type="button"
+                onClick={clearPreviousUpload}
+              >
+                Use another Certificate 06
+              </button>
+            </div>
+          </section>
+        ) : (
+          <IprCertificateUploader
+            expectedPreviousPhase={phase.expected_previous_phase}
+            expectedNextPhase="HBCE_APPROVAL"
+            title="Upload Review Pending HBCE IPR Certificate"
+            description="Upload hbce-ipr-06-review-pending.hbce.json. The page verifies the previous phase before issuing the HBCE approval certificate."
+            onCertificateAccepted={(upload) => {
+              setPreviousUpload(buildActiveUploadFromAcceptedUpload(upload));
+              setError("");
+            }}
+            onValidation={(validation) => {
+              if (!validation.valid) {
+                setPreviousUpload(null);
+              }
+            }}
+          />
+        )}
 
         <section className="hbce-card">
           <div className="hbce-stack">
@@ -398,28 +595,6 @@ export default function AdminReviewPage() {
             </div>
           </div>
         </section>
-
-        {previousUpload ? (
-          <section className="hbce-card hbce-card--soft">
-            <p className="hbce-kicker">Previous certificate accepted</p>
-            <h2>Review package ready for approval.</h2>
-
-            <p className="hbce-mono">
-              current_phase: {previousUpload.certificate.phase.code}
-            </p>
-
-            <p className="hbce-mono">
-              payload_sha256: {previousUpload.payloadSha256}
-            </p>
-
-            {previousUpload.previousPayloadSha256 ? (
-              <p className="hbce-mono">
-                previous_payload_sha256:{" "}
-                {previousUpload.previousPayloadSha256}
-              </p>
-            ) : null}
-          </section>
-        ) : null}
 
         {error ? (
           <section className="hbce-card hbce-card--danger">
