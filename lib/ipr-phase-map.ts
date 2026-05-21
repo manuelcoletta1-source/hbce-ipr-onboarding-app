@@ -61,9 +61,9 @@ export const HBCE_IPR_PHASE_DEFINITIONS: readonly HbceIprPhaseDefinition[] = [
     expected_previous_phase: null,
     expected_previous_file_name: null,
     next_required_phase: "FISCAL_IDENTITY",
-    title: "Phase 1 — Subject Created",
+    title: "Phase 1 — Customer Profile Created",
     description:
-      "Create the first provisional HBCE-IPR subject certificate. No previous certificate is required.",
+      "Create the first private HBCE-IPR intake certificate. This step records the customer profile, customer data, exact creation timestamp and hash references. It does not verify identity, issue an IPR Card or grant JOKER-C2 access.",
     requires_previous_certificate: false,
     requires_hbce_operator: false,
     required_fields: [
@@ -86,17 +86,11 @@ export const HBCE_IPR_PHASE_DEFINITIONS: readonly HbceIprPhaseDefinition[] = [
     next_required_phase: "OFFICIAL_ID_DOCUMENT",
     title: "Phase 2 — Fiscal Identity",
     description:
-      "Upload the previous HBCE-IPR certificate and collect fiscal identity evidence: codice fiscale, tax ID, national tax identifier or equivalent document.",
+      "Upload Certificate 01 and collect fiscal identity evidence: codice fiscale, tessera sanitaria, tax ID, national tax identifier or equivalent fiscal document. This step links the customer profile to fiscal identity evidence.",
     requires_previous_certificate: true,
     requires_hbce_operator: false,
-    required_fields: [
-      "tax_id",
-      "citizenship",
-      "fiscal_country"
-    ],
-    required_uploads: [
-      "TAX_ID_DOCUMENT_SINGLE"
-    ]
+    required_fields: ["tax_id", "citizenship", "fiscal_country"],
+    required_uploads: ["TAX_ID_DOCUMENT_SINGLE"]
   },
   {
     phase_number: 3,
@@ -108,7 +102,7 @@ export const HBCE_IPR_PHASE_DEFINITIONS: readonly HbceIprPhaseDefinition[] = [
     next_required_phase: "LIVENESS_CHECK",
     title: "Phase 3 — Official ID Document",
     description:
-      "Upload the previous HBCE-IPR certificate and collect official identity evidence: CIE, driving licence, passport, EU identity card or authorized official document.",
+      "Upload Certificate 02 and collect official identity evidence: CIE, driving licence, passport, EU identity card or another authorized official document.",
     requires_previous_certificate: true,
     requires_hbce_operator: false,
     required_fields: [
@@ -119,9 +113,7 @@ export const HBCE_IPR_PHASE_DEFINITIONS: readonly HbceIprPhaseDefinition[] = [
       "document_issue_date",
       "document_expiry_date"
     ],
-    required_uploads: [
-      "OFFICIAL_DOCUMENT_FRONT"
-    ]
+    required_uploads: ["OFFICIAL_DOCUMENT_FRONT"]
   },
   {
     phase_number: 4,
@@ -133,16 +125,11 @@ export const HBCE_IPR_PHASE_DEFINITIONS: readonly HbceIprPhaseDefinition[] = [
     next_required_phase: "PRIVACY_COMPLIANCE",
     title: "Phase 4 — Liveness Check",
     description:
-      "Upload the previous HBCE-IPR certificate and submit selfie, video verification and liveness declaration.",
+      "Upload Certificate 03 and submit selfie, video verification and liveness declaration. This step connects the applicant to the identity and document evidence already submitted.",
     requires_previous_certificate: true,
     requires_hbce_operator: false,
-    required_fields: [
-      "liveness_declaration"
-    ],
-    required_uploads: [
-      "SELFIE",
-      "VIDEO_VERIFICATION"
-    ]
+    required_fields: ["liveness_declaration"],
+    required_uploads: ["SELFIE", "VIDEO_VERIFICATION"]
   },
   {
     phase_number: 5,
@@ -154,7 +141,7 @@ export const HBCE_IPR_PHASE_DEFINITIONS: readonly HbceIprPhaseDefinition[] = [
     next_required_phase: "REVIEW_SUBMISSION",
     title: "Phase 5 — Privacy & Compliance",
     description:
-      "Upload the previous HBCE-IPR certificate and accept privacy, hash-only, document authenticity and HBCE internal operational identity conditions.",
+      "Upload Certificate 04 and accept privacy, hash-only, document authenticity and HBCE internal operational identity conditions.",
     requires_previous_certificate: true,
     requires_hbce_operator: false,
     required_fields: [
@@ -178,12 +165,10 @@ export const HBCE_IPR_PHASE_DEFINITIONS: readonly HbceIprPhaseDefinition[] = [
     next_required_phase: "HBCE_APPROVAL",
     title: "Phase 6 — HBCE Review Submission",
     description:
-      "Upload the previous HBCE-IPR certificate and submit the onboarding package for HBCE review.",
+      "Upload Certificate 05 and submit the complete onboarding package for HBCE review. This phase records that the customer file is ready for approval evaluation.",
     requires_previous_certificate: true,
     requires_hbce_operator: false,
-    required_fields: [
-      "submit_for_review"
-    ],
+    required_fields: ["submit_for_review"],
     required_uploads: []
   },
   {
@@ -196,7 +181,7 @@ export const HBCE_IPR_PHASE_DEFINITIONS: readonly HbceIprPhaseDefinition[] = [
     next_required_phase: "IPR_CARD_ISSUANCE",
     title: "Phase 7 — HBCE Approval",
     description:
-      "HBCE operator approval phase. This certificate must not be freely generated by the user.",
+      "HBCE operator approval phase. This certificate must not be freely generated by the user. It records the HBCE approval decision required before IPR Card issuance.",
     requires_previous_certificate: true,
     requires_hbce_operator: true,
     required_fields: [
@@ -216,7 +201,7 @@ export const HBCE_IPR_PHASE_DEFINITIONS: readonly HbceIprPhaseDefinition[] = [
     next_required_phase: "OPERATIONAL_CERTIFICATE",
     title: "Phase 8 — IPR Card Issued",
     description:
-      "Upload the approved HBCE-IPR certificate and issue the virtual IPR Card.",
+      "Upload Certificate 07 and issue the virtual IPR Card. This step creates the internal operational identity credential used before the final operational certificate.",
     requires_previous_certificate: true,
     requires_hbce_operator: false,
     required_fields: [
@@ -239,7 +224,7 @@ export const HBCE_IPR_PHASE_DEFINITIONS: readonly HbceIprPhaseDefinition[] = [
     next_required_phase: "JOKER_C2_ACCESS",
     title: "Phase 9 — HBCE Operational Certificate",
     description:
-      "Upload the IPR Card certificate and issue the final HBCE Operational Certificate for governed JOKER-C2 access.",
+      "Upload Certificate 08 and issue the final HBCE Operational Certificate for governed JOKER-C2 access evaluation.",
     requires_previous_certificate: true,
     requires_hbce_operator: false,
     required_fields: [
@@ -265,46 +250,33 @@ export const HBCE_FISCAL_EVIDENCE_REQUIREMENTS: Record<
     label: "Italian tessera sanitaria",
     description:
       "Upload front and back of the Italian tessera sanitaria / codice fiscale card.",
-    uploads: [
-      "TAX_ID_DOCUMENT_FRONT",
-      "TAX_ID_DOCUMENT_BACK"
-    ]
+    uploads: ["TAX_ID_DOCUMENT_FRONT", "TAX_ID_DOCUMENT_BACK"]
   },
   ITALIAN_CODICE_FISCALE: {
     code: "ITALIAN_CODICE_FISCALE",
     label: "Italian codice fiscale",
-    description:
-      "Upload a valid codice fiscale document or certificate.",
-    uploads: [
-      "TAX_ID_DOCUMENT_SINGLE"
-    ]
+    description: "Upload a valid codice fiscale document or certificate.",
+    uploads: ["TAX_ID_DOCUMENT_SINGLE"]
   },
   EU_TAX_ID_DOCUMENT: {
     code: "EU_TAX_ID_DOCUMENT",
     label: "EU tax ID document",
     description:
       "Upload an official EU tax ID document or national tax identifier document.",
-    uploads: [
-      "TAX_ID_DOCUMENT_SINGLE"
-    ]
+    uploads: ["TAX_ID_DOCUMENT_SINGLE"]
   },
   NATIONAL_FISCAL_DOCUMENT: {
     code: "NATIONAL_FISCAL_DOCUMENT",
     label: "National fiscal document",
     description:
       "Upload a national fiscal document or national tax identifier certificate.",
-    uploads: [
-      "TAX_ID_DOCUMENT_SINGLE"
-    ]
+    uploads: ["TAX_ID_DOCUMENT_SINGLE"]
   },
   OTHER_FISCAL_DOCUMENT: {
     code: "OTHER_FISCAL_DOCUMENT",
     label: "Other authorized fiscal document",
-    description:
-      "Upload another authorized fiscal evidence document.",
-    uploads: [
-      "TAX_ID_DOCUMENT_SINGLE"
-    ]
+    description: "Upload another authorized fiscal evidence document.",
+    uploads: ["TAX_ID_DOCUMENT_SINGLE"]
   }
 };
 
@@ -317,49 +289,32 @@ export const HBCE_DOCUMENT_EVIDENCE_REQUIREMENTS: Record<
     label: "Carta d’Identità Elettronica — CIE",
     description:
       "Upload front and back of the Italian Carta d’Identità Elettronica.",
-    uploads: [
-      "CIE_FRONT",
-      "CIE_BACK"
-    ]
+    uploads: ["CIE_FRONT", "CIE_BACK"]
   },
   DRIVING_LICENCE: {
     code: "DRIVING_LICENCE",
     label: "Driving licence",
-    description:
-      "Upload front and back of the driving licence.",
-    uploads: [
-      "DRIVING_LICENCE_FRONT",
-      "DRIVING_LICENCE_BACK"
-    ]
+    description: "Upload front and back of the driving licence.",
+    uploads: ["DRIVING_LICENCE_FRONT", "DRIVING_LICENCE_BACK"]
   },
   PASSPORT: {
     code: "PASSPORT",
     label: "Passport",
-    description:
-      "Upload the passport data page.",
-    uploads: [
-      "PASSPORT_DATA_PAGE"
-    ]
+    description: "Upload the passport data page.",
+    uploads: ["PASSPORT_DATA_PAGE"]
   },
   EU_IDENTITY_CARD: {
     code: "EU_IDENTITY_CARD",
     label: "EU national identity card",
-    description:
-      "Upload front and back of the EU national identity card.",
-    uploads: [
-      "OFFICIAL_DOCUMENT_FRONT",
-      "OFFICIAL_DOCUMENT_BACK"
-    ]
+    description: "Upload front and back of the EU national identity card.",
+    uploads: ["OFFICIAL_DOCUMENT_FRONT", "OFFICIAL_DOCUMENT_BACK"]
   },
   OTHER_OFFICIAL_DOCUMENT: {
     code: "OTHER_OFFICIAL_DOCUMENT",
     label: "Other authorized official identity document",
     description:
       "Upload front and back of another authorized official identity document.",
-    uploads: [
-      "OFFICIAL_DOCUMENT_FRONT",
-      "OFFICIAL_DOCUMENT_BACK"
-    ]
+    uploads: ["OFFICIAL_DOCUMENT_FRONT", "OFFICIAL_DOCUMENT_BACK"]
   }
 };
 
@@ -418,17 +373,27 @@ export function getPhaseDefinitionByFileName(
 export function getNextPhaseDefinitionFromCertificate(
   certificate: HbceIprCertificate
 ): HbceIprPhaseDefinition | null {
-  const nextPhase = certificate.next.next_phase;
-
-  if (nextPhase === "COMPLETED" || nextPhase === "JOKER_C2_ACCESS") {
-    return null;
+  switch (certificate.next.next_phase) {
+    case "FISCAL_IDENTITY":
+      return getPhaseDefinitionByNumber(2);
+    case "OFFICIAL_ID_DOCUMENT":
+      return getPhaseDefinitionByNumber(3);
+    case "LIVENESS_CHECK":
+      return getPhaseDefinitionByNumber(4);
+    case "PRIVACY_COMPLIANCE":
+      return getPhaseDefinitionByNumber(5);
+    case "REVIEW_SUBMISSION":
+      return getPhaseDefinitionByNumber(6);
+    case "HBCE_APPROVAL":
+      return getPhaseDefinitionByNumber(7);
+    case "IPR_CARD_ISSUANCE":
+      return getPhaseDefinitionByNumber(8);
+    case "OPERATIONAL_CERTIFICATE":
+      return getPhaseDefinitionByNumber(9);
+    case "JOKER_C2_ACCESS":
+    case "COMPLETED":
+      return null;
   }
-
-  return (
-    HBCE_IPR_PHASE_DEFINITIONS.find(
-      (definition) => definition.next_required_phase === certificate.phase.next_required_phase
-    ) ?? null
-  );
 }
 
 export function getContinuationRouteFromCertificate(
