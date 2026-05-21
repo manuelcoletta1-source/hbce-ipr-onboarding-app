@@ -44,7 +44,11 @@ type Phase7ApprovalPrivateFields = JsonObject & {
   approval_note: string;
   user_self_approval_allowed: false;
   backend_or_admin_review_required: true;
+  hbce_operator_decision_required: true;
   production_backend_required: true;
+  ipr_card_issuance_authorized: true;
+  operational_certificate_issued: false;
+  joker_c2_access_authorized: false;
   next_required_phase: "IPR_CARD_ISSUANCE";
   production_boundary: string;
 };
@@ -53,6 +57,7 @@ type Phase7ApprovalHashFields = JsonObject & {
   approval_decision_hash: string;
   approved_by_hash: string;
   approval_status_hash: string;
+  approval_boundary_hash: string;
   production_boundary_hash: string;
   approval_note_hash?: string;
 };
@@ -63,6 +68,9 @@ const SESSION_CERTIFICATE_PREFIX = "HBCE_IPR_CERTIFICATE_FOR_NEXT_PHASE";
 
 const PRODUCTION_BOUNDARY =
   "MVP client-side approval is not a production trust source. Production approval requires authenticated backend enforcement, operator authentication, audit logging, revocation control and protected evidence storage.";
+
+const APPROVAL_BOUNDARY =
+  "Certificate 07 records HBCE approval of the review package and authorizes IPR Card issuance as the next phase. It does not issue the IPR Card, does not issue the operational certificate and does not grant JOKER-C2 access.";
 
 function getSessionCertificateKey(nextPhase: HbceIprNextPhaseCode): string {
   return `${SESSION_CERTIFICATE_PREFIX}:${nextPhase}`;
@@ -177,42 +185,75 @@ async function buildApprovalHashFields(params: {
   previousCertificate: HbceIprCertificate;
   privateFields: Phase7ApprovalPrivateFields;
 }): Promise<Phase7ApprovalHashFields> {
-  const baseHashFields: Phase7ApprovalHashFields = {
-    approval_decision_hash: await buildApprovalDecisionHash({
-      previousCertificate: params.previousCertificate,
-      approvedBy: params.privateFields.approved_by,
-      approvalDecision: params.privateFields.approval_decision,
-      approvalNote: params.privateFields.approval_note,
-      approvedAt: params.privateFields.approved_at
-    }),
-    approved_by_hash: await sha256Canonical({
-      kind: "HBCE_IPR_PHASE_7_APPROVED_BY",
-      phase: "IPR_APPROVED",
-      value: params.privateFields.approved_by,
-      previous_payload_sha256:
-        params.previousCertificate.hash_integrity.payload_sha256,
-      approved_at: params.privateFields.approved_at
-    }),
-    approval_status_hash: await sha256Canonical({
-      kind: "HBCE_IPR_PHASE_7_APPROVAL_STATUS",
-      phase: "IPR_APPROVED",
-      approval_decision: params.privateFields.approval_decision,
-      previous_payload_sha256:
-        params.previousCertificate.hash_integrity.payload_sha256,
-      approved_at: params.privateFields.approved_at
-    }),
-    production_boundary_hash: await sha256Canonical({
-      kind: "HBCE_IPR_PHASE_7_PRODUCTION_BOUNDARY",
-      phase: "IPR_APPROVED",
-      value: PRODUCTION_BOUNDARY,
-      previous_payload_sha256:
-        params.previousCertificate.hash_integrity.payload_sha256,
-      approved_at: params.privateFields.approved_at
-    })
+  const approvalDecisionHash = await buildApprovalDecisionHash({
+    previousCertificate: params.previousCertificate,
+    approvedBy: params.privateFields.approved_by,
+    approvalDecision: params.privateFields.approval_decision,
+    approvalNote: params.privateFields.approval_note,
+    approvedAt: params.privateFields.approved_at
+  });
+
+  const approvedByHash = await sha256Canonical({
+    kind: "HBCE_IPR_PHASE_7_APPROVED_BY",
+    phase: "IPR_APPROVED",
+    value: params.privateFields.approved_by,
+    previous_payload_sha256:
+      params.previousCertificate.hash_integrity.payload_sha256,
+    approved_at: params.privateFields.approved_at
+  });
+
+  const approvalStatusHash = await sha256Canonical({
+    kind: "HBCE_IPR_PHASE_7_APPROVAL_STATUS",
+    phase: "IPR_APPROVED",
+    approval_decision: params.privateFields.approval_decision,
+    ipr_card_issuance_authorized:
+      params.privateFields.ipr_card_issuance_authorized,
+    operational_certificate_issued:
+      params.privateFields.operational_certificate_issued,
+    joker_c2_access_authorized:
+      params.privateFields.joker_c2_access_authorized,
+    previous_payload_sha256:
+      params.previousCertificate.hash_integrity.payload_sha256,
+    approved_at: params.privateFields.approved_at
+  });
+
+  const approvalBoundaryHash = await sha256Canonical({
+    kind: "HBCE_IPR_PHASE_7_APPROVAL_BOUNDARY",
+    phase: "IPR_APPROVED",
+    value: APPROVAL_BOUNDARY,
+    user_self_approval_allowed:
+      params.privateFields.user_self_approval_allowed,
+    backend_or_admin_review_required:
+      params.privateFields.backend_or_admin_review_required,
+    hbce_operator_decision_required:
+      params.privateFields.hbce_operator_decision_required,
+    next_required_phase: params.privateFields.next_required_phase,
+    previous_payload_sha256:
+      params.previousCertificate.hash_integrity.payload_sha256,
+    approved_at: params.privateFields.approved_at
+  });
+
+  const productionBoundaryHash = await sha256Canonical({
+    kind: "HBCE_IPR_PHASE_7_PRODUCTION_BOUNDARY",
+    phase: "IPR_APPROVED",
+    value: PRODUCTION_BOUNDARY,
+    production_backend_required:
+      params.privateFields.production_backend_required,
+    previous_payload_sha256:
+      params.previousCertificate.hash_integrity.payload_sha256,
+    approved_at: params.privateFields.approved_at
+  });
+
+  const hashFields: Phase7ApprovalHashFields = {
+    approval_decision_hash: approvalDecisionHash,
+    approved_by_hash: approvedByHash,
+    approval_status_hash: approvalStatusHash,
+    approval_boundary_hash: approvalBoundaryHash,
+    production_boundary_hash: productionBoundaryHash
   };
 
   if (params.privateFields.approval_note) {
-    baseHashFields.approval_note_hash = await sha256Canonical({
+    hashFields.approval_note_hash = await sha256Canonical({
       kind: "HBCE_IPR_PHASE_7_APPROVAL_NOTE",
       phase: "IPR_APPROVED",
       value: params.privateFields.approval_note,
@@ -222,7 +263,7 @@ async function buildApprovalHashFields(params: {
     });
   }
 
-  return baseHashFields;
+  return hashFields;
 }
 
 export default function AdminReviewPage() {
@@ -272,7 +313,9 @@ export default function AdminReviewPage() {
         return;
       }
 
-      setPreviousUpload(buildActiveUploadFromSession(stored as HbceIprCertificate));
+      setPreviousUpload(
+        buildActiveUploadFromSession(stored as HbceIprCertificate)
+      );
       setError("");
     }
 
@@ -286,6 +329,8 @@ export default function AdminReviewPage() {
   function clearPreviousUpload() {
     clearStoredCertificateForPhase("HBCE_APPROVAL");
     setPreviousUpload(null);
+    setGeneratedCertificate(null);
+    setError("");
   }
 
   async function issueApprovalCertificate() {
@@ -299,7 +344,7 @@ export default function AdminReviewPage() {
 
     if (approvalDecision !== "APPROVE") {
       setError(
-        "This MVP page only generates the approved certificate. REJECT and REQUEST_MORE_DATA must be handled by a backend/admin workflow."
+        "This MVP page only generates Certificate 07 for APPROVE decisions. REJECT and REQUEST_MORE_DATA must be handled by a protected backend/admin workflow."
       );
       return;
     }
@@ -315,6 +360,22 @@ export default function AdminReviewPage() {
     setIsGenerating(true);
 
     try {
+      const validation = await validatePreviousHbceIprCertificate({
+        certificate: previousUpload.certificate,
+        expected_previous_phase: "PENDING_REVIEW",
+        expected_next_phase: "HBCE_APPROVAL"
+      });
+
+      if (!validation.valid) {
+        setPreviousUpload(null);
+        clearStoredCertificateForPhase("HBCE_APPROVAL");
+        setError(
+          validation.message ||
+            "The review pending certificate failed validation."
+        );
+        return;
+      }
+
       const approvedAt = nowIso();
 
       const privateFields: Phase7ApprovalPrivateFields = {
@@ -324,7 +385,11 @@ export default function AdminReviewPage() {
         approval_note: normalizedApprovalNote,
         user_self_approval_allowed: false,
         backend_or_admin_review_required: true,
+        hbce_operator_decision_required: true,
         production_backend_required: true,
+        ipr_card_issuance_authorized: true,
+        operational_certificate_issued: false,
+        joker_c2_access_authorized: false,
         next_required_phase: "IPR_CARD_ISSUANCE",
         production_boundary: PRODUCTION_BOUNDARY
       };
@@ -360,9 +425,11 @@ export default function AdminReviewPage() {
         approved_by: privateFields.approved_by,
         approved_at: privateFields.approved_at,
         approval_decision: privateFields.approval_decision,
+
         approval_decision_hash: hashFields.approval_decision_hash,
         approved_by_hash: hashFields.approved_by_hash,
         approval_status_hash: hashFields.approval_status_hash,
+        approval_boundary_hash: hashFields.approval_boundary_hash,
         production_boundary_hash: hashFields.production_boundary_hash,
         approval_metadata_hash: approvalMetadataHash,
 
@@ -373,10 +440,12 @@ export default function AdminReviewPage() {
         liveness_submitted: true,
         liveness_verified: true,
         privacy_compliance_accepted: true,
+
         hbce_review_status: "APPROVED",
         ipr_approved: true,
         ipr_status: "APPROVED",
         ipr_card_status: "NOT_ISSUED",
+        operational_certificate_issued: false,
         joker_c2_access: "DENIED",
 
         verification_state: {
@@ -404,11 +473,12 @@ export default function AdminReviewPage() {
 
         user_self_approval_allowed: false,
         backend_or_admin_review_required: true,
+        hbce_operator_decision_required: true,
         production_backend_required: true,
+        ipr_card_issuance_authorized: true,
         production_boundary: PRODUCTION_BOUNDARY,
 
-        certificate_boundary:
-          "This file records HBCE approval of the onboarding review package. It authorizes IPR Card issuance as the next phase, but it does not itself issue the IPR Card, the final operational certificate or JOKER-C2 access.",
+        certificate_boundary: APPROVAL_BOUNDARY,
 
         privacy_boundary:
           "This is a private portable HBCE-IPR certificate. Approval fields are stored inside private_fields. Public verification must expose hash-only references, not private approval fields.",
@@ -460,7 +530,7 @@ export default function AdminReviewPage() {
     <div className="hbce-container">
       <main className="hbce-main">
         <section className="hbce-hero">
-          <p className="hbce-kicker">HBCE Admin Review</p>
+          <p className="hbce-kicker">HBCE Admin Review · Phase 07</p>
 
           <h1>{phase.title}</h1>
 
@@ -482,8 +552,8 @@ export default function AdminReviewPage() {
             <h2>Certificate 06 ready for HBCE approval.</h2>
 
             <p>
-              The required review pending certificate is already available for
-              this admin phase. The operator can now issue Certificate 07.
+              The required review pending certificate is available for this
+              admin phase. The HBCE operator can now issue Certificate 07.
             </p>
 
             <p className="hbce-mono">file_name: {previousUpload.fileName}</p>
@@ -541,7 +611,7 @@ export default function AdminReviewPage() {
               <h2>HBCE operator decision</h2>
               <p className="hbce-muted">
                 Only APPROVE generates the next certificate in this MVP. Other
-                decisions must be handled by a backend/admin workflow.
+                decisions must be handled by a protected backend/admin workflow.
               </p>
             </div>
 
@@ -576,6 +646,9 @@ export default function AdminReviewPage() {
                   <option value="REJECT">REJECT</option>
                   <option value="REQUEST_MORE_DATA">REQUEST_MORE_DATA</option>
                 </select>
+                <small>
+                  In this MVP, only APPROVE can produce Certificate 07.
+                </small>
               </label>
 
               <label className="hbce-field">
