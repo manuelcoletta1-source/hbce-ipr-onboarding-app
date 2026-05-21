@@ -54,7 +54,10 @@ export const ROUTES = {
   onboardingPhase1: "/onboarding/phase-1",
   onboardingPhase2: "/onboarding/phase-2",
   onboardingPhase3: "/onboarding/phase-3",
-  onboardingPhase4: "/onboarding/phase-4",
+
+  onboardingPhotoVideo: "/onboarding/photo-video",
+  onboardingPhase4: "/onboarding/photo-video",
+
   onboardingPhase5: "/onboarding/phase-5",
   onboardingReview: "/onboarding/review",
 
@@ -72,7 +75,7 @@ export const ROUTES = {
   onboardingIdentity: "/onboarding/phase-1",
   onboardingFiscal: "/onboarding/phase-2",
   onboardingDocuments: "/onboarding/phase-3",
-  onboardingPhotoVideo: "/onboarding/phase-4"
+  onboardingLiveness: "/onboarding/photo-video"
 } as const;
 
 export type AppRoute = (typeof ROUTES)[keyof typeof ROUTES];
@@ -113,10 +116,10 @@ export const ONBOARDING_STEPS: readonly OnboardingStepDefinition[] = [
   {
     id: "phase_4_liveness",
     number: "04",
-    title: "Liveness Check",
-    route: ROUTES.onboardingPhase4,
+    title: "Photo / Video Liveness",
+    route: ROUTES.onboardingPhotoVideo,
     purpose:
-      "Upload certificate 03, collect selfie and video verification, then release hbce-ipr-04-liveness-submitted.hbce.json."
+      "Upload certificate 03, collect protected selfie and video verification references, prepare liveness review state, then release hbce-ipr-04-liveness-submitted.hbce.json."
   },
   {
     id: "phase_5_privacy_compliance",
@@ -214,7 +217,7 @@ export const HBCE_GOVERNED_ACCESS_MODEL = [
 export const HBCE_IPR_CHAIN_MODEL = [
   "Certificate 01 unlocks Fiscal Identity",
   "Certificate 02 unlocks Official ID Document",
-  "Certificate 03 unlocks Liveness Check",
+  "Certificate 03 unlocks Photo / Video Liveness",
   "Certificate 04 unlocks Privacy & Compliance",
   "Certificate 05 unlocks Review Submission",
   "Certificate 06 unlocks HBCE Approval",
@@ -339,5 +342,10 @@ export const REQUIRED_OFFICIAL_DOCUMENT_EVIDENCE = [
 export const REQUIRED_LIVENESS_EVIDENCE = [
   "Front selfie",
   "Video verification",
-  "Liveness declaration"
+  "Liveness declaration",
+  "Protected photo reference",
+  "Protected video reference",
+  "Photo SHA-256 reference",
+  "Video SHA-256 reference"
 ] as const;
+
