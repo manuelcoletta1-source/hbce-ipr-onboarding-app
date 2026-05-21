@@ -20,29 +20,35 @@ function normalizeCurrentStep(
 
   switch (currentStep) {
     case "start":
-      return "phase_1_subject";
     case "identity":
       return "phase_1_subject";
+
     case "fiscal":
       return "phase_2_fiscal_identity";
+
     case "documents":
       return "phase_3_official_document";
+
     case "photo_video":
       return "phase_4_liveness";
+
     case "review":
       return "phase_6_review_pending";
+
     case "ipr_card":
       return "phase_8_ipr_card";
+
     case "certificate":
       return "phase_9_operational_certificate";
+
     default:
       return currentStep;
   }
 }
 
-function getCurrentStepIndex(currentStep: OnboardingStep | undefined): number {
-  const normalizedStep = normalizeCurrentStep(currentStep);
-
+function getCurrentStepIndex(
+  normalizedStep: OnboardingStep | undefined
+): number {
   if (!normalizedStep) {
     return 0;
   }
@@ -52,11 +58,10 @@ function getCurrentStepIndex(currentStep: OnboardingStep | undefined): number {
 
 function getStepState(
   step: OnboardingStep,
-  currentStep: OnboardingStep | undefined,
+  normalizedStep: OnboardingStep | undefined,
+  currentIndex: number,
   index: number
 ): StepState {
-  const normalizedStep = normalizeCurrentStep(currentStep);
-
   if (normalizedStep === "completed") {
     return "completed";
   }
@@ -64,8 +69,6 @@ function getStepState(
   if (normalizedStep === "blocked") {
     return index === ONBOARDING_STEPS.length - 1 ? "blocked" : "pending";
   }
-
-  const currentIndex = getCurrentStepIndex(normalizedStep);
 
   if (currentIndex === -1) {
     return index === 0 ? "current" : "pending";
@@ -116,11 +119,17 @@ function getBadgeLabel(state: StepState): string {
 
 export function OnboardingStepper({ currentStep }: OnboardingStepperProps) {
   const normalizedStep = normalizeCurrentStep(currentStep);
+  const currentIndex = getCurrentStepIndex(normalizedStep);
 
   return (
     <div className="hbce-stepper" aria-label="HBCE IPR certificate chain">
       {ONBOARDING_STEPS.map((step, index) => {
-        const state = getStepState(step.id, normalizedStep, index);
+        const state = getStepState(
+          step.id,
+          normalizedStep,
+          currentIndex,
+          index
+        );
         const isCurrent = state === "current";
 
         return (
