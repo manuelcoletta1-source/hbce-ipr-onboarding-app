@@ -12,6 +12,24 @@ import type {
 
 import type { JsonObject } from "@/lib/types";
 
+type Phase1CustomerFields = {
+  email: string;
+  phone_number: string;
+  first_name: string;
+  last_name: string;
+  country: string;
+  date_of_birth: string;
+};
+
+type Phase1HashFields = {
+  email_hash: string;
+  phone_hash: string;
+  first_name_hash: string;
+  last_name_hash: string;
+  country_hash: string;
+  date_of_birth_hash: string;
+};
+
 const phase = getPhaseDefinitionByNumber(1);
 
 const fields: IprPhaseFieldDefinition[] = [
@@ -134,7 +152,7 @@ async function hashPhaseValue(
 
 function buildSubmittedPrivateFields(
   context: IprPhaseFormBuildDataContext
-): JsonObject {
+): Phase1CustomerFields {
   return {
     email: getRawStringValue(context, "email"),
     phone_number: getRawStringValue(context, "phone_number"),
@@ -147,7 +165,7 @@ function buildSubmittedPrivateFields(
 
 function buildNormalizedPrivateFields(
   context: IprPhaseFormBuildDataContext
-): JsonObject {
+): Phase1CustomerFields {
   return {
     email: getNormalizedPhase1Value(context, "email"),
     phone_number: getNormalizedPhase1Value(context, "phone_number"),
@@ -160,7 +178,7 @@ function buildNormalizedPrivateFields(
 
 async function buildHashFields(
   context: IprPhaseFormBuildDataContext
-): Promise<JsonObject> {
+): Promise<Phase1HashFields> {
   return {
     email_hash: await hashPhaseValue(context, "email"),
     phone_hash: await hashPhaseValue(context, "phone_number"),
