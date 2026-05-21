@@ -5,8 +5,11 @@ import { useEffect, useState } from "react";
 
 import IprCertificateUploader from "@/components/IprCertificateUploader";
 
-import { JOKER_C2_GATEWAY_URL } from "@/lib/constants";
-import { validateJokerC2OperationalCertificate } from "@/lib/ipr-certificate-chain";
+import { JOKER_C2_GATEWAY_URL, ROUTES } from "@/lib/constants";
+import {
+  nowIso,
+  validateJokerC2OperationalCertificate
+} from "@/lib/ipr-certificate-chain";
 
 import type { AcceptedIprCertificateUpload } from "@/components/IprCertificateUploader";
 import type {
@@ -75,8 +78,80 @@ function clearStoredCertificateForPhase(nextPhase: HbceIprNextPhaseCode): void {
   window.sessionStorage.removeItem(getSessionCertificateKey(nextPhase));
 }
 
-function isJsonObject(value: unknown): value is JsonObject {
+function buildDeniedResult(reason: string): HbceJokerC2AccessGateResult {
+  return {
+    decision: "ACCESS_DENIED",
+    reason,
+    checked_at: nowIso()
+  };
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function isJsonObject(value: unknown): value is JsonObject {
+  return isRecord(value);
+}
+
+function isHbceIprCertificateLike(
+  value: unknown
+): value is HbceIprCertificate {
+  if (!isRecord(value)) {
+    return false;
+  }
+
+  if (value.proto !== "HBCE-IPR-RELEASE-v3") {
+    return false;
+  }
+
+  if (
+    value.kind !== "IPR_PHASE_CERTIFICATE" &&
+    value.kind !== "IPR_OPERATIONAL_CERTIFICATE"
+  ) {
+    return false;
+  }
+
+  if (!isRecord(value.issuer)) {
+    return false;
+  }
+
+  if (!isRecord(value.phase)) {
+    return false;
+  }
+
+  if (!isRecord(value.subject)) {
+    return false;
+  }
+
+  if (!isRecord(value.hash_integrity)) {
+    return false;
+  }
+
+  if (typeof value.hash_integrity.payload_sha256 !== "string") {
+    return false;
+  }
+
+  if (
+    value.hash_integrity.previous_payload_sha256 !== null &&
+    typeof value.hash_integrity.previous_payload_sha256 !== "string"
+  ) {
+    return false;
+  }
+
+  if (!isRecord(value.payload)) {
+    return false;
+  }
+
+  if (!isJsonObject(value.payload.phase_data)) {
+    return false;
+  }
+
+  if (!isRecord(value.next)) {
+    return false;
+  }
+
+  return typeof value.next.next_phase === "string";
 }
 
 function buildActiveUploadFromAcceptedUpload(
@@ -186,6 +261,14 @@ export default function JokerC2AccessPage() {
       );
 
       setAccessResult(result);
+    } catch (validationError) {
+      setAccessResult(
+        buildDeniedResult(
+          validationError instanceof Error
+            ? validationError.message
+            : "The HBCE operational certificate could not be validated."
+        )
+      );
     } finally {
       setIsChecking(false);
     }
@@ -205,27 +288,53 @@ export default function JokerC2AccessPage() {
         return;
       }
 
-      const sessionUpload = buildActiveUploadFromSession(
-        stored as HbceIprCertificate
-      );
+      if (!isHbceIprCertificateLike(stored)) {
+        clearStoredCertificateForPhase("JOKER_C2_ACCESS");
 
-      const result = await validateJokerC2OperationalCertificate(
-        sessionUpload.certificate
-      );
+        if (!cancelled) {
+          setAcceptedUpload(null);
+          setAccessResult(
+            buildDeniedResult(
+              "The stored operational certificate is malformed and was rejected fail-closed."
+            )
+          );
+        }
 
-      if (cancelled) {
         return;
       }
 
-      if (result.decision !== "ACCESS_GRANTED") {
-        clearStoredCertificateForPhase("JOKER_C2_ACCESS");
+      const sessionUpload = buildActiveUploadFromSession(stored);
+
+      try {
+        const result = await validateJokerC2OperationalCertificate(
+          sessionUpload.certificate
+        );
+
+        if (cancelled) {
+          return;
+        }
+
+        if (result.decision !== "ACCESS_GRANTED") {
+          clearStoredCertificateForPhase("JOKER_C2_ACCESS");
+        }
+
         setAcceptedUpload(sessionUpload);
         setAccessResult(result);
-        return;
-      }
+      } catch (validationError) {
+        if (cancelled) {
+          return;
+        }
 
-      setAcceptedUpload(sessionUpload);
-      setAccessResult(result);
+        clearStoredCertificateForPhase("JOKER_C2_ACCESS");
+        setAcceptedUpload(sessionUpload);
+        setAccessResult(
+          buildDeniedResult(
+            validationError instanceof Error
+              ? validationError.message
+              : "The stored operational certificate failed JOKER-C2 gate validation."
+          )
+        );
+      }
     }
 
     void restoreOperationalCertificateFromSession();
@@ -242,13 +351,16 @@ export default function JokerC2AccessPage() {
   }
 
   const isAccessGranted = accessResult?.decision === "ACCESS_GRANTED";
+
   const privateFields = acceptedUpload
     ? getCertificatePrivateFields(acceptedUpload)
     : null;
+
   const displayedCertificateStatus = getDisplayedCertificateStatus(
     acceptedUpload,
     privateFields
   );
+
   const displayedCertificateScope = getDisplayedCertificateScope(
     acceptedUpload,
     privateFields
@@ -276,11 +388,11 @@ export default function JokerC2AccessPage() {
           </p>
 
           <div className="hbce-actions">
-            <Link className="hbce-btn" href="/certificate">
+            <Link className="hbce-btn" href={ROUTES.certificate}>
               Back to Certificate
             </Link>
 
-            <Link className="hbce-btn" href="/onboarding">
+            <Link className="hbce-btn" href={ROUTES.onboarding}>
               Continue Onboarding
             </Link>
           </div>
@@ -400,7 +512,7 @@ export default function JokerC2AccessPage() {
                 Open JOKER-C2 Runtime
               </a>
 
-              <Link className="hbce-btn" href="/onboarding">
+              <Link className="hbce-btn" href={ROUTES.onboarding}>
                 Start another IPR onboarding
               </Link>
             </div>
