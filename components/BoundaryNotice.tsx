@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 
-type BoundaryNoticeTone = "info" | "danger";
+export type BoundaryNoticeTone = "info" | "warning" | "danger";
 
 type BoundaryNoticeProps = {
   title: string;
@@ -8,19 +8,38 @@ type BoundaryNoticeProps = {
   tone?: BoundaryNoticeTone;
 };
 
+function getBoundaryNoticeClassName(tone: BoundaryNoticeTone): string {
+  if (tone === "danger") {
+    return "hbce-notice hbce-notice--danger";
+  }
+
+  if (tone === "warning") {
+    return "hbce-notice hbce-notice--warning";
+  }
+
+  return "hbce-notice";
+}
+
+function getBoundaryNoticeRole(tone: BoundaryNoticeTone): "note" | "alert" {
+  if (tone === "danger") {
+    return "alert";
+  }
+
+  return "note";
+}
+
 export function BoundaryNotice({
   title,
   children,
   tone = "info"
 }: BoundaryNoticeProps) {
-  const isDanger = tone === "danger";
-  const className = isDanger
-    ? "hbce-notice hbce-notice--danger"
-    : "hbce-notice";
-
   return (
-    <aside className={className} role={isDanger ? "alert" : "note"}>
+    <aside
+      className={getBoundaryNoticeClassName(tone)}
+      role={getBoundaryNoticeRole(tone)}
+    >
       <strong>{title}</strong>
+
       <div className="hbce-small" style={{ marginTop: "8px" }}>
         {children}
       </div>
