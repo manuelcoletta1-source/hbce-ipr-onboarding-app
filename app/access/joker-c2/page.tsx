@@ -254,6 +254,13 @@ export default function JokerC2AccessPage() {
     privateFields
   );
 
+  const certificateId = getStringField(privateFields, "certificate_id");
+  const iprId = getStringField(privateFields, "ipr_id");
+  const subjectId = getStringField(privateFields, "subject_id");
+  const cardSerial = getStringField(privateFields, "card_serial");
+  const issuedAt = getStringField(privateFields, "issued_at");
+  const validUntil = getStringField(privateFields, "valid_until");
+
   return (
     <div className="hbce-container">
       <main className="hbce-main">
@@ -321,6 +328,84 @@ export default function JokerC2AccessPage() {
             }}
           />
         )}
+
+        {isAccessGranted ? (
+          <section className="hbce-card hbce-card--success">
+            <p className="hbce-kicker">IPR Verified</p>
+
+            <h2>HBCE IPR Verified · JOKER-C2 Access Granted</h2>
+
+            <p>
+              The subject has completed the HBCE IPR onboarding chain. The IPR
+              Card is active, the operational certificate is valid and the
+              certificate scope allows governed JOKER-C2 access.
+            </p>
+
+            <div className="hbce-grid hbce-grid--3">
+              <div className="hbce-card hbce-card--soft">
+                <p className="hbce-kicker">IPR status</p>
+                <h3>VERIFIED</h3>
+                <p className="hbce-muted">
+                  The operational identity chain reached the final verified
+                  phase.
+                </p>
+              </div>
+
+              <div className="hbce-card hbce-card--soft">
+                <p className="hbce-kicker">IPR Card</p>
+                <h3>ACTIVE</h3>
+                <p className="hbce-muted">
+                  The internal HBCE IPR Card has been issued for governed
+                  workflows.
+                </p>
+              </div>
+
+              <div className="hbce-card hbce-card--soft">
+                <p className="hbce-kicker">JOKER-C2</p>
+                <h3>ACCESS_GRANTED</h3>
+                <p className="hbce-muted">
+                  The final operational certificate passed fail-closed access
+                  validation.
+                </p>
+              </div>
+            </div>
+
+            <p className="hbce-mono">
+              certificate_id: {certificateId ?? "unavailable"}
+            </p>
+            <p className="hbce-mono">ipr_id: {iprId ?? "unavailable"}</p>
+            <p className="hbce-mono">
+              subject_id: {subjectId ?? "unavailable"}
+            </p>
+            <p className="hbce-mono">
+              card_serial: {cardSerial ?? "unavailable"}
+            </p>
+            <p className="hbce-mono">
+              certificate_status: {displayedCertificateStatus ?? "unavailable"}
+            </p>
+            <p className="hbce-mono">
+              certificate_scope: {displayedCertificateScope ?? "unavailable"}
+            </p>
+            <p className="hbce-mono">
+              valid_until: {validUntil ?? "unavailable"}
+            </p>
+
+            <div className="hbce-actions">
+              <a
+                className="hbce-btn hbce-btn--primary"
+                href={JOKER_C2_GATEWAY_URL}
+                rel="noopener noreferrer"
+                target="_blank"
+              >
+                Open JOKER-C2 Runtime
+              </a>
+
+              <Link className="hbce-btn" href="/onboarding">
+                Start another IPR onboarding
+              </Link>
+            </div>
+          </section>
+        ) : null}
 
         <section className="hbce-card">
           <p className="hbce-kicker">Access requirements</p>
@@ -409,54 +494,38 @@ export default function JokerC2AccessPage() {
             <p className="hbce-kicker">Private certificate fields</p>
             <h2>Operational identity data read from the private certificate.</h2>
 
-            {getStringField(privateFields, "certificate_id") ? (
+            {certificateId ? (
+              <p className="hbce-mono">certificate_id: {certificateId}</p>
+            ) : null}
+
+            {iprId ? <p className="hbce-mono">ipr_id: {iprId}</p> : null}
+
+            {subjectId ? (
+              <p className="hbce-mono">subject_id: {subjectId}</p>
+            ) : null}
+
+            {cardSerial ? (
+              <p className="hbce-mono">card_serial: {cardSerial}</p>
+            ) : null}
+
+            {displayedCertificateStatus ? (
               <p className="hbce-mono">
-                certificate_id: {getStringField(privateFields, "certificate_id")}
+                certificate_status: {displayedCertificateStatus}
               </p>
             ) : null}
 
-            {getStringField(privateFields, "ipr_id") ? (
+            {displayedCertificateScope ? (
               <p className="hbce-mono">
-                ipr_id: {getStringField(privateFields, "ipr_id")}
+                certificate_scope: {displayedCertificateScope}
               </p>
             ) : null}
 
-            {getStringField(privateFields, "subject_id") ? (
-              <p className="hbce-mono">
-                subject_id: {getStringField(privateFields, "subject_id")}
-              </p>
+            {issuedAt ? (
+              <p className="hbce-mono">issued_at: {issuedAt}</p>
             ) : null}
 
-            {getStringField(privateFields, "card_serial") ? (
-              <p className="hbce-mono">
-                card_serial: {getStringField(privateFields, "card_serial")}
-              </p>
-            ) : null}
-
-            {getStringField(privateFields, "certificate_status") ? (
-              <p className="hbce-mono">
-                certificate_status:{" "}
-                {getStringField(privateFields, "certificate_status")}
-              </p>
-            ) : null}
-
-            {getStringField(privateFields, "certificate_scope") ? (
-              <p className="hbce-mono">
-                certificate_scope:{" "}
-                {getStringField(privateFields, "certificate_scope")}
-              </p>
-            ) : null}
-
-            {getStringField(privateFields, "issued_at") ? (
-              <p className="hbce-mono">
-                issued_at: {getStringField(privateFields, "issued_at")}
-              </p>
-            ) : null}
-
-            {getStringField(privateFields, "valid_until") ? (
-              <p className="hbce-mono">
-                valid_until: {getStringField(privateFields, "valid_until")}
-              </p>
+            {validUntil ? (
+              <p className="hbce-mono">valid_until: {validUntil}</p>
             ) : null}
           </section>
         ) : null}
@@ -501,19 +570,6 @@ export default function JokerC2AccessPage() {
             ) : null}
 
             <p className="hbce-mono">checked_at: {accessResult.checked_at}</p>
-
-            {isAccessGranted ? (
-              <div className="hbce-actions">
-                <a
-                  className="hbce-btn hbce-btn--primary"
-                  href={JOKER_C2_GATEWAY_URL}
-                  rel="noopener noreferrer"
-                  target="_blank"
-                >
-                  Open JOKER-C2 Runtime
-                </a>
-              </div>
-            ) : null}
           </section>
         ) : null}
 
