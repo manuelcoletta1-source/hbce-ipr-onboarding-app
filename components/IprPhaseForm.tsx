@@ -10,7 +10,8 @@ import {
   generateHbceIprCertificate,
   nowIso,
   sha256Canonical,
-  sha256File
+  sha256File,
+  toEuropeRomeIso
 } from "../lib/ipr-certificate-chain";
 
 import {
@@ -79,6 +80,8 @@ function getRuntimeStatus(
   phaseCode: HbceIprPhaseDefinition["phase_code"]
 ): HbceIprPhaseRuntimeStatus {
   switch (phaseCode) {
+    case "SUBJECT_CREATED":
+      return "PENDING";
     case "PENDING_REVIEW":
       return "PENDING_REVIEW";
     case "IPR_APPROVED":
@@ -108,15 +111,58 @@ function normalizeFieldValue(value: string | boolean): string | boolean {
   return value.trim();
 }
 
+function normalizeSubjectValue(fieldName: string, value: string | boolean): string | boolean {
+  if (typeof value === "boolean") {
+    return value;
+  }
+
+  const trimmedValue = value.trim();
+
+  if (fieldName === "email") {
+    return trimmedValue.toLowerCase();
+  }
+
+  if (fieldName === "phone_number") {
+    return trimmedValue.replace(/\s+/g, "");
+  }
+
+  return trimmedValue;
+}
+
+function buildNormalizedValues(values: IprPhaseFormValues): JsonObject {
+  const output: JsonObject = {};
+
+  for (const [key, value] of Object.entries(values)) {
+    const normalizedValue = normalizeFieldValue(value);
+
+    output[key] = normalizedValue;
+  }
+
+  return output;
+}
+
+function buildSubjectReferenceInput(
+  phaseCode: HbceIprPhaseDefinition["phase_code"],
+  values: IprPhaseFormValues
+): JsonObject {
+  const normalizedValues: JsonObject = {};
+
+  for (const [key, value] of Object.entries(values)) {
+    normalizedValues[key] = normalizeSubjectValue(key, value);
+  }
+
+  return {
+    kind: "HBCE_HASH_ONLY_SUBJECT_REF_INPUT",
+    phase: phaseCode,
+    entity_type: "HUMAN",
+    values: normalizedValues
+  };
+}
+
 async function buildDefaultPhaseData(
   context: IprPhaseFormBuildDataContext
 ): Promise<JsonObject> {
-  const normalizedValues = Object.fromEntries(
-    Object.entries(context.values).map(([key, value]) => [
-      key,
-      normalizeFieldValue(value)
-    ])
-  ) as Record<string, string | boolean>;
+  const normalizedValues = buildNormalizedValues(context.values);
 
   const valueHash = await sha256Canonical({
     kind: "HBCE_IPR_PHASE_VALUES",
@@ -308,10 +354,9 @@ export default function IprPhaseForm({
 
       const subjectRef =
         previousCertificate?.subject.subject_ref ??
-        (await createHashOnlySubjectRef({
-          phase: phase.phase_code,
-          values: values as JsonObject
-        }));
+        (await createHashOnlySubjectRef(
+          buildSubjectReferenceInput(phase.phase_code, values)
+        ));
 
       const generated = await generateHbceIprCertificate({
         phase_number: phase.phase_number,
@@ -373,7 +418,8 @@ export default function IprPhaseForm({
             <h2>Required information</h2>
             <p className="hbce-muted">
               Complete the required fields for this phase. Sensitive values are
-              used to generate hash-only certificate data.
+              used to generate private certificate data and hash-only audit
+              references.
             </p>
           </div>
 
@@ -522,6 +568,21 @@ export default function IprPhaseForm({
               "The HBCE-IPR certificate has been generated and downloaded. Use this file for the next phase."}
           </p>
           <p className="hbce-mono">
+            file_name: {generatedCertificate.file_name}
+          </p>
+          <p className="hbce-mono">
+            phase: {generatedCertificate.certificate.phase.code}
+          </p>
+          <p className="hbce-mono">
+            status: {generatedCertificate.certificate.phase.status}
+          </p>
+          <p className="hbce-mono">
+            issued_at_utc: {generatedCertificate.generated_at}
+          </p>
+          <p className="hbce-mono">
+            issued_at_local: {toEuropeRomeIso(generatedCertificate.generated_at)}
+          </p>
+          <p className="hbce-mono">
             payload_sha256: {generatedCertificate.payload_sha256}
           </p>
           {generatedCertificate.previous_payload_sha256 ? (
@@ -529,7 +590,9 @@ export default function IprPhaseForm({
               previous_payload_sha256:{" "}
               {generatedCertificate.previous_payload_sha256}
             </p>
-          ) : null}
+          ) : (
+            <p className="hbce-mono">previous_payload_sha256: null</p>
+          )}
         </section>
       ) : null}
 
