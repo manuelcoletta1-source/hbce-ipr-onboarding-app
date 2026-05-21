@@ -59,23 +59,24 @@ const PHOTO_VIDEO_REVIEW_RULES = [
   "The photo reference must point to protected storage in production.",
   "The video reference must point to protected storage in production.",
   "The liveness state must remain pending or under manual review until operator validation.",
-  "The onboarding case can move to review, but cannot self-approve."
+  "The onboarding case can move to privacy and compliance, but cannot self-approve."
 ] as const;
 
 export default function OnboardingPhotoVideoPage() {
   return (
     <div className="hbce-container">
       <section className="hbce-hero">
-        <p className="hbce-kicker">Onboarding Evidence · Photo / Video</p>
+        <p className="hbce-kicker">Step 04 · Photo / Video Liveness</p>
 
         <h1 className="hbce-title">
           Prepare photo, video and liveness verification state.
         </h1>
 
         <p className="hbce-lead">
-          This page prepares the photo/video evidence layer required before HBCE
-          review. The MVP does not process real photos, real videos, biometric
-          templates, face templates or production liveness recordings.
+          This page prepares the photo/video evidence layer required before
+          privacy compliance and HBCE review. The MVP does not process real
+          photos, real videos, biometric templates, face templates or production
+          liveness recordings.
         </p>
       </section>
 
@@ -89,7 +90,8 @@ export default function OnboardingPhotoVideoPage() {
               In production, this step must connect to protected storage,
               authorized verification providers and lawful identity verification
               workflows. In this MVP, the page records only the operational
-              metadata required to prepare the onboarding case for review.
+              metadata required to prepare the onboarding case for the next
+              certificate phase.
             </p>
 
             <form className="hbce-form">
@@ -207,22 +209,23 @@ export default function OnboardingPhotoVideoPage() {
                 </select>
               </div>
 
-              <BoundaryNotice title="Manual review required" tone="danger">
-                Photo/video metadata can prepare the onboarding case for HBCE
-                review, but it cannot self-approve the subject, issue IPR
-                Verified status, issue an IPR Card or unlock JOKER-C2 access.
+              <BoundaryNotice title="Manual review required" tone="warning">
+                Photo/video metadata can prepare the onboarding case for privacy
+                and HBCE review, but it cannot self-approve the subject, issue
+                IPR Verified status, issue an IPR Card or unlock JOKER-C2
+                access.
               </BoundaryNotice>
 
               <div className="hbce-actions">
-                <Link className="hbce-btn" href={ROUTES.onboardingFiscal}>
-                  Back to Fiscal Identifier
+                <Link className="hbce-btn" href={ROUTES.onboardingDocuments}>
+                  Back to Official ID Document
                 </Link>
 
                 <Link
                   className="hbce-btn hbce-btn--primary"
-                  href={ROUTES.onboardingReview}
+                  href={ROUTES.onboardingPhase5}
                 >
-                  Submit for Review
+                  Continue to Privacy & Compliance
                 </Link>
               </div>
             </form>
@@ -290,7 +293,7 @@ export default function OnboardingPhotoVideoPage() {
       <section className="hbce-section">
         <div className="hbce-card">
           <h2>Current onboarding position</h2>
-          <OnboardingStepper currentStep="photo_video" />
+          <OnboardingStepper currentStep="phase_4_liveness" />
         </div>
       </section>
     </div>
