@@ -1,52 +1,110 @@
 import { NextResponse } from "next/server";
 
-import {
-  createPhoneOtpChallenge,
-  deletePhoneOtpChallenge,
-  normalizePhoneNumber
-} from "@/lib/phone-otp-store";
-
 export const runtime = "nodejs";
 
 type SendPhoneCodeRequestBody = {
   phone_number?: unknown;
 };
 
-function isOtpDevEchoEnabled(): boolean {
-  return process.env.HBCE_OTP_DEV_ECHO === "true";
+type TwilioVerifyStartResponse = {
+  sid?: string;
+  status?: string;
+  to?: string;
+  channel?: string;
+};
+
+class PhoneVerificationError extends Error {
+  readonly reason: string;
+  readonly providerStatus: number | undefined;
+  readonly providerError: string | undefined;
+
+  constructor(params: {
+    reason: string;
+    message: string;
+    providerStatus?: number;
+    providerError?: string;
+  }) {
+    super(params.message);
+    this.name = "PhoneVerificationError";
+    this.reason = params.reason;
+    this.providerStatus = params.providerStatus;
+    this.providerError = params.providerError;
+  }
 }
 
-async function sendSmsWithProvider(params: {
-  to: string;
-  code: string;
-}): Promise<void> {
-  const provider = process.env.HBCE_SMS_PROVIDER ?? "twilio";
-  const accountSid = process.env.TWILIO_ACCOUNT_SID;
-  const authToken = process.env.TWILIO_AUTH_TOKEN;
-  const fromNumber = process.env.TWILIO_FROM_NUMBER;
+function normalizePhoneNumber(value: string): string {
+  return value.replace(/\s+/g, "").trim();
+}
 
-  if (provider !== "twilio") {
-    throw new Error("Unsupported SMS provider.");
+function isValidE164PhoneNumber(value: string): boolean {
+  return /^\+[1-9]\d{7,14}$/.test(value);
+}
+
+function getRequiredEnv(name: string): string {
+  const value = process.env[name]?.trim();
+
+  if (!value) {
+    throw new PhoneVerificationError({
+      reason: `${name}_MISSING`,
+      message: `${name} is missing in the server environment.`
+    });
   }
 
-  if (!accountSid || !authToken || !fromNumber) {
-    throw new Error("SMS provider is not configured.");
+  return value;
+}
+
+function getTwilioVerifyConfig(): {
+  accountSid: string;
+  authToken: string;
+  verifyServiceSid: string;
+} {
+  const provider = (process.env.HBCE_SMS_PROVIDER ?? "")
+    .trim()
+    .toLowerCase();
+
+  if (provider !== "twilio_verify") {
+    throw new PhoneVerificationError({
+      reason: "UNSUPPORTED_SMS_PROVIDER",
+      message: `Unsupported SMS provider: ${provider || "missing"}`
+    });
   }
+
+  return {
+    accountSid: getRequiredEnv("TWILIO_ACCOUNT_SID"),
+    authToken: getRequiredEnv("TWILIO_AUTH_TOKEN"),
+    verifyServiceSid: getRequiredEnv("TWILIO_VERIFY_SERVICE_SID")
+  };
+}
+
+function buildBasicAuthHeader(accountSid: string, authToken: string): string {
+  return `Basic ${Buffer.from(`${accountSid}:${authToken}`).toString("base64")}`;
+}
+
+async function readProviderError(response: Response): Promise<string> {
+  try {
+    return (await response.text()).slice(0, 2000);
+  } catch {
+    return "Twilio response body could not be read.";
+  }
+}
+
+async function startTwilioPhoneVerification(phoneNumber: string): Promise<void> {
+  const config = getTwilioVerifyConfig();
 
   const body = new URLSearchParams({
-    From: fromNumber,
-    To: params.to,
-    Body: `HBCE IPR verification code: ${params.code}. This code expires shortly.`
+    To: phoneNumber,
+    Channel: "sms"
   });
 
   const response = await fetch(
-    `https://api.twilio.com/2010-04-01/Accounts/${accountSid}/Messages.json`,
+    `https://verify.twilio.com/v2/Services/${config.verifyServiceSid}/Verifications`,
     {
       method: "POST",
       headers: {
-        Authorization: `Basic ${Buffer.from(
-          `${accountSid}:${authToken}`
-        ).toString("base64")}`,
+        Authorization: buildBasicAuthHeader(
+          config.accountSid,
+          config.authToken
+        ),
         "Content-Type": "application/x-www-form-urlencoded"
       },
       body
@@ -54,8 +112,23 @@ async function sendSmsWithProvider(params: {
   );
 
   if (!response.ok) {
-    const errorText = await response.text();
-    throw new Error(`SMS provider rejected the request: ${errorText}`);
+    const providerError = await readProviderError(response);
+
+    throw new PhoneVerificationError({
+      reason: "TWILIO_VERIFY_SEND_REJECTED",
+      message: `Twilio Verify rejected the SMS request with status ${response.status}.`,
+      providerStatus: response.status,
+      providerError
+    });
+  }
+
+  const data = (await response.json()) as TwilioVerifyStartResponse;
+
+  if (!data.sid || !data.status) {
+    throw new PhoneVerificationError({
+      reason: "TWILIO_VERIFY_INVALID_RESPONSE",
+      message: "Twilio Verify returned an invalid verification response."
+    });
   }
 }
 
@@ -79,7 +152,7 @@ export async function POST(request: Request) {
     return NextResponse.json(
       {
         ok: false,
-        reason: "INVALID_PHONE",
+        reason: "INVALID_PHONE_NUMBER",
         message: "Phone number is required."
       },
       { status: 400 }
@@ -88,61 +161,56 @@ export async function POST(request: Request) {
 
   const phoneNumber = normalizePhoneNumber(body.phone_number);
 
-  try {
-    const challenge = createPhoneOtpChallenge(phoneNumber);
-
-    if (isOtpDevEchoEnabled()) {
-      return NextResponse.json({
-        ok: true,
-        phone_number: challenge.phone_number,
+  if (!isValidE164PhoneNumber(phoneNumber)) {
+    return NextResponse.json(
+      {
+        ok: false,
+        reason: "INVALID_PHONE_NUMBER",
         message:
-          "Phone verification code generated in HBCE_OTP_DEV_ECHO mode. No SMS was sent.",
-        dev_code: challenge.code,
-        dev_echo: true
-      });
-    }
+          "Phone number must be in international E.164 format, for example +393515724982."
+      },
+      { status: 400 }
+    );
+  }
 
-    try {
-      await sendSmsWithProvider({
-        to: challenge.phone_number,
-        code: challenge.code
+  try {
+    await startTwilioPhoneVerification(phoneNumber);
+
+    return NextResponse.json({
+      ok: true,
+      phone_number: phoneNumber,
+      message: "SMS verification code sent."
+    });
+  } catch (error) {
+    if (error instanceof PhoneVerificationError) {
+      console.error("[HBCE_ONBOARDING_PHONE_SEND_FAILED]", {
+        reason: error.reason,
+        message: error.message,
+        provider_status: error.providerStatus,
+        provider_error: error.providerError
       });
-    } catch (error) {
-      deletePhoneOtpChallenge(challenge.phone_number);
 
       return NextResponse.json(
         {
           ok: false,
-          reason: "SMS_SEND_FAILED",
-          message:
-            error instanceof Error
-              ? error.message
-              : "Phone verification code could not be sent."
+          reason: error.reason,
+          message: error.message,
+          provider_status: error.providerStatus ?? null,
+          provider_error: error.providerError ?? null
         },
         { status: 502 }
       );
     }
 
-    return NextResponse.json({
-      ok: true,
-      phone_number: challenge.phone_number,
-      message: "Phone verification code sent.",
-      dev_echo: false
-    });
-  } catch (error) {
+    console.error("[HBCE_ONBOARDING_PHONE_SEND_UNKNOWN_FAILED]", error);
+
     return NextResponse.json(
       {
         ok: false,
-        reason:
-          error instanceof Error && error.message === "INVALID_PHONE"
-            ? "INVALID_PHONE"
-            : "OTP_CREATION_FAILED",
-        message:
-          error instanceof Error
-            ? error.message
-            : "Phone verification code could not be created."
+        reason: "PHONE_SEND_FAILED",
+        message: "Phone verification code could not be sent."
       },
-      { status: 400 }
+      { status: 502 }
     );
   }
 }
