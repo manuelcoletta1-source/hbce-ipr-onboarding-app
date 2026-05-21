@@ -57,10 +57,7 @@ function hasReachedOperationalCertificatePhase(record: OnboardingRecord): boolea
 }
 
 function hasOperationalCertificateHash(record: OnboardingRecord): boolean {
-  return (
-    hasText(record.operationalCertificateHashReference) ||
-    hasText(record.latestPhaseCertificateHash)
-  );
+  return hasText(record.latestPhaseCertificateHash);
 }
 
 function isPendingOperationalState(record: OnboardingRecord): boolean {
@@ -221,9 +218,6 @@ export function buildCurrentConditions(record: OnboardingRecord): string[] {
     }`,
     `Latest phase certificate hash: ${
       record.latestPhaseCertificateHash ?? "missing"
-    }`,
-    `Operational certificate hash: ${
-      record.operationalCertificateHashReference ?? "missing"
     }`,
     `IPR status: ${record.iprStatus}`,
     `IPR Card status: ${record.iprCardStatus}`,
