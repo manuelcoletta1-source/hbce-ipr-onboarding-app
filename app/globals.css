@@ -698,6 +698,12 @@ svg {
   line-height: 1.55;
 }
 
+.hbce-notice--warning {
+  border-color: rgba(255, 211, 143, 0.36);
+  background: rgba(255, 211, 143, 0.08);
+  color: var(--hbce-warning);
+}
+
 .hbce-notice--danger {
   border-color: rgba(255, 143, 143, 0.34);
   background: rgba(255, 143, 143, 0.08);
