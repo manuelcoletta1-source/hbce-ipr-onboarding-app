@@ -196,13 +196,17 @@ export type HbceIprRoute =
   | "/onboarding/phase-1"
   | "/onboarding/phase-2"
   | "/onboarding/phase-3"
+  | "/onboarding/photo-video"
   | "/onboarding/phase-4"
   | "/onboarding/phase-5"
   | "/onboarding/review"
   | "/admin/review"
   | "/ipr-card"
   | "/certificate"
-  | "/access/joker-c2";
+  | "/access/joker-c2"
+  | "/legal"
+  | "/privacy"
+  | "/security";
 
 export type HbceIprPhaseDefinition = {
   phase_number: HbceIprPhaseNumber;
