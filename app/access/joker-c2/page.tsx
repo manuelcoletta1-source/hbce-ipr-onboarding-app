@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 import IprCertificateUploader from "@/components/IprCertificateUploader";
 
@@ -9,7 +9,20 @@ import { JOKER_C2_GATEWAY_URL } from "@/lib/constants";
 import { validateJokerC2OperationalCertificate } from "@/lib/ipr-certificate-chain";
 
 import type { AcceptedIprCertificateUpload } from "@/components/IprCertificateUploader";
-import type { HbceJokerC2AccessGateResult, JsonObject } from "@/lib/types";
+import type {
+  HbceIprCertificate,
+  HbceIprNextPhaseCode,
+  HbceJokerC2AccessGateResult,
+  JsonObject
+} from "@/lib/types";
+
+type ActiveJokerC2CertificateUpload = {
+  certificate: HbceIprCertificate;
+  fileName: string;
+  payloadSha256: string;
+  previousPayloadSha256: string | null;
+  source: "session" | "upload";
+};
 
 const ACCESS_REQUIREMENTS = [
   "The uploaded file must be the final HBCE operational certificate.",
@@ -27,12 +40,71 @@ const ACCESS_REQUIREMENTS = [
 const FINAL_CERTIFICATE_FILE_NAME =
   "hbce-ipr-09-operational-certificate.hbce.json";
 
+const SESSION_CERTIFICATE_PREFIX = "HBCE_IPR_CERTIFICATE_FOR_NEXT_PHASE";
+
+function getSessionCertificateKey(nextPhase: HbceIprNextPhaseCode): string {
+  return `${SESSION_CERTIFICATE_PREFIX}:${nextPhase}`;
+}
+
+function readStoredCertificateForPhase(
+  nextPhase: HbceIprNextPhaseCode
+): unknown | null {
+  if (typeof window === "undefined") {
+    return null;
+  }
+
+  const raw = window.sessionStorage.getItem(getSessionCertificateKey(nextPhase));
+
+  if (!raw) {
+    return null;
+  }
+
+  try {
+    return JSON.parse(raw) as unknown;
+  } catch {
+    window.sessionStorage.removeItem(getSessionCertificateKey(nextPhase));
+    return null;
+  }
+}
+
+function clearStoredCertificateForPhase(nextPhase: HbceIprNextPhaseCode): void {
+  if (typeof window === "undefined") {
+    return;
+  }
+
+  window.sessionStorage.removeItem(getSessionCertificateKey(nextPhase));
+}
+
 function isJsonObject(value: unknown): value is JsonObject {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
-function getCertificatePrivateFields(
+function buildActiveUploadFromAcceptedUpload(
   upload: AcceptedIprCertificateUpload
+): ActiveJokerC2CertificateUpload {
+  return {
+    certificate: upload.certificate,
+    fileName: upload.fileName,
+    payloadSha256: upload.payloadSha256,
+    previousPayloadSha256: upload.previousPayloadSha256,
+    source: "upload"
+  };
+}
+
+function buildActiveUploadFromSession(
+  certificate: HbceIprCertificate
+): ActiveJokerC2CertificateUpload {
+  return {
+    certificate,
+    fileName: FINAL_CERTIFICATE_FILE_NAME,
+    payloadSha256: certificate.hash_integrity.payload_sha256,
+    previousPayloadSha256: certificate.hash_integrity.previous_payload_sha256,
+    source: "session"
+  };
+}
+
+function getCertificatePrivateFields(
+  upload: ActiveJokerC2CertificateUpload
 ): JsonObject | null {
   const phaseData = upload.certificate.payload.phase_data;
 
@@ -60,7 +132,7 @@ function getStringField(fields: JsonObject | null, key: string): string | null {
 }
 
 function getPhaseDataString(
-  upload: AcceptedIprCertificateUpload | null,
+  upload: ActiveJokerC2CertificateUpload | null,
   key: string
 ): string | null {
   if (!upload) {
@@ -75,7 +147,7 @@ function getPhaseDataString(
 }
 
 function getDisplayedCertificateStatus(
-  upload: AcceptedIprCertificateUpload | null,
+  upload: ActiveJokerC2CertificateUpload | null,
   privateFields: JsonObject | null
 ): string | null {
   return (
@@ -86,7 +158,7 @@ function getDisplayedCertificateStatus(
 }
 
 function getDisplayedCertificateScope(
-  upload: AcceptedIprCertificateUpload | null,
+  upload: ActiveJokerC2CertificateUpload | null,
   privateFields: JsonObject | null
 ): string | null {
   return (
@@ -98,12 +170,12 @@ function getDisplayedCertificateScope(
 
 export default function JokerC2AccessPage() {
   const [acceptedUpload, setAcceptedUpload] =
-    useState<AcceptedIprCertificateUpload | null>(null);
+    useState<ActiveJokerC2CertificateUpload | null>(null);
   const [accessResult, setAccessResult] =
     useState<HbceJokerC2AccessGateResult | null>(null);
   const [isChecking, setIsChecking] = useState(false);
 
-  async function evaluateAccess(upload: AcceptedIprCertificateUpload) {
+  async function evaluateAccess(upload: ActiveJokerC2CertificateUpload) {
     setAcceptedUpload(upload);
     setAccessResult(null);
     setIsChecking(true);
@@ -117,6 +189,56 @@ export default function JokerC2AccessPage() {
     } finally {
       setIsChecking(false);
     }
+  }
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function restoreOperationalCertificateFromSession() {
+      if (acceptedUpload) {
+        return;
+      }
+
+      const stored = readStoredCertificateForPhase("JOKER_C2_ACCESS");
+
+      if (!stored) {
+        return;
+      }
+
+      const sessionUpload = buildActiveUploadFromSession(
+        stored as HbceIprCertificate
+      );
+
+      const result = await validateJokerC2OperationalCertificate(
+        sessionUpload.certificate
+      );
+
+      if (cancelled) {
+        return;
+      }
+
+      if (result.decision !== "ACCESS_GRANTED") {
+        clearStoredCertificateForPhase("JOKER_C2_ACCESS");
+        setAcceptedUpload(sessionUpload);
+        setAccessResult(result);
+        return;
+      }
+
+      setAcceptedUpload(sessionUpload);
+      setAccessResult(result);
+    }
+
+    void restoreOperationalCertificateFromSession();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [acceptedUpload]);
+
+  function clearAcceptedCertificate() {
+    clearStoredCertificateForPhase("JOKER_C2_ACCESS");
+    setAcceptedUpload(null);
+    setAccessResult(null);
   }
 
   const isAccessGranted = accessResult?.decision === "ACCESS_GRANTED";
@@ -157,21 +279,48 @@ export default function JokerC2AccessPage() {
           </div>
         </section>
 
-        <IprCertificateUploader
-          expectedPreviousPhase="IPR_VERIFIED"
-          expectedNextPhase="JOKER_C2_ACCESS"
-          title="Upload HBCE Operational Certificate"
-          description={`Upload ${FINAL_CERTIFICATE_FILE_NAME}. The gate verifies protocol, issuer, kind, phase, status, scope, previous hash and payload hash before allowing governed JOKER-C2 access.`}
-          onCertificateAccepted={(upload) => {
-            void evaluateAccess(upload);
-          }}
-          onValidation={(validation) => {
-            if (!validation.valid) {
-              setAcceptedUpload(null);
-              setAccessResult(null);
-            }
-          }}
-        />
+        {acceptedUpload ? (
+          <section className="hbce-card hbce-card--soft">
+            <p className="hbce-kicker">
+              {acceptedUpload.source === "session"
+                ? "Operational certificate loaded from session"
+                : "Operational certificate accepted"}
+            </p>
+
+            <h2>Certificate 09 ready for JOKER-C2 gate evaluation.</h2>
+
+            <p>
+              The final HBCE operational certificate is available. The gate has
+              evaluated it using fail-closed validation.
+            </p>
+
+            <div className="hbce-actions">
+              <button
+                className="hbce-btn hbce-btn--ghost"
+                type="button"
+                onClick={clearAcceptedCertificate}
+              >
+                Use another Certificate 09
+              </button>
+            </div>
+          </section>
+        ) : (
+          <IprCertificateUploader
+            expectedPreviousPhase="IPR_VERIFIED"
+            expectedNextPhase="JOKER_C2_ACCESS"
+            title="Upload HBCE Operational Certificate"
+            description={`Upload ${FINAL_CERTIFICATE_FILE_NAME}. The gate verifies protocol, issuer, kind, phase, status, scope, previous hash and payload hash before allowing governed JOKER-C2 access.`}
+            onCertificateAccepted={(upload) => {
+              void evaluateAccess(buildActiveUploadFromAcceptedUpload(upload));
+            }}
+            onValidation={(validation) => {
+              if (!validation.valid) {
+                setAcceptedUpload(null);
+                setAccessResult(null);
+              }
+            }}
+          />
+        )}
 
         <section className="hbce-card">
           <p className="hbce-kicker">Access requirements</p>
