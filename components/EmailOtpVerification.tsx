@@ -43,6 +43,17 @@ function normalizeEmail(value: string): string {
   return value.trim().toLowerCase();
 }
 
+function getResponseMessage(
+  data: SendCodeResponse | VerifyCodeResponse,
+  fallback: string
+): string {
+  if ("message" in data && typeof data.message === "string") {
+    return data.message;
+  }
+
+  return fallback;
+}
+
 export default function EmailOtpVerification({
   emailValue,
   disabled = false,
@@ -100,7 +111,9 @@ export default function EmailOtpVerification({
       const data = (await response.json()) as SendCodeResponse;
 
       if (!response.ok || !data.ok) {
-        setMessage(data.message ?? "Email verification code could not be sent.");
+        setMessage(
+          getResponseMessage(data, "Email verification code could not be sent.")
+        );
         return;
       }
 
@@ -142,8 +155,8 @@ export default function EmailOtpVerification({
 
       const data = (await response.json()) as VerifyCodeResponse;
 
-      if (!response.ok || !data.ok) {
-        setMessage(data.message ?? "Email verification failed.");
+      if (!response.ok || data.ok !== true) {
+        setMessage(getResponseMessage(data, "Email verification failed."));
         return;
       }
 
