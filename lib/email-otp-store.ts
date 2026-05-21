@@ -1,4 +1,4 @@
-import { createHmac, randomInt, timingSafeEqual } from "node:crypto";
+import { createHmac, timingSafeEqual } from "node:crypto";
 
 export type HbceEmailOtpChallenge = {
   email: string;
@@ -31,30 +31,6 @@ export type HbceEmailOtpVerificationResult =
       message: string;
     };
 
-const globalOtpStore = globalThis as typeof globalThis & {
-  __HBCE_EMAIL_OTP_STORE__?: Map<string, HbceEmailOtpChallenge>;
-};
-
-function getStore(): Map<string, HbceEmailOtpChallenge> {
-  if (!globalOtpStore.__HBCE_EMAIL_OTP_STORE__) {
-    globalOtpStore.__HBCE_EMAIL_OTP_STORE__ = new Map();
-  }
-
-  return globalOtpStore.__HBCE_EMAIL_OTP_STORE__;
-}
-
-export function normalizeEmail(value: string): string {
-  return value.trim().toLowerCase();
-}
-
-export function isValidEmail(value: string): boolean {
-  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value.trim());
-}
-
-function isOtpDevEchoEnabled(): boolean {
-  return process.env.HBCE_OTP_DEV_ECHO === "true";
-}
-
 function getOtpSecret(): string | null {
   const secret = process.env.HBCE_OTP_SECRET;
 
@@ -69,11 +45,14 @@ function getOtpSecret(): string | null {
   return null;
 }
 
-function getOtpTtlMs(): number {
+function getOtpTtlSeconds(): number {
   const raw = Number(process.env.HBCE_OTP_TTL_SECONDS ?? "600");
-  const seconds = Number.isFinite(raw) && raw > 0 ? raw : 600;
 
-  return seconds * 1000;
+  return Number.isFinite(raw) && raw > 0 ? raw : 600;
+}
+
+function getOtpTtlMs(): number {
+  return getOtpTtlSeconds() * 1000;
 }
 
 function getMaxAttempts(): number {
@@ -92,9 +71,9 @@ function hmac(value: string): string {
   return createHmac("sha256", secret).update(value).digest("hex");
 }
 
-function safeEqualHex(left: string, right: string): boolean {
-  const leftBuffer = Buffer.from(left, "hex");
-  const rightBuffer = Buffer.from(right, "hex");
+function safeEqual(left: string, right: string): boolean {
+  const leftBuffer = Buffer.from(left);
+  const rightBuffer = Buffer.from(right);
 
   if (leftBuffer.length !== rightBuffer.length) {
     return false;
@@ -103,8 +82,42 @@ function safeEqualHex(left: string, right: string): boolean {
   return timingSafeEqual(leftBuffer, rightBuffer);
 }
 
+function getTimeSlot(date: Date): number {
+  return Math.floor(date.getTime() / getOtpTtlMs());
+}
+
+function getSlotExpiresAt(slot: number): Date {
+  return new Date((slot + 1) * getOtpTtlMs());
+}
+
+function generateOtpCodeForSlot(email: string, slot: number): string {
+  const digest = hmac(`HBCE_EMAIL_OTP_CODE:${email}:${slot}`);
+  const numericSeed = Number.parseInt(digest.slice(0, 12), 16);
+  const code = numericSeed % 1_000_000;
+
+  return String(code).padStart(6, "0");
+}
+
+function getValidOtpSlots(): number[] {
+  const currentSlot = getTimeSlot(new Date());
+
+  return [currentSlot, currentSlot - 1];
+}
+
+export function normalizeEmail(value: string): string {
+  return value.trim().toLowerCase();
+}
+
+export function isValidEmail(value: string): boolean {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value.trim());
+}
+
 export function generateOtpCode(): string {
-  return String(randomInt(0, 1_000_000)).padStart(6, "0");
+  const digest = hmac(`HBCE_EMAIL_OTP_RANDOM_COMPAT:${Date.now()}`);
+  const numericSeed = Number.parseInt(digest.slice(0, 12), 16);
+  const code = numericSeed % 1_000_000;
+
+  return String(code).padStart(6, "0");
 }
 
 export function createEmailOtpChallenge(emailInput: string): {
@@ -118,23 +131,27 @@ export function createEmailOtpChallenge(emailInput: string): {
     throw new Error("INVALID_EMAIL");
   }
 
-  const code = generateOtpCode();
+  const secret = getOtpSecret();
+
+  if (!secret) {
+    throw new Error("HBCE_OTP_SECRET is missing or too short.");
+  }
+
   const createdAt = new Date();
-  const expiresAt = new Date(createdAt.getTime() + getOtpTtlMs());
+  const slot = getTimeSlot(createdAt);
+  const expiresAt = getSlotExpiresAt(slot);
+  const code = generateOtpCodeForSlot(email, slot);
+  const codeHash = hmac(`HBCE_EMAIL_OTP_HASH:${email}:${code}:${slot}`);
 
   const challenge: HbceEmailOtpChallenge = {
     email,
-    code_hash: hmac(`HBCE_EMAIL_OTP:${email}:${code}`),
+    code_hash: codeHash,
     attempts: 0,
     max_attempts: getMaxAttempts(),
     created_at: createdAt.toISOString(),
     expires_at: expiresAt.toISOString(),
     verified_at: null
   };
-
-  if (!isOtpDevEchoEnabled()) {
-    getStore().set(email, challenge);
-  }
 
   return {
     email,
@@ -143,8 +160,15 @@ export function createEmailOtpChallenge(emailInput: string): {
   };
 }
 
-export function deleteEmailOtpChallenge(emailInput: string): void {
-  getStore().delete(normalizeEmail(emailInput));
+export function deleteEmailOtpChallenge(_emailInput: string): void {
+  /*
+   * Stateless OTP mode:
+   * no server-side challenge is stored on Vercel.
+   *
+   * This function is intentionally kept as a no-op because existing API routes
+   * call it after provider failures. Keeping the exported function avoids
+   * breaking the route contract while removing the volatile in-memory store.
+   */
 }
 
 function verifyEmailOtpCodeInDevEchoMode(
@@ -208,61 +232,30 @@ export function verifyEmailOtpCode(
     };
   }
 
-  if (isOtpDevEchoEnabled()) {
+  if (process.env.HBCE_OTP_DEV_ECHO === "true") {
     return verifyEmailOtpCodeInDevEchoMode(email, code);
   }
 
-  const store = getStore();
-  const challenge = store.get(email);
+  const validSlots = getValidOtpSlots();
+  const matchedSlot = validSlots.find((slot) => {
+    const expectedCode = generateOtpCodeForSlot(email, slot);
 
-  if (!challenge) {
-    return {
-      valid: false,
-      reason: "NO_ACTIVE_CHALLENGE",
-      message: "Email verification failed. No active code was found."
-    };
-  }
+    return safeEqual(expectedCode, code);
+  });
 
-  if (new Date(challenge.expires_at).getTime() < Date.now()) {
-    store.delete(email);
-
-    return {
-      valid: false,
-      reason: "CODE_EXPIRED",
-      message: "Email verification failed. The code has expired."
-    };
-  }
-
-  if (challenge.attempts >= challenge.max_attempts) {
-    store.delete(email);
-
-    return {
-      valid: false,
-      reason: "TOO_MANY_ATTEMPTS",
-      message: "Email verification failed. Too many attempts."
-    };
-  }
-
-  const receivedHash = hmac(`HBCE_EMAIL_OTP:${email}:${code}`);
-
-  if (!safeEqualHex(challenge.code_hash, receivedHash)) {
-    challenge.attempts += 1;
-    store.set(email, challenge);
-
+  if (matchedSlot === undefined) {
     return {
       valid: false,
       reason: "INVALID_CODE",
-      message: "Email verification failed. Invalid code."
+      message: "Email verification failed. Invalid or expired code."
     };
   }
 
   const verifiedAt = new Date().toISOString();
+  const codeHash = hmac(`HBCE_EMAIL_OTP_HASH:${email}:${code}:${matchedSlot}`);
   const emailVerificationHash = hmac(
-    `HBCE_EMAIL_VERIFIED:${email}:${verifiedAt}:${challenge.code_hash}`
+    `HBCE_EMAIL_VERIFIED:${email}:${verifiedAt}:${codeHash}`
   );
-
-  challenge.verified_at = verifiedAt;
-  store.set(email, challenge);
 
   return {
     valid: true,
