@@ -12,15 +12,20 @@ import type { AcceptedIprCertificateUpload } from "@/components/IprCertificateUp
 import type { HbceJokerC2AccessGateResult, JsonObject } from "@/lib/types";
 
 const ACCESS_REQUIREMENTS = [
-  "The uploaded file must be an HBCE operational certificate.",
+  "The uploaded file must be the final HBCE operational certificate.",
+  "The protocol must be HBCE-IPR-RELEASE-v3.",
+  "The issuer must be HERMETICUM B.C.E. S.r.l.",
   "The certificate kind must be IPR_OPERATIONAL_CERTIFICATE.",
   "The phase code must be IPR_VERIFIED.",
   "The certificate status must be ACTIVE.",
   "The certificate scope must be JOKER_C2_ACCESS.",
-  "The issuer must be HERMETICUM B.C.E. S.r.l.",
   "The previous payload hash must be present.",
-  "The payload hash must match the canonical certificate payload."
+  "The payload hash must match the canonical certificate payload.",
+  "Any malformed, incomplete, expired, revoked, suspended or wrong-scope certificate must be denied."
 ] as const;
+
+const FINAL_CERTIFICATE_FILE_NAME =
+  "hbce-ipr-09-operational-certificate.hbce.json";
 
 function isJsonObject(value: unknown): value is JsonObject {
   return typeof value === "object" && value !== null && !Array.isArray(value);
@@ -49,7 +54,46 @@ function getStringField(fields: JsonObject | null, key: string): string | null {
 
   const value = fields[key];
 
-  return typeof value === "string" && value.trim() ? value : null;
+  return typeof value === "string" && value.trim().length > 0
+    ? value.trim()
+    : null;
+}
+
+function getPhaseDataString(
+  upload: AcceptedIprCertificateUpload | null,
+  key: string
+): string | null {
+  if (!upload) {
+    return null;
+  }
+
+  const value = upload.certificate.payload.phase_data[key];
+
+  return typeof value === "string" && value.trim().length > 0
+    ? value.trim()
+    : null;
+}
+
+function getDisplayedCertificateStatus(
+  upload: AcceptedIprCertificateUpload | null,
+  privateFields: JsonObject | null
+): string | null {
+  return (
+    getStringField(privateFields, "certificate_status") ??
+    getPhaseDataString(upload, "certificate_status") ??
+    null
+  );
+}
+
+function getDisplayedCertificateScope(
+  upload: AcceptedIprCertificateUpload | null,
+  privateFields: JsonObject | null
+): string | null {
+  return (
+    getStringField(privateFields, "certificate_scope") ??
+    getPhaseDataString(upload, "certificate_scope") ??
+    null
+  );
 }
 
 export default function JokerC2AccessPage() {
@@ -79,6 +123,14 @@ export default function JokerC2AccessPage() {
   const privateFields = acceptedUpload
     ? getCertificatePrivateFields(acceptedUpload)
     : null;
+  const displayedCertificateStatus = getDisplayedCertificateStatus(
+    acceptedUpload,
+    privateFields
+  );
+  const displayedCertificateScope = getDisplayedCertificateScope(
+    acceptedUpload,
+    privateFields
+  );
 
   return (
     <div className="hbce-container">
@@ -90,8 +142,8 @@ export default function JokerC2AccessPage() {
 
           <p>
             JOKER-C2 does not open through a simple email login or subscription.
-            Access requires a valid HBCE operational certificate generated at the
-            end of the IPR onboarding chain.
+            Access requires the final HBCE operational certificate generated at
+            the end of the IPR onboarding chain.
           </p>
 
           <div className="hbce-actions">
@@ -109,7 +161,7 @@ export default function JokerC2AccessPage() {
           expectedPreviousPhase="IPR_VERIFIED"
           expectedNextPhase="JOKER_C2_ACCESS"
           title="Upload HBCE Operational Certificate"
-          description="Upload hbce-ipr-09-operational-certificate.hbce.json. The gate verifies protocol, issuer, phase, status, scope and payload hash before allowing governed JOKER-C2 access."
+          description={`Upload ${FINAL_CERTIFICATE_FILE_NAME}. The gate verifies protocol, issuer, kind, phase, status, scope, previous hash and payload hash before allowing governed JOKER-C2 access.`}
           onCertificateAccepted={(upload) => {
             void evaluateAccess(upload);
           }}
@@ -127,8 +179,8 @@ export default function JokerC2AccessPage() {
 
           <p>
             This gate is fail-closed. A malformed certificate, wrong phase,
-            wrong issuer, missing hash, invalid scope or inactive status blocks
-            access.
+            wrong issuer, missing hash, invalid scope, inactive status or broken
+            canonical payload blocks access.
           </p>
 
           <ul className="hbce-list">
@@ -152,17 +204,41 @@ export default function JokerC2AccessPage() {
         {acceptedUpload ? (
           <section className="hbce-card hbce-card--soft">
             <p className="hbce-kicker">Uploaded certificate</p>
-            <h2>HBCE certificate received.</h2>
+            <h2>HBCE operational certificate received.</h2>
 
             <p className="hbce-mono">file_name: {acceptedUpload.fileName}</p>
+
+            <p className="hbce-mono">
+              proto: {acceptedUpload.certificate.proto}
+            </p>
+
+            <p className="hbce-mono">
+              issuer: {acceptedUpload.certificate.issuer.legal_name}
+            </p>
+
+            <p className="hbce-mono">
+              kind: {acceptedUpload.certificate.kind}
+            </p>
 
             <p className="hbce-mono">
               phase: {acceptedUpload.certificate.phase.code}
             </p>
 
             <p className="hbce-mono">
-              kind: {acceptedUpload.certificate.kind}
+              phase_status: {acceptedUpload.certificate.phase.status}
             </p>
+
+            {displayedCertificateStatus ? (
+              <p className="hbce-mono">
+                certificate_status: {displayedCertificateStatus}
+              </p>
+            ) : null}
+
+            {displayedCertificateScope ? (
+              <p className="hbce-mono">
+                certificate_scope: {displayedCertificateScope}
+              </p>
+            ) : null}
 
             <p className="hbce-mono">
               payload_sha256: {acceptedUpload.payloadSha256}
@@ -173,7 +249,9 @@ export default function JokerC2AccessPage() {
                 previous_payload_sha256:{" "}
                 {acceptedUpload.previousPayloadSha256}
               </p>
-            ) : null}
+            ) : (
+              <p className="hbce-mono">previous_payload_sha256: null</p>
+            )}
           </section>
         ) : null}
 
