@@ -35,6 +35,8 @@ export const HBCE_IPR_POLICY: HbceIprPolicy = {
   NO_PUBLIC_IDENTITY_CUSTODY: true
 };
 
+const HBCE_TIMEZONE = "Europe/Rome" as const;
+
 export type HbcePreviousCertificateValidationInput = {
   certificate: unknown;
   expected_previous_phase: HbceIprCertificatePhaseCode | null;
@@ -124,6 +126,82 @@ function copyUint8ArrayToArrayBuffer(input: Uint8Array): ArrayBuffer {
   return copy.buffer as ArrayBuffer;
 }
 
+function assertValidDate(value: IsoDateTime): Date {
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) {
+    throw new Error("Invalid ISO timestamp supplied to HBCE IPR certificate.");
+  }
+
+  return date;
+}
+
+function getTimeZoneParts(date: Date): Record<string, string> {
+  const formatter = new Intl.DateTimeFormat("en-GB", {
+    timeZone: HBCE_TIMEZONE,
+    hourCycle: "h23",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit"
+  });
+
+  const parts: Record<string, string> = {};
+
+  for (const part of formatter.formatToParts(date)) {
+    if (part.type !== "literal") {
+      parts[part.type] = part.value;
+    }
+  }
+
+  return parts;
+}
+
+function getEuropeRomeOffsetMinutes(date: Date): number {
+  const parts = getTimeZoneParts(date);
+
+  const localAsUtc = Date.UTC(
+    Number(parts.year),
+    Number(parts.month) - 1,
+    Number(parts.day),
+    Number(parts.hour),
+    Number(parts.minute),
+    Number(parts.second)
+  );
+
+  return Math.round((localAsUtc - date.getTime()) / 60000);
+}
+
+function formatOffset(offsetMinutes: number): string {
+  const sign = offsetMinutes >= 0 ? "+" : "-";
+  const absolute = Math.abs(offsetMinutes);
+  const hours = Math.floor(absolute / 60)
+    .toString()
+    .padStart(2, "0");
+  const minutes = (absolute % 60).toString().padStart(2, "0");
+
+  return `${sign}${hours}:${minutes}`;
+}
+
+export function toEuropeRomeIso(value: IsoDateTime): IsoDateTime {
+  const date = assertValidDate(value);
+  const parts = getTimeZoneParts(date);
+  const milliseconds = date.getUTCMilliseconds().toString().padStart(3, "0");
+  const offset = formatOffset(getEuropeRomeOffsetMinutes(date));
+
+  return `${parts.year}-${parts.month}-${parts.day}T${parts.hour}:${parts.minute}:${parts.second}.${milliseconds}${offset}`;
+}
+
+export function buildHbceTimestamp(value: IsoDateTime): JsonObject {
+  return {
+    utc: value,
+    local: toEuropeRomeIso(value),
+    timezone: HBCE_TIMEZONE
+  };
+}
+
 export async function sha256Hex(
   input: string | ArrayBuffer | Uint8Array | Blob
 ): Promise<HashReference> {
@@ -211,6 +289,124 @@ export function getCertificateKind(
   }
 
   return "IPR_PHASE_CERTIFICATE";
+}
+
+function buildInitialVerificationState(): JsonObject {
+  return {
+    email_verified: false,
+    phone_verified: false,
+    fiscal_identity_verified: false,
+    official_document_uploaded: false,
+    official_document_verified: false,
+    liveness_verified: false,
+    privacy_compliance_accepted: false,
+    hbce_review_status: "NOT_STARTED",
+    ipr_approved: false,
+    ipr_card_issued: false,
+    operational_certificate_issued: false,
+    joker_c2_access: "DENIED"
+  };
+}
+
+function enrichSubjectCreatedPhaseData(params: {
+  phaseData: JsonObject;
+  issuedAt: IsoDateTime;
+  nextRequiredPhase: HbceIprNextPhaseCode;
+}): JsonObject {
+  const output: JsonObject = {
+    ...params.phaseData,
+    certificate_role: "STEP_1_CLIENT_INTAKE",
+    certificate_boundary:
+      "This file records the creation of the HBCE IPR customer profile request. It does not certify verified identity, it does not issue an IPR Card and it does not grant JOKER-C2 access.",
+    ipr_status: "NOT_YET_ISSUED",
+    ipr_card_status: "NOT_ISSUED",
+    joker_c2_access: "DENIED",
+    next_required_phase: params.nextRequiredPhase,
+    created_at: buildHbceTimestamp(params.issuedAt),
+    created_at_utc: params.issuedAt,
+    created_at_local: toEuropeRomeIso(params.issuedAt),
+    timezone: HBCE_TIMEZONE,
+    verification_state: buildInitialVerificationState()
+  };
+
+  if (
+    isPlainRecord(params.phaseData.private_fields) &&
+    !isPlainRecord(params.phaseData.client_private_data)
+  ) {
+    output.client_private_data = canonicalize(params.phaseData.private_fields);
+    output.client_private_data_included = true;
+  }
+
+  if (!output.subject_creation_mode) {
+    output.subject_creation_mode = "SELF_INITIATED_IPR_REQUEST";
+  }
+
+  if (!output.certificate_visibility) {
+    output.certificate_visibility = "PRIVATE_PORTABLE_CERTIFICATE";
+  }
+
+  if (!output.public_registry_mode) {
+    output.public_registry_mode = "HASH_ONLY";
+  }
+
+  if (!output.privacy_boundary) {
+    output.privacy_boundary =
+      "The downloaded certificate may contain private customer intake fields. Public verification must expose hash-only references, not private identity fields.";
+  }
+
+  return output;
+}
+
+function enrichPhaseData<TPhaseData extends JsonObject>(
+  input: HbceCertificateGenerationInput<TPhaseData>
+): TPhaseData {
+  const canonicalPhaseData = canonicalize(input.phase_data);
+  const basePhaseData = isPlainRecord(canonicalPhaseData)
+    ? canonicalPhaseData
+    : {};
+
+  const commonPhaseData: JsonObject = {
+    ...basePhaseData,
+    issued_at: input.issued_at,
+    issued_at_utc: input.issued_at,
+    issued_at_local: toEuropeRomeIso(input.issued_at),
+    timezone: HBCE_TIMEZONE,
+    previous_payload_sha256: input.previous_payload_sha256,
+    next_required_phase: input.next_required_phase
+  };
+
+  if (input.phase_code === "SUBJECT_CREATED") {
+    return enrichSubjectCreatedPhaseData({
+      phaseData: commonPhaseData,
+      issuedAt: input.issued_at,
+      nextRequiredPhase: input.next_required_phase
+    }) as TPhaseData;
+  }
+
+  return commonPhaseData as TPhaseData;
+}
+
+function buildPayload<TPhaseData extends JsonObject>(
+  input: HbceCertificateGenerationInput<TPhaseData>
+): {
+  proto: "HBCE-IPR-PAYLOAD-v3";
+  jurisdiction: "EU";
+  policy: HbceIprPolicy;
+  phase_data: TPhaseData;
+} {
+  const payload = {
+    proto: "HBCE-IPR-PAYLOAD-v3",
+    jurisdiction: "EU",
+    policy: HBCE_IPR_POLICY,
+    phase_data: enrichPhaseData(input)
+  } as const;
+
+  return canonicalize(payload) as {
+    proto: "HBCE-IPR-PAYLOAD-v3";
+    jurisdiction: "EU";
+    policy: HbceIprPolicy;
+    phase_data: TPhaseData;
+  };
 }
 
 export function isExpectedIssuer(value: unknown): value is HbceIssuer {
@@ -337,6 +533,17 @@ export function isHbceIprCertificate(
     return false;
   }
 
+  if (
+    value.registry.public_entry.payload_sha256 !==
+    value.hash_integrity.payload_sha256
+  ) {
+    return false;
+  }
+
+  if (value.registry.public_entry.phase !== value.phase.code) {
+    return false;
+  }
+
   if (!isPlainRecord(value.next)) {
     return false;
   }
@@ -346,6 +553,10 @@ export function isHbceIprCertificate(
   }
 
   if (typeof value.next.next_phase !== "string") {
+    return false;
+  }
+
+  if (value.next.next_phase !== value.phase.next_required_phase) {
     return false;
   }
 
@@ -364,12 +575,7 @@ export async function recomputeCertificatePayloadSha256(
 export async function generateHbceIprCertificate<TPhaseData extends JsonObject>(
   input: HbceCertificateGenerationInput<TPhaseData>
 ): Promise<HbceGeneratedCertificate<TPhaseData>> {
-  const payload = {
-    proto: "HBCE-IPR-PAYLOAD-v3",
-    jurisdiction: "EU",
-    policy: HBCE_IPR_POLICY,
-    phase_data: input.phase_data
-  } as const;
+  const payload = buildPayload(input);
 
   const payloadSha256 = await createPayloadSha256(
     input.previous_payload_sha256,
@@ -580,7 +786,7 @@ export async function validatePreviousHbceIprCertificate(
       valid: false,
       reason: "INVALID_JSON",
       message:
-        "Certificate rejected. The uploaded HBCE IPR certificate is incomplete or malformed.",
+        "Certificate rejected. The uploaded HBCE IPR certificate is incomplete, malformed or internally inconsistent.",
       expected_phase: input.expected_previous_phase,
       expected_next_phase: input.expected_next_phase,
       checked_at: checkedAt
@@ -688,7 +894,8 @@ export async function parseHbceIprCertificateJson(
     });
 
     return {
-      certificate: validation.valid && isHbceIprCertificate(parsed) ? parsed : null,
+      certificate:
+        validation.valid && isHbceIprCertificate(parsed) ? parsed : null,
       validation
     };
   } catch {
