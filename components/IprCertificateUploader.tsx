@@ -94,6 +94,34 @@ function isLikelyHbceCertificateFile(file: File): boolean {
   );
 }
 
+function getUnlockPhaseFromPreviousPhase(
+  previousPhase: HbceIprCertificatePhaseCode | null,
+  fallbackNextPhase: HbceIprNextPhaseCode | undefined
+): HbceIprNextPhaseCode {
+  switch (previousPhase) {
+    case "SUBJECT_CREATED":
+      return "FISCAL_IDENTITY";
+    case "FISCAL_IDENTITY_COLLECTED":
+      return "OFFICIAL_ID_DOCUMENT";
+    case "OFFICIAL_DOCUMENT_SUBMITTED":
+      return "LIVENESS_CHECK";
+    case "LIVENESS_SUBMITTED":
+      return "PRIVACY_COMPLIANCE";
+    case "COMPLIANCE_ACCEPTED":
+      return "REVIEW_SUBMISSION";
+    case "PENDING_REVIEW":
+      return "HBCE_APPROVAL";
+    case "IPR_APPROVED":
+      return "IPR_CARD_ISSUANCE";
+    case "IPR_CARD_ISSUED":
+      return "OPERATIONAL_CERTIFICATE";
+    case "IPR_VERIFIED":
+      return "JOKER_C2_ACCESS";
+    case null:
+      return fallbackNextPhase ?? "COMPLETED";
+  }
+}
+
 function buildRejectedFileValidation(file: File): HbceCertificateValidationResult {
   return createValidationResult({
     valid: false,
@@ -135,6 +163,15 @@ export default function IprCertificateUploader({
   const resolvedDescription = useMemo(
     () => description ?? getDefaultDescription(mode),
     [description, mode]
+  );
+
+  const effectiveExpectedNextPhase = useMemo(
+    () =>
+      getUnlockPhaseFromPreviousPhase(
+        expectedPreviousPhase,
+        expectedNextPhase
+      ),
+    [expectedNextPhase, expectedPreviousPhase]
   );
 
   function clearAcceptedState() {
@@ -263,7 +300,7 @@ export default function IprCertificateUploader({
           : await readHbceIprCertificateFile(
               file,
               expectedPreviousPhase,
-              expectedNextPhase ?? "COMPLETED"
+              effectiveExpectedNextPhase
             );
 
       if (!parsed.validation.valid || !parsed.certificate) {
