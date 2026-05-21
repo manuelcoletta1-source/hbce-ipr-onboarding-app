@@ -1,6 +1,7 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 
 import IprCertificateUploader from "@/components/IprCertificateUploader";
 
@@ -8,14 +9,31 @@ import {
   downloadHbceIprCertificate,
   generateHbceIprCertificate,
   nowIso,
-  sha256Canonical
+  sha256Canonical,
+  validatePreviousHbceIprCertificate
 } from "@/lib/ipr-certificate-chain";
 
-import { getPhaseDefinitionByNumber } from "@/lib/ipr-phase-map";
+import {
+  getContinuationRouteFromCertificate,
+  getPhaseDefinitionByNumber
+} from "@/lib/ipr-phase-map";
 
 import type { AcceptedIprCertificateUpload } from "@/components/IprCertificateUploader";
 
-import type { HbceGeneratedCertificate, JsonObject } from "@/lib/types";
+import type {
+  HbceGeneratedCertificate,
+  HbceIprCertificate,
+  HbceIprNextPhaseCode,
+  JsonObject
+} from "@/lib/types";
+
+type ActiveOperationalCertificateUpload = {
+  certificate: HbceIprCertificate;
+  fileName: string;
+  payloadSha256: string;
+  previousPayloadSha256: string | null;
+  source: "session" | "upload";
+};
 
 type Phase9OperationalPreview = {
   certificateId: string;
@@ -55,11 +73,63 @@ type Phase9OperationalHashFields = JsonObject & {
 
 const phase = getPhaseDefinitionByNumber(9);
 
+const SESSION_CERTIFICATE_PREFIX = "HBCE_IPR_CERTIFICATE_FOR_NEXT_PHASE";
+
 const ACCESS_BOUNDARY =
   "This HBCE Operational Certificate enables eligibility for JOKER-C2 access evaluation. Runtime access still requires fail-closed certificate validation.";
 
 const LEGAL_BOUNDARY =
   "This is an internal HBCE operational certificate. It is not a qualified eIDAS certificate unless formally integrated with a recognized trust service.";
+
+function getSessionCertificateKey(nextPhase: HbceIprNextPhaseCode): string {
+  return `${SESSION_CERTIFICATE_PREFIX}:${nextPhase}`;
+}
+
+function readStoredCertificateForPhase(
+  nextPhase: HbceIprNextPhaseCode
+): unknown | null {
+  if (typeof window === "undefined") {
+    return null;
+  }
+
+  const raw = window.sessionStorage.getItem(getSessionCertificateKey(nextPhase));
+
+  if (!raw) {
+    return null;
+  }
+
+  try {
+    return JSON.parse(raw) as unknown;
+  } catch {
+    window.sessionStorage.removeItem(getSessionCertificateKey(nextPhase));
+    return null;
+  }
+}
+
+function clearStoredCertificateForPhase(nextPhase: HbceIprNextPhaseCode): void {
+  if (typeof window === "undefined") {
+    return;
+  }
+
+  window.sessionStorage.removeItem(getSessionCertificateKey(nextPhase));
+}
+
+function storeCertificateForNextPhase(certificate: HbceIprCertificate): void {
+  if (typeof window === "undefined") {
+    return;
+  }
+
+  const nextPhase = certificate.next.next_phase;
+
+  if (nextPhase === "COMPLETED") {
+    return;
+  }
+
+  window.sessionStorage.setItem(
+    getSessionCertificateKey(nextPhase),
+    JSON.stringify(certificate)
+  );
+}
 
 function createCompactId(prefix: string, source: string): string {
   const normalized = source.replace(/[^a-zA-Z0-9]/g, "").toUpperCase();
@@ -90,8 +160,32 @@ function readStringFromPayload(
     : null;
 }
 
+function buildActiveUploadFromAcceptedUpload(
+  upload: AcceptedIprCertificateUpload
+): ActiveOperationalCertificateUpload {
+  return {
+    certificate: upload.certificate,
+    fileName: upload.fileName,
+    payloadSha256: upload.payloadSha256,
+    previousPayloadSha256: upload.previousPayloadSha256,
+    source: "upload"
+  };
+}
+
+function buildActiveUploadFromSession(
+  certificate: HbceIprCertificate
+): ActiveOperationalCertificateUpload {
+  return {
+    certificate,
+    fileName: "hbce-ipr-08-ipr-card.hbce.json",
+    payloadSha256: certificate.hash_integrity.payload_sha256,
+    previousPayloadSha256: certificate.hash_integrity.previous_payload_sha256,
+    source: "session"
+  };
+}
+
 function buildOperationalPreview(
-  previousUpload: AcceptedIprCertificateUpload
+  previousUpload: ActiveOperationalCertificateUpload
 ): Phase9OperationalPreview {
   const cardPayload = previousUpload.certificate.payload.phase_data;
   const fallbackSource = previousUpload.payloadSha256;
@@ -199,14 +293,60 @@ async function buildHashFields(params: {
 }
 
 export default function CertificatePage() {
+  const router = useRouter();
+
   const [previousUpload, setPreviousUpload] =
-    useState<AcceptedIprCertificateUpload | null>(null);
+    useState<ActiveOperationalCertificateUpload | null>(null);
   const [operatorReference, setOperatorReference] = useState("HBCE-OPERATOR");
   const [validUntil, setValidUntil] = useState(getOneYearValidity());
   const [error, setError] = useState("");
   const [isGenerating, setIsGenerating] = useState(false);
   const [generatedCertificate, setGeneratedCertificate] =
     useState<HbceGeneratedCertificate<JsonObject> | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function restoreIprCardCertificateFromSession() {
+      if (previousUpload) {
+        return;
+      }
+
+      const stored = readStoredCertificateForPhase("OPERATIONAL_CERTIFICATE");
+
+      if (!stored) {
+        return;
+      }
+
+      const validation = await validatePreviousHbceIprCertificate({
+        certificate: stored,
+        expected_previous_phase: "IPR_CARD_ISSUED",
+        expected_next_phase: "OPERATIONAL_CERTIFICATE"
+      });
+
+      if (cancelled) {
+        return;
+      }
+
+      if (!validation.valid) {
+        clearStoredCertificateForPhase("OPERATIONAL_CERTIFICATE");
+        setPreviousUpload(null);
+        setError(
+          "The stored IPR Card certificate was rejected. Upload Certificate 08 manually."
+        );
+        return;
+      }
+
+      setPreviousUpload(buildActiveUploadFromSession(stored as HbceIprCertificate));
+      setError("");
+    }
+
+    void restoreIprCardCertificateFromSession();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [previousUpload]);
 
   const generatedPreview = useMemo(() => {
     if (!previousUpload) {
@@ -215,6 +355,11 @@ export default function CertificatePage() {
 
     return buildOperationalPreview(previousUpload);
   }, [previousUpload]);
+
+  function clearPreviousUpload() {
+    clearStoredCertificateForPhase("OPERATIONAL_CERTIFICATE");
+    setPreviousUpload(null);
+  }
 
   async function issueOperationalCertificate() {
     setError("");
@@ -380,7 +525,16 @@ export default function CertificatePage() {
       });
 
       setGeneratedCertificate(generated);
+      storeCertificateForNextPhase(generated.certificate);
       downloadHbceIprCertificate(generated.certificate, generated.file_name);
+
+      const nextRoute = getContinuationRouteFromCertificate(
+        generated.certificate
+      );
+
+      window.setTimeout(() => {
+        router.push(nextRoute);
+      }, 250);
     } catch (generationError) {
       setError(
         generationError instanceof Error
@@ -407,21 +561,68 @@ export default function CertificatePage() {
           </p>
         </section>
 
-        <IprCertificateUploader
-          expectedPreviousPhase={phase.expected_previous_phase}
-          expectedNextPhase={phase.next_required_phase}
-          title="Upload HBCE IPR Card Certificate"
-          description="Upload hbce-ipr-08-ipr-card.hbce.json. The app verifies the IPR Card phase before issuing the final operational certificate."
-          onCertificateAccepted={(upload) => {
-            setPreviousUpload(upload);
-            setError("");
-          }}
-          onValidation={(validation) => {
-            if (!validation.valid) {
-              setPreviousUpload(null);
-            }
-          }}
-        />
+        {previousUpload ? (
+          <section className="hbce-card hbce-card--soft">
+            <p className="hbce-kicker">
+              {previousUpload.source === "session"
+                ? "IPR Card certificate loaded from session"
+                : "IPR Card certificate accepted"}
+            </p>
+
+            <h2>Certificate 08 ready for operational certificate issuance.</h2>
+
+            <p>
+              The required IPR Card certificate is already available for this
+              phase. You can now issue the final HBCE operational certificate.
+            </p>
+
+            <p className="hbce-mono">file_name: {previousUpload.fileName}</p>
+
+            <p className="hbce-mono">
+              current_phase: {previousUpload.certificate.phase.code}
+            </p>
+
+            <p className="hbce-mono">
+              unlocks_phase: {previousUpload.certificate.next.next_phase}
+            </p>
+
+            <p className="hbce-mono">
+              payload_sha256: {previousUpload.payloadSha256}
+            </p>
+
+            {previousUpload.previousPayloadSha256 ? (
+              <p className="hbce-mono">
+                previous_payload_sha256: {previousUpload.previousPayloadSha256}
+              </p>
+            ) : null}
+
+            <div className="hbce-actions">
+              <button
+                className="hbce-btn hbce-btn--ghost"
+                type="button"
+                onClick={clearPreviousUpload}
+              >
+                Use another Certificate 08
+              </button>
+            </div>
+          </section>
+        ) : (
+          <IprCertificateUploader
+            expectedPreviousPhase={phase.expected_previous_phase}
+            expectedNextPhase="OPERATIONAL_CERTIFICATE"
+            title="Upload HBCE IPR Card Certificate"
+            description="Upload hbce-ipr-08-ipr-card.hbce.json. The app verifies the IPR Card phase before issuing the final operational certificate."
+            onCertificateAccepted={(upload) => {
+              setPreviousUpload(buildActiveUploadFromAcceptedUpload(upload));
+              setError("");
+            }}
+            onValidation={(validation) => {
+              if (!validation.valid) {
+                setPreviousUpload(null);
+              }
+            }}
+          />
+        )}
 
         <section className="hbce-card">
           <div className="hbce-stack">
