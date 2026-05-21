@@ -18,6 +18,7 @@ Core principle:
 ```txt
 First, verify who you are.
 Then access operational artificial intelligence.
+```
 
 This repository defines the onboarding gateway for progressive HBCE-IPR certificate release, IPR Verified status, IPR Card issuance, operational certificate activation and controlled access to JOKER-C2.
 
@@ -25,63 +26,35 @@ HBCE IPR Onboarding App is not a simple login form.
 
 It is an operational identity gateway.
 
-
 ---
 
-Strategic Positioning
+## Strategic Positioning
 
 Classic AI access normally follows a minimal pattern:
 
 1. email registration;
-
-
 2. password or OAuth login;
-
-
 3. subscription or payment;
-
-
 4. direct model access.
-
-
 
 HBCE follows a different operational model:
 
 1. subject creation;
-
-
 2. fiscal identity evidence;
-
-
 3. official identity document evidence;
-
-
-4. selfie and video verification;
-
-
+4. selfie and video / liveness verification;
 5. privacy and compliance acceptance;
-
-
 6. HBCE review submission;
-
-
 7. HBCE approval;
-
-
 8. IPR Card issuance;
-
-
 9. operational certificate activation;
-
-
 10. governed access to JOKER-C2.
-
-
 
 This makes the system closer to a digital onboarding workflow than to a generic AI login page.
 
 The market distinction is structural:
 
+```txt
 Classic AI
 → email
 → password
@@ -97,28 +70,61 @@ HBCE / JOKER-C2
 → IPR Card
 → operational certificate
 → governed AI access
-
+```
 
 ---
 
-Core Product Rule
+## Core Product Rule
 
+```txt
 No verified IPR, no governed JOKER-C2 access.
+```
 
 Public formula:
 
+```txt
 Access JOKER-C2 only through verified IPR.
 An email is not enough.
 A subscription is not enough.
 An operational identity is required: documented, traceable and verifiable.
-
+```
 
 ---
 
-Canonical Operating Flow
+## Current Development Status
 
-The app now follows a validated progressive flow:
+Current status:
 
+```txt
+Working MVP certificate chain completed.
+```
+
+Validated MVP result:
+
+```txt
+01 → 02 → 03 → 04 → 05 → 06 → 07 → 08 → 09 → JOKER-C2 gate
+```
+
+Final expected outcome:
+
+```txt
+IPR Verified
+IPR Card Active
+Operational Certificate Active
+JOKER-C2 Access Granted
+```
+
+The current MVP demonstrates the complete client-side certificate continuity model.
+
+Production trust still requires backend enforcement, protected storage, server-side signing, operator authentication, audit logging, revocation logic and regulated integrations where applicable.
+
+---
+
+## Canonical Operating Flow
+
+The app follows a progressive HBCE-IPR certificate flow:
+
+```txt
 01 — SUBJECT_CREATED
 02 — FISCAL_IDENTITY_COLLECTED
 03 — OFFICIAL_DOCUMENT_SUBMITTED
@@ -129,9 +135,11 @@ The app now follows a validated progressive flow:
 08 — IPR_CARD_ISSUED
 09 — IPR_VERIFIED / OPERATIONAL_CERTIFICATE
 Gate — JOKER_C2_ACCESS → ACCESS_GRANTED or ACCESS_DENIED
+```
 
 The standard MVP flow is:
 
+```txt
 01 → 02 → 03 → 04 → 05 → 06
 automatic continuity with fail-closed validation
 
@@ -140,6 +148,7 @@ HBCE approval checkpoint / operator decision
 
 08 → 09 → JOKER-C2 gate
 automatic continuity with fail-closed validation
+```
 
 The system does not need to force the user to manually upload the previous certificate at every step when the certificate is already available in the same browser session.
 
@@ -147,19 +156,20 @@ However, the system must verify the previous certificate at every step.
 
 Correct rule:
 
+```txt
 The system does not ask for the file every time.
 The system verifies the file every time.
+```
 
 Manual upload remains available through the “Use another certificate” action.
 
-
 ---
 
-Canonical Certificate Chain
+## Canonical Certificate Chain
 
 The application releases progressive downloadable HBCE-IPR certificates.
 
-Each phase produces a .hbce.json file.
+Each phase produces a `.hbce.json` file.
 
 Each new certificate contains the hash of the previous certificate.
 
@@ -167,22 +177,39 @@ Each new certificate becomes the required input for the next phase.
 
 The final certificate is the only file accepted by the JOKER-C2 access gate.
 
-Phase 1 — Customer Intake / Subject Created
+---
+
+## Phase 1 — Customer Intake / Subject Created
 
 Route:
-  /onboarding/phase-1
+
+```txt
+/onboarding/phase-1
+```
 
 Output:
-  hbce-ipr-01-subject-created.hbce.json
+
+```txt
+hbce-ipr-01-subject-created.hbce.json
+```
 
 Phase:
-  SUBJECT_CREATED
+
+```txt
+SUBJECT_CREATED
+```
 
 Status:
-  PENDING
+
+```txt
+PENDING
+```
 
 Next phase unlocked:
-  FISCAL_IDENTITY
+
+```txt
+FISCAL_IDENTITY
+```
 
 This phase records the customer profile, customer data, exact creation timestamp and hash references.
 
@@ -192,29 +219,49 @@ It does not issue an IPR Card.
 
 It does not grant JOKER-C2 access.
 
-Phase 2 — Fiscal Identity
+---
+
+## Phase 2 — Fiscal Identity
 
 Route:
-  /onboarding/phase-2
+
+```txt
+/onboarding/phase-2
+```
 
 Input:
-  Certificate 01
+
+```txt
+Certificate 01
+```
 
 Evidence:
-  codice fiscale
-  tessera sanitaria
-  tax ID
-  national tax identifier
-  equivalent fiscal document
+
+```txt
+codice fiscale
+tessera sanitaria
+tax ID
+national tax identifier
+equivalent fiscal document
+```
 
 Output:
-  hbce-ipr-02-fiscal-identity.hbce.json
+
+```txt
+hbce-ipr-02-fiscal-identity.hbce.json
+```
 
 Phase:
-  FISCAL_IDENTITY_COLLECTED
+
+```txt
+FISCAL_IDENTITY_COLLECTED
+```
 
 Next phase unlocked:
-  OFFICIAL_ID_DOCUMENT
+
+```txt
+OFFICIAL_ID_DOCUMENT
+```
 
 The certificate contains fiscal values inside private fields and hash references for audit.
 
@@ -222,29 +269,49 @@ Uploaded fiscal evidence is represented by SHA-256 file hashes.
 
 Raw fiscal documents are not embedded in the certificate.
 
-Phase 3 — Official ID Document
+---
+
+## Phase 3 — Official ID Document
 
 Route:
-  /onboarding/phase-3
+
+```txt
+/onboarding/phase-3
+```
 
 Input:
-  Certificate 02
+
+```txt
+Certificate 02
+```
 
 Evidence:
-  CIE
-  driving licence
-  passport
-  EU identity card
-  other authorized official document
+
+```txt
+CIE
+driving licence
+passport
+EU identity card
+other authorized official document
+```
 
 Output:
-  hbce-ipr-03-official-document.hbce.json
+
+```txt
+hbce-ipr-03-official-document.hbce.json
+```
 
 Phase:
-  OFFICIAL_DOCUMENT_SUBMITTED
+
+```txt
+OFFICIAL_DOCUMENT_SUBMITTED
+```
 
 Next phase unlocked:
-  LIVENESS_CHECK
+
+```txt
+LIVENESS_CHECK
+```
 
 The certificate contains document metadata and hash references.
 
@@ -252,71 +319,151 @@ Uploaded official document files are represented by SHA-256 hashes.
 
 Raw document images are not embedded in the certificate.
 
-Phase 4 — Liveness Check
+---
 
-Route:
-  /onboarding/phase-4
+## Phase 4 — Photo / Video Liveness
+
+Canonical route:
+
+```txt
+/onboarding/photo-video
+```
+
+Legacy phase alias:
+
+```txt
+/onboarding/phase-4
+```
 
 Input:
-  Certificate 03
+
+```txt
+Certificate 03
+```
 
 Evidence:
-  front selfie
-  video verification
-  liveness declaration
+
+```txt
+front selfie
+video verification
+liveness declaration
+protected photo reference
+protected video reference
+photo SHA-256 reference
+video SHA-256 reference
+```
 
 Output:
-  hbce-ipr-04-liveness-submitted.hbce.json
+
+```txt
+hbce-ipr-04-liveness-submitted.hbce.json
+```
 
 Phase:
-  LIVENESS_SUBMITTED
+
+```txt
+LIVENESS_SUBMITTED
+```
 
 Next phase unlocked:
-  PRIVACY_COMPLIANCE
+
+```txt
+PRIVACY_COMPLIANCE
+```
 
 Canonical declaration:
 
+```txt
 Confermo di essere il soggetto che richiede il certificato operativo HBCE IPR.
+```
 
 The certificate contains the liveness declaration and hash references.
 
 Raw photo and video material are not embedded in the certificate.
 
-Phase 5 — Privacy & Compliance
+Photo and video verification prepare review only.
+
+They do not issue IPR Verified status.
+
+They do not issue an IPR Card.
+
+They do not activate the operational certificate.
+
+They do not grant JOKER-C2 access.
+
+---
+
+## Phase 5 — Privacy & Compliance
 
 Route:
-  /onboarding/phase-5
+
+```txt
+/onboarding/phase-5
+```
 
 Input:
-  Certificate 04
+
+```txt
+Certificate 04
+```
 
 Output:
-  hbce-ipr-05-privacy-compliance.hbce.json
+
+```txt
+hbce-ipr-05-privacy-compliance.hbce.json
+```
 
 Phase:
-  COMPLIANCE_ACCEPTED
+
+```txt
+COMPLIANCE_ACCEPTED
+```
 
 Next phase unlocked:
-  REVIEW_SUBMISSION
+
+```txt
+REVIEW_SUBMISSION
+```
 
 This phase records privacy consent, hash-only acknowledgement, data accuracy confirmation, document authenticity confirmation, HBCE policy acceptance and the legal boundary that IPR does not replace official state identity systems.
 
-Phase 6 — Review Pending
+The phase is fail-closed.
+
+All mandatory acknowledgements must be accepted before Certificate 05 can be generated.
+
+---
+
+## Phase 6 — Review Pending
 
 Route:
-  /onboarding/review
+
+```txt
+/onboarding/review
+```
 
 Input:
-  Certificate 05
+
+```txt
+Certificate 05
+```
 
 Output:
-  hbce-ipr-06-review-pending.hbce.json
+
+```txt
+hbce-ipr-06-review-pending.hbce.json
+```
 
 Phase:
-  PENDING_REVIEW
+
+```txt
+PENDING_REVIEW
+```
 
 Next phase unlocked:
-  HBCE_APPROVAL
+
+```txt
+HBCE_APPROVAL
+```
 
 This phase submits the onboarding package for HBCE review.
 
@@ -326,36 +473,62 @@ It does not issue the IPR Card.
 
 It does not grant JOKER-C2 access.
 
-Phase 7 — HBCE Approval
+The phase is fail-closed.
+
+Certificate 06 can be generated only after explicit submission for HBCE review.
+
+---
+
+## Phase 7 — HBCE Approval
 
 Route:
-  /admin/review
+
+```txt
+/admin/review
+```
 
 Input:
-  Certificate 06
+
+```txt
+Certificate 06
+```
 
 Output:
-  hbce-ipr-07-ipr-approved.hbce.json
+
+```txt
+hbce-ipr-07-ipr-approved.hbce.json
+```
 
 Phase:
-  IPR_APPROVED
+
+```txt
+IPR_APPROVED
+```
 
 Status:
-  APPROVED
+
+```txt
+APPROVED
+```
 
 Next phase unlocked:
-  IPR_CARD_ISSUANCE
+
+```txt
+IPR_CARD_ISSUANCE
+```
 
 This is the admin/operator checkpoint.
 
-The certificate 06 may be loaded automatically from session in the MVP flow, but the approval decision must remain explicit.
+Certificate 06 may be loaded automatically from session in the MVP flow, but the approval decision must remain explicit.
 
 Correct rule:
 
+```txt
 Certificate 06 may be recovered automatically.
 Approval 07 must be performed by an operator/admin action.
+```
 
-The certificate 07 authorizes IPR Card issuance.
+Certificate 07 authorizes IPR Card issuance.
 
 It does not itself issue the IPR Card.
 
@@ -363,27 +536,49 @@ It does not issue the final operational certificate.
 
 It does not grant JOKER-C2 access.
 
-Phase 8 — IPR Card Issued
+In the current MVP, only `APPROVE` generates Certificate 07.
+
+`REJECT` and `REQUEST_MORE_DATA` require a protected backend/admin workflow in production.
+
+---
+
+## Phase 8 — IPR Card Issued
 
 Route:
-  /ipr-card
+
+```txt
+/ipr-card
+```
 
 Input:
-  Certificate 07
+
+```txt
+Certificate 07
+```
 
 Output:
-  hbce-ipr-08-ipr-card.hbce.json
+
+```txt
+hbce-ipr-08-ipr-card.hbce.json
+```
 
 Phase:
-  IPR_CARD_ISSUED
+
+```txt
+IPR_CARD_ISSUED
+```
 
 Next phase unlocked:
-  OPERATIONAL_CERTIFICATE
+
+```txt
+OPERATIONAL_CERTIFICATE
+```
 
 The IPR Card is the internal operational identity credential of the HBCE ecosystem.
 
 It contains:
 
+```txt
 ipr_id
 subject_id
 card_serial
@@ -393,39 +588,71 @@ issued_at
 valid_until
 previous_payload_sha256
 payload_sha256
+```
 
 The IPR Card does not replace CIE, SPID, EUDI Wallet, passport, driving licence, national identity card, qualified eIDAS certificate or official state identity.
 
-Phase 9 — Operational Certificate
+Certificate 08 does not issue the final operational certificate.
+
+Certificate 08 does not grant JOKER-C2 access.
+
+---
+
+## Phase 9 — Operational Certificate
 
 Route:
-  /certificate
+
+```txt
+/certificate
+```
 
 Input:
-  Certificate 08
+
+```txt
+Certificate 08
+```
 
 Output:
-  hbce-ipr-09-operational-certificate.hbce.json
+
+```txt
+hbce-ipr-09-operational-certificate.hbce.json
+```
 
 Phase:
-  IPR_VERIFIED
+
+```txt
+IPR_VERIFIED
+```
 
 Kind:
-  IPR_OPERATIONAL_CERTIFICATE
+
+```txt
+IPR_OPERATIONAL_CERTIFICATE
+```
 
 Status:
-  ACTIVE
+
+```txt
+ACTIVE
+```
 
 Scope:
-  JOKER_C2_ACCESS
+
+```txt
+JOKER_C2_ACCESS
+```
 
 Next phase unlocked:
-  JOKER_C2_ACCESS
+
+```txt
+JOKER_C2_ACCESS
+```
 
 The operational certificate is the final HBCE certificate that links the verified subject to governed runtime access evaluation.
 
 It contains:
 
+```txt
 certificate_id
 ipr_id
 subject_id
@@ -437,181 +664,234 @@ issued_at
 valid_until
 previous_payload_sha256
 payload_sha256
+```
 
-JOKER-C2 Access Gate
+Certificate 09 enables JOKER-C2 access evaluation.
+
+It does not bypass the gate.
+
+It does not grant runtime access by itself.
+
+---
+
+## JOKER-C2 Access Gate
 
 Route:
-  /access/joker-c2
+
+```txt
+/access/joker-c2
+```
 
 Input:
-  Certificate 09
+
+```txt
+Certificate 09
+```
 
 Decision:
-  ACCESS_GRANTED
-  or
-  ACCESS_DENIED
+
+```txt
+ACCESS_GRANTED
+or
+ACCESS_DENIED
+```
 
 The gate validates the final certificate fail-closed.
 
+The gate checks:
+
+```txt
+proto = HBCE-IPR-RELEASE-v3
+kind = IPR_OPERATIONAL_CERTIFICATE
+phase.code = IPR_VERIFIED
+certificate_status = ACTIVE
+certificate_scope = JOKER_C2_ACCESS
+issuer.legal_name = HERMETICUM B.C.E. S.r.l.
+previous_payload_sha256 present
+payload_sha256 valid
+```
+
 When valid, the final screen shows:
 
+```txt
 IPR Verified
 IPR Card Active
 Operational Certificate Active
 JOKER-C2 Access Granted
+```
 
+If invalid:
+
+```txt
+ACCESS_DENIED
+```
 
 ---
 
-Hash Chain Rule
+## Hash Chain Rule
 
 Every certificate follows this rule:
 
+```txt
 previous_payload_sha256 + current canonical payload
 → payload_sha256
+```
 
 The first certificate has:
 
+```txt
 previous_payload_sha256: null
+```
 
 Every later certificate must contain:
 
+```txt
 previous_payload_sha256: hash of the previous certificate payload
 payload_sha256: hash of the current certificate payload
+```
 
 If the previous certificate is missing, malformed, from the wrong phase, has the wrong next phase, or has a mismatched canonical payload hash, the app must fail closed.
 
-
 ---
 
-Automatic Continuity and Manual Fallback
+## Automatic Continuity and Manual Fallback
 
 The MVP supports automatic continuity through browser session storage.
 
 When a certificate is generated:
 
 1. the file is downloaded to the user;
-
-
 2. the certificate is stored temporarily in browser session storage for the next phase;
-
-
 3. the app redirects to the next route;
-
-
 4. the next route reloads the certificate from session;
-
-
 5. the next route validates it fail-closed before enabling the phase.
-
-
 
 Manual upload remains available.
 
 This means the app has two modes:
 
+```txt
 Standard mode:
-  automatic continuity + fail-closed validation
+automatic continuity + fail-closed validation
 
 Manual fallback:
-  upload previous certificate manually
+upload previous certificate manually
+```
 
 The session copy is a convenience layer.
 
 It is not the final trust source for production.
 
-
 ---
 
-Single IPR Upload Point
+## Single IPR Upload Point
 
 HBCE-IPR certificates are uploaded through the same logical component:
 
+```txt
 Upload Previous HBCE IPR Certificate
+```
 
 This is different from evidence upload.
 
 Clear separation:
 
+```txt
 Previous HBCE-IPR certificate
 → uploaded through the IPR certificate upload component
 
 CIE / driving licence / passport / codice fiscale / tessera sanitaria / selfie / video
 → uploaded only inside the specific phase evidence area
+```
 
 The app must never confuse certificate continuation files with personal evidence files.
 
-
 ---
 
-Official Evidence Required
+## Official Evidence Required
 
-Fiscal Identity Evidence
+### Fiscal Identity Evidence
 
 Phase 2 requires fiscal identity data and fiscal evidence.
 
 Supported evidence includes:
 
+```txt
 Italian codice fiscale
 Italian tessera sanitaria
 EU tax ID document
 National tax identifier
 National fiscal document
 Other authorized fiscal document
+```
 
 The portable certificate may contain private fiscal values and hash references.
 
 It must not contain raw fiscal document files.
 
-Official Identity Document Evidence
+### Official Identity Document Evidence
 
 Phase 3 requires official identity document evidence.
 
 Supported evidence includes:
 
+```txt
 Carta d’Identità Elettronica — CIE
 Driving licence / patente di guida
 Passport / passaporto
 EU national identity card
 Other authorized official identity document
+```
 
 For CIE or identity card:
 
+```txt
 front side
 back side
+```
 
 For driving licence:
 
+```txt
 front side
 back side
+```
 
 For passport:
 
+```txt
 passport data page
+```
 
 The portable certificate may contain private document metadata and hash references.
 
 It must not contain raw document images.
 
-Liveness Evidence
+### Liveness Evidence
 
 Phase 4 requires:
 
+```txt
 front selfie
 video verification
 liveness declaration
+protected photo reference
+protected video reference
+photo SHA-256 reference
+video SHA-256 reference
+```
 
 The portable certificate may contain the liveness declaration and hash references.
 
 It must not contain raw photo or video material.
 
-
 ---
 
-Canonical Certificate Schema
+## Canonical Certificate Schema
 
-Every portable .hbce.json certificate follows this structural model:
+Every portable `.hbce.json` certificate follows this structural model:
 
+```json
 {
   "proto": "HBCE-IPR-RELEASE-v3",
   "kind": "IPR_PHASE_CERTIFICATE",
@@ -664,55 +944,56 @@ Every portable .hbce.json certificate follows this structural model:
   },
   "issued_at": "generated-timestamp"
 }
+```
 
 For the final certificate:
 
+```txt
 kind = IPR_OPERATIONAL_CERTIFICATE
 phase.code = IPR_VERIFIED
 certificate_status = ACTIVE
 certificate_scope = JOKER_C2_ACCESS
-
-
----
-
-Routes
-
-Route	Function
-
-/	Operational landing page and certificate continuation gateway
-/onboarding	Central continuation page for existing HBCE-IPR certificates
-/onboarding/phase-1	Customer intake / Subject Created — release certificate 01
-/onboarding/phase-2	Fiscal Identity — validate certificate 01 and release certificate 02
-/onboarding/phase-3	Official ID Document — validate certificate 02 and release certificate 03
-/onboarding/phase-4	Liveness Check — validate certificate 03 and release certificate 04
-/onboarding/phase-5	Privacy & Compliance — validate certificate 04 and release certificate 05
-/onboarding/review	Review Pending — validate certificate 05 and release certificate 06
-/admin/review	HBCE Approval — validate certificate 06 and release certificate 07
-/ipr-card	IPR Card issuance — validate certificate 07 and release certificate 08
-/certificate	Operational Certificate issuance — validate certificate 08 and release certificate 09
-/access/joker-c2	JOKER-C2 access gate — validate certificate 09
-/legal	Legal and operational boundary
-/privacy	Privacy and data minimization boundary
-/security	Security and fail-closed boundary
-
-
+```
 
 ---
 
-Core Components
+## Routes
 
-IPR Onboarding Gateway
+| Route | Function |
+|---|---|
+| `/` | Operational landing page and certificate continuation gateway |
+| `/onboarding` | Central continuation page for existing HBCE-IPR certificates |
+| `/onboarding/phase-1` | Customer intake / Subject Created — release certificate 01 |
+| `/onboarding/phase-2` | Fiscal Identity — validate certificate 01 and release certificate 02 |
+| `/onboarding/phase-3` | Official ID Document — validate certificate 02 and release certificate 03 |
+| `/onboarding/photo-video` | Photo / Video Liveness — validate certificate 03 and release certificate 04 |
+| `/onboarding/phase-5` | Privacy & Compliance — validate certificate 04 and release certificate 05 |
+| `/onboarding/review` | Review Pending — validate certificate 05 and release certificate 06 |
+| `/admin/review` | HBCE Approval — validate certificate 06 and release certificate 07 |
+| `/ipr-card` | IPR Card issuance — validate certificate 07 and release certificate 08 |
+| `/certificate` | Operational Certificate issuance — validate certificate 08 and release certificate 09 |
+| `/access/joker-c2` | JOKER-C2 access gate — validate certificate 09 |
+| `/legal` | Legal and operational boundary |
+| `/privacy` | Privacy and data minimization boundary |
+| `/security` | Security and fail-closed boundary |
+
+---
+
+## Core Components
+
+### IPR Onboarding Gateway
 
 The onboarding gateway collects and organizes the minimum information required to generate the progressive HBCE-IPR certificate chain.
 
 It is the operational identity threshold of the HBCE ecosystem.
 
-HBCE-IPR Certificate
+### HBCE-IPR Certificate
 
-An HBCE-IPR certificate is a portable .hbce.json file that represents a specific phase of the onboarding chain.
+An HBCE-IPR certificate is a portable `.hbce.json` file that represents a specific phase of the onboarding chain.
 
 It contains:
 
+```txt
 protocol
 kind
 issuer
@@ -724,10 +1005,11 @@ payload data
 registry reference
 next phase
 timestamp
+```
 
 It does not contain raw identity documents, raw photos or raw videos.
 
-IPR Verified
+### IPR Verified
 
 IPR Verified is the final operational status assigned when the certificate chain reaches the operational certificate phase.
 
@@ -735,12 +1017,13 @@ It does not mean official state identity issuance.
 
 It means that the HBCE internal operational identity chain has reached the verified operational state.
 
-IPR Card
+### IPR Card
 
 The IPR Card is the internal operational identity credential issued inside the HBCE ecosystem.
 
 It connects the verified subject to:
 
+```txt
 IPR identifier
 subject identifier
 card serial
@@ -750,15 +1033,17 @@ issue date
 validity date
 previous payload hash
 payload hash
+```
 
 The IPR Card does not replace official identity documents.
 
-Operational Certificate
+### Operational Certificate
 
 The operational certificate is the final HBCE certificate that links the verified subject to governed runtime access.
 
 It contains:
 
+```txt
 certificate_id
 ipr_id
 subject_id
@@ -770,43 +1055,39 @@ issued_at
 valid_until
 previous_payload_sha256
 payload_sha256
+```
 
 The required scope for JOKER-C2 is:
 
+```txt
 JOKER_C2_ACCESS
+```
 
-JOKER-C2 Access Gate
+### JOKER-C2 Access Gate
 
 JOKER-C2 is not an AI service accessible through a simple email account.
 
 JOKER-C2 is a governed AI operational runtime accessible through a valid HBCE operational certificate.
 
-The gate checks:
-
-proto = HBCE-IPR-RELEASE-v3
-kind = IPR_OPERATIONAL_CERTIFICATE
-phase.code = IPR_VERIFIED
-certificate_status = ACTIVE
-certificate_scope = JOKER_C2_ACCESS
-issuer.legal_name = HERMETICUM B.C.E. S.r.l.
-previous_payload_sha256 present
-payload_sha256 valid
-
 If valid:
 
+```txt
 ACCESS_GRANTED
+```
 
 If invalid:
 
+```txt
 ACCESS_DENIED
-
+```
 
 ---
 
-Legal and Operational Boundary
+## Legal and Operational Boundary
 
 HBCE IPR Onboarding App does not issue:
 
+```txt
 official state identity documents
 passports
 national identity cards
@@ -818,47 +1099,50 @@ bank accounts
 IBANs
 regulated financial services
 regulated trust services
+```
 
 HBCE issues an internal operational identity certificate chain that may be connected to official European identity systems in future integrations, subject to applicable law, recognized trust service providers and institutional partnerships.
 
 Correct claim:
 
+```txt
 HBCE issues a verifiable operational identity that can be linked to official European identity systems.
+```
 
 Incorrect claim:
 
+```txt
 HBCE issues an official European identity.
+```
 
 This repository is intended as an R&D and MVP surface, not as a regulated identity issuance service, financial service, banking service or qualified trust service.
 
-
 ---
 
-Architecture Role
+## Architecture Role
 
 This repository is part of the HBCE operational architecture:
 
-Layer	Role
-
-HBCE Platform	Public and institutional gateway
-HBCE IPR Onboarding App	Operational identity onboarding and certificate chain application
-HBCE-IPR Certificate Chain	Progressive .hbce.json release sequence
-IPR Card	Internal operational identity credential
-Operational Certificate	Internal certificate for governed JOKER-C2 access evaluation
-JOKER-C2	Governed AI operational runtime
-EVT	Event continuity layer
-OPC	Operational proof and compliance layer
-MATRIX	Coordination framework
-HBCE	Governance ecosystem
-
-
+| Layer | Role |
+|---|---|
+| HBCE Platform | Public and institutional gateway |
+| HBCE IPR Onboarding App | Operational identity onboarding and certificate chain application |
+| HBCE-IPR Certificate Chain | Progressive `.hbce.json` release sequence |
+| IPR Card | Internal operational identity credential |
+| Operational Certificate | Internal certificate for governed JOKER-C2 access evaluation |
+| JOKER-C2 | Governed AI operational runtime |
+| EVT | Event continuity layer |
+| OPC | Operational proof and compliance layer |
+| MATRIX | Coordination framework |
+| HBCE | Governance ecosystem |
 
 ---
 
-MVP Scope
+## MVP Scope
 
 The current MVP includes:
 
+```txt
 operational landing page
 central certificate continuation page
 certificate uploader
@@ -879,20 +1163,21 @@ final IPR Verified access summary
 legal boundary page
 privacy boundary page
 security posture page
+```
 
 The MVP demonstrates the chain logic without exposing real identity documents, real user photos, real videos or production identity records inside the repository.
 
-
 ---
 
-Security Posture
+## Security Posture
 
-The application must be designed with a fail-closed approach.
+The application is designed with a fail-closed approach.
 
 If identity status is incomplete, unclear, expired, revoked, suspended, malformed or unverifiable, access to JOKER-C2 must remain blocked.
 
 Security principles:
 
+```txt
 no sensitive document should be publicly exposed
 no raw identity document should be committed to this repository
 no production secret should be stored in source code
@@ -902,11 +1187,11 @@ portable certificates should expose minimized metadata and hash-only references 
 revocation state must override access state
 incomplete verification must produce blocked access by default
 each phase must validate the previous certificate fail-closed
-
+```
 
 ---
 
-Privacy Posture
+## Privacy Posture
 
 The application follows a data minimization principle.
 
@@ -920,6 +1205,7 @@ Public registry references must remain hash-only.
 
 Portable HBCE-IPR certificates should use:
 
+```txt
 hash references
 minimized metadata
 phase status
@@ -928,9 +1214,11 @@ previous payload hash
 current payload hash
 next phase reference
 clear privacy boundaries
+```
 
 They must not contain:
 
+```txt
 raw personal document files
 raw fiscal document files
 raw official document image files
@@ -940,14 +1228,15 @@ biometric material
 production identity records
 private keys
 production secrets
-
+```
 
 ---
 
-Repository Scope
+## Repository Scope
 
 This repository should contain:
 
+```txt
 frontend onboarding interface
 certificate generation logic for MVP
 certificate upload and validation logic
@@ -956,9 +1245,11 @@ controlled MVP logic for fail-closed access simulation
 hash-only certificate chain model
 JOKER-C2 certificate gate
 final IPR Verified access summary
+```
 
 This repository should not contain:
 
+```txt
 real identity documents
 real user photos or videos
 production secrets
@@ -967,16 +1258,17 @@ regulated identity credentials
 banking or financial account logic
 private keys
 API credentials
-
+```
 
 ---
 
-Production Boundary
+## Production Boundary
 
 The current implementation can generate local client-side certificates for MVP demonstration.
 
 A production implementation requires:
 
+```txt
 backend API
 database
 protected evidence storage
@@ -988,57 +1280,39 @@ EVT event continuity
 OPC proof references
 revocation registry
 secure KYC / eID / eIDAS integration where applicable
+```
 
 Client-side certificate generation and browser session continuity are not sufficient as production trust sources.
 
 Production trust requires backend enforcement.
 
-
 ---
 
-Development Status
+## Development Commands
 
-Current status: working MVP certificate chain.
-
-Primary objective: build the HBCE IPR Onboarding App as the operational onboarding layer for progressive identity verification, HBCE-IPR certificate release and governed AI access.
-
-Validated MVP result:
-
-01 → 02 → 03 → 04 → 05 → 06 → 07 → 08 → 09 → JOKER-C2 gate
-
-Final expected outcome:
-
-IPR Verified
-IPR Card Active
-Operational Certificate Active
-JOKER-C2 Access Granted
-
-
----
-
-Development Commands
-
+```bash
 npm run dev
 npm run build
 npm run lint
 npm run typecheck
 npm run check
-
+```
 
 ---
 
-Organization
+## Organization
 
+```txt
 HERMETICUM B.C.E. S.r.l.
-
+```
 
 ---
 
-Canonical Trademark
+## Canonical Trademark
 
+```txt
 HERMETICUM - BLINDATA · COMPUTABILE · EVOLUTIVA
 HERMETICUM B.C.E. S.r.l.
-
-
+```
 
 
