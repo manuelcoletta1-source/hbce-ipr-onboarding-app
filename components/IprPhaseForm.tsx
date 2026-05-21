@@ -132,6 +132,31 @@ function clearStoredCertificateForPhase(nextPhase: HbceIprNextPhaseCode): void {
   window.sessionStorage.removeItem(getSessionCertificateKey(nextPhase));
 }
 
+function getExpectedPreviousCertificateNextPhase(
+  phase: HbceIprPhaseDefinition
+): HbceIprNextPhaseCode | null {
+  switch (phase.phase_number) {
+    case 1:
+      return null;
+    case 2:
+      return "FISCAL_IDENTITY";
+    case 3:
+      return "OFFICIAL_ID_DOCUMENT";
+    case 4:
+      return "LIVENESS_CHECK";
+    case 5:
+      return "PRIVACY_COMPLIANCE";
+    case 6:
+      return "REVIEW_SUBMISSION";
+    case 7:
+      return "HBCE_APPROVAL";
+    case 8:
+      return "IPR_CARD_ISSUANCE";
+    case 9:
+      return "OPERATIONAL_CERTIFICATE";
+  }
+}
+
 function getRuntimeStatus(
   phaseCode: HbceIprPhaseDefinition["phase_code"]
 ): HbceIprPhaseRuntimeStatus {
@@ -310,6 +335,11 @@ export default function IprPhaseForm({
 
   const requiresPreviousCertificate = phase.requires_previous_certificate;
 
+  const expectedPreviousCertificateNextPhase = useMemo(
+    () => getExpectedPreviousCertificateNextPhase(phase),
+    [phase]
+  );
+
   const requiredFieldNames = useMemo(
     () =>
       fields
@@ -342,11 +372,17 @@ export default function IprPhaseForm({
         return;
       }
 
+      if (!expectedPreviousCertificateNextPhase) {
+        return;
+      }
+
       if (previousCertificate) {
         return;
       }
 
-      const stored = readStoredCertificateForPhase(phase.next_required_phase);
+      const stored = readStoredCertificateForPhase(
+        expectedPreviousCertificateNextPhase
+      );
 
       if (!stored) {
         return;
@@ -355,7 +391,7 @@ export default function IprPhaseForm({
       const validation = await validatePreviousHbceIprCertificate({
         certificate: stored,
         expected_previous_phase: phase.expected_previous_phase,
-        expected_next_phase: phase.next_required_phase
+        expected_next_phase: expectedPreviousCertificateNextPhase
       });
 
       if (cancelled) {
@@ -369,7 +405,7 @@ export default function IprPhaseForm({
         return;
       }
 
-      clearStoredCertificateForPhase(phase.next_required_phase);
+      clearStoredCertificateForPhase(expectedPreviousCertificateNextPhase);
       setPreviousCertificate(null);
       setPreviousCertificateSource(null);
       setError(
@@ -383,8 +419,8 @@ export default function IprPhaseForm({
       cancelled = true;
     };
   }, [
+    expectedPreviousCertificateNextPhase,
     phase.expected_previous_phase,
-    phase.next_required_phase,
     previousCertificate,
     requiresPreviousCertificate
   ]);
@@ -397,7 +433,10 @@ export default function IprPhaseForm({
   }
 
   function clearPreviousCertificate() {
-    clearStoredCertificateForPhase(phase.next_required_phase);
+    if (expectedPreviousCertificateNextPhase) {
+      clearStoredCertificateForPhase(expectedPreviousCertificateNextPhase);
+    }
+
     setPreviousCertificate(null);
     setPreviousCertificateSource(null);
   }
@@ -550,6 +589,9 @@ export default function IprPhaseForm({
             previous_phase: {previousCertificate.phase.code}
           </p>
           <p className="hbce-mono">
+            unlocks_phase: {previousCertificate.next.next_phase}
+          </p>
+          <p className="hbce-mono">
             payload_sha256: {previousCertificate.hash_integrity.payload_sha256}
           </p>
           <p className="hbce-mono">
@@ -570,7 +612,7 @@ export default function IprPhaseForm({
       ) : requiresPreviousCertificate ? (
         <IprCertificateUploader
           expectedPreviousPhase={phase.expected_previous_phase}
-          expectedNextPhase={phase.next_required_phase}
+          expectedNextPhase={expectedPreviousCertificateNextPhase ?? "COMPLETED"}
           onCertificateAccepted={(upload) => {
             setPreviousCertificate(upload.certificate);
             setPreviousCertificateSource("upload");
