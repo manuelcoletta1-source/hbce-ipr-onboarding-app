@@ -2,6 +2,8 @@
 
 import { useId, useMemo, useRef, useState } from "react";
 
+import type { ChangeEvent } from "react";
+
 import {
   createValidationResult,
   isHbceIprCertificate,
@@ -17,9 +19,7 @@ import type {
   HashReference
 } from "../lib/types";
 
-export type IprCertificateUploaderMode =
-  | "strict_previous"
-  | "read_any";
+export type IprCertificateUploaderMode = "strict_previous" | "read_any";
 
 export type AcceptedIprCertificateUpload = {
   certificate: HbceIprCertificate;
@@ -43,6 +43,8 @@ export type IprCertificateUploaderProps = {
   onValidation?: (validation: HbceCertificateValidationResult) => void;
 };
 
+const ACCEPTED_CERTIFICATE_EXTENSIONS = [".json", ".hbce"] as const;
+
 function getDefaultTitle(mode: IprCertificateUploaderMode): string {
   if (mode === "read_any") {
     return "Continue with Existing HBCE IPR Certificate";
@@ -63,6 +65,41 @@ function getAcceptedFileLabel(file: File): string {
   const sizeKb = Math.max(1, Math.round(file.size / 1024));
 
   return `${file.name} · ${sizeKb} KB`;
+}
+
+function hasAcceptedCertificateExtension(fileName: string): boolean {
+  const normalizedName = fileName.trim().toLowerCase();
+
+  return (
+    normalizedName.endsWith(".hbce.json") ||
+    ACCEPTED_CERTIFICATE_EXTENSIONS.some((extension) =>
+      normalizedName.endsWith(extension)
+    )
+  );
+}
+
+function isLikelyHbceCertificateFile(file: File): boolean {
+  if (!hasAcceptedCertificateExtension(file.name)) {
+    return false;
+  }
+
+  if (!file.type) {
+    return true;
+  }
+
+  return (
+    file.type === "application/json" ||
+    file.type === "application/octet-stream" ||
+    file.type === "text/plain"
+  );
+}
+
+function buildRejectedFileValidation(file: File): HbceCertificateValidationResult {
+  return createValidationResult({
+    valid: false,
+    reason: "INVALID_JSON",
+    message: `Certificate rejected. ${file.name} is not an HBCE-IPR certificate file. Upload only .hbce.json or JSON HBCE-IPR certificate files in this field. Personal documents, images, PDFs, selfies and videos must be uploaded only inside their specific evidence phase.`
+  });
 }
 
 export default function IprCertificateUploader({
@@ -100,15 +137,36 @@ export default function IprCertificateUploader({
     [description, mode]
   );
 
+  function clearAcceptedState() {
+    setPayloadSha256(null);
+    setPreviousPayloadSha256(null);
+  }
+
   function resetUploader() {
     setSelectedFileLabel("");
     setValidation(null);
-    setPayloadSha256(null);
-    setPreviousPayloadSha256(null);
+    clearAcceptedState();
 
     if (inputRef.current) {
       inputRef.current.value = "";
     }
+  }
+
+  function setFailedValidation(validationResult: HbceCertificateValidationResult) {
+    setValidation(validationResult);
+    clearAcceptedState();
+    onValidation?.(validationResult);
+  }
+
+  function setSuccessfulValidation(
+    validationResult: HbceCertificateValidationResult,
+    upload: AcceptedIprCertificateUpload
+  ) {
+    setValidation(validationResult);
+    setPayloadSha256(upload.payloadSha256);
+    setPreviousPayloadSha256(upload.previousPayloadSha256);
+    onValidation?.(validationResult);
+    onCertificateAccepted?.(upload);
   }
 
   async function validateAnyHbceCertificate(
@@ -179,18 +237,23 @@ export default function IprCertificateUploader({
     };
   }
 
-  async function handleFileChange(event: React.ChangeEvent<HTMLInputElement>) {
+  async function handleFileChange(event: ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0];
 
     setValidation(null);
-    setPayloadSha256(null);
-    setPreviousPayloadSha256(null);
+    clearAcceptedState();
 
     if (!file) {
       return;
     }
 
     setSelectedFileLabel(getAcceptedFileLabel(file));
+
+    if (!isLikelyHbceCertificateFile(file)) {
+      setFailedValidation(buildRejectedFileValidation(file));
+      return;
+    }
+
     setIsReading(true);
 
     try {
@@ -203,10 +266,8 @@ export default function IprCertificateUploader({
               expectedNextPhase ?? "COMPLETED"
             );
 
-      setValidation(parsed.validation);
-      onValidation?.(parsed.validation);
-
       if (!parsed.validation.valid || !parsed.certificate) {
+        setFailedValidation(parsed.validation);
         return;
       }
 
@@ -219,10 +280,7 @@ export default function IprCertificateUploader({
           parsed.certificate.hash_integrity.previous_payload_sha256
       };
 
-      setPayloadSha256(acceptedUpload.payloadSha256);
-      setPreviousPayloadSha256(acceptedUpload.previousPayloadSha256);
-
-      onCertificateAccepted?.(acceptedUpload);
+      setSuccessfulValidation(parsed.validation, acceptedUpload);
     } catch (error) {
       const failedValidation = createValidationResult({
         valid: false,
@@ -233,8 +291,7 @@ export default function IprCertificateUploader({
             : "Certificate rejected. The uploaded HBCE IPR certificate could not be read."
       });
 
-      setValidation(failedValidation);
-      onValidation?.(failedValidation);
+      setFailedValidation(failedValidation);
     } finally {
       setIsReading(false);
     }
@@ -268,7 +325,7 @@ export default function IprCertificateUploader({
             ref={inputRef}
             id={inputId}
             type="file"
-            accept=".json,.hbce,application/json"
+            accept=".hbce.json,.hbce,.json,application/json"
             disabled={disabled || isReading}
             onChange={handleFileChange}
           />
@@ -289,9 +346,21 @@ export default function IprCertificateUploader({
               <p className="hbce-mono">reason: {validation.reason}</p>
             ) : null}
 
+            {validation.expected_phase ? (
+              <p className="hbce-mono">
+                expected_phase: {validation.expected_phase}
+              </p>
+            ) : null}
+
             {validation.received_phase ? (
               <p className="hbce-mono">
                 received_phase: {validation.received_phase}
+              </p>
+            ) : null}
+
+            {validation.expected_next_phase ? (
+              <p className="hbce-mono">
+                expected_next_phase: {validation.expected_next_phase}
               </p>
             ) : null}
 
@@ -303,13 +372,25 @@ export default function IprCertificateUploader({
 
             {payloadSha256 ? (
               <p className="hbce-mono">payload_sha256: {payloadSha256}</p>
+            ) : validation.payload_sha256 ? (
+              <p className="hbce-mono">
+                payload_sha256: {validation.payload_sha256}
+              </p>
             ) : null}
 
             {previousPayloadSha256 ? (
               <p className="hbce-mono">
                 previous_payload_sha256: {previousPayloadSha256}
               </p>
+            ) : validation.previous_payload_sha256 ? (
+              <p className="hbce-mono">
+                previous_payload_sha256: {validation.previous_payload_sha256}
+              </p>
+            ) : validation.valid ? (
+              <p className="hbce-mono">previous_payload_sha256: null</p>
             ) : null}
+
+            <p className="hbce-mono">checked_at: {validation.checked_at}</p>
           </div>
         ) : null}
 
