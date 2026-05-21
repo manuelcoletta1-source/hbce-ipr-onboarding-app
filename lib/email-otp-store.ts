@@ -69,14 +69,11 @@ function getOtpSecret(): string | null {
   return null;
 }
 
-function getOtpTtlSeconds(): number {
-  const raw = Number(process.env.HBCE_OTP_TTL_SECONDS ?? "600");
-
-  return Number.isFinite(raw) && raw > 0 ? raw : 600;
-}
-
 function getOtpTtlMs(): number {
-  return getOtpTtlSeconds() * 1000;
+  const raw = Number(process.env.HBCE_OTP_TTL_SECONDS ?? "600");
+  const seconds = Number.isFinite(raw) && raw > 0 ? raw : 600;
+
+  return seconds * 1000;
 }
 
 function getMaxAttempts(): number {
@@ -106,26 +103,6 @@ function safeEqualHex(left: string, right: string): boolean {
   return timingSafeEqual(leftBuffer, rightBuffer);
 }
 
-function getCurrentTimeBucket(): number {
-  return Math.floor(Date.now() / getOtpTtlMs());
-}
-
-function generateDeterministicDevOtpCode(email: string, bucket: number): string {
-  const digest = hmac(`HBCE_EMAIL_DEV_OTP:${email}:${bucket}`);
-  const numeric = Number.parseInt(digest.slice(0, 12), 16) % 1_000_000;
-
-  return String(numeric).padStart(6, "0");
-}
-
-function isValidDeterministicDevOtpCode(email: string, code: string): boolean {
-  const currentBucket = getCurrentTimeBucket();
-  const acceptedBuckets = [currentBucket, currentBucket - 1];
-
-  return acceptedBuckets.some(
-    (bucket) => generateDeterministicDevOtpCode(email, bucket) === code
-  );
-}
-
 export function generateOtpCode(): string {
   return String(randomInt(0, 1_000_000)).padStart(6, "0");
 }
@@ -141,12 +118,9 @@ export function createEmailOtpChallenge(emailInput: string): {
     throw new Error("INVALID_EMAIL");
   }
 
+  const code = generateOtpCode();
   const createdAt = new Date();
   const expiresAt = new Date(createdAt.getTime() + getOtpTtlMs());
-
-  const code = isOtpDevEchoEnabled()
-    ? generateDeterministicDevOtpCode(email, getCurrentTimeBucket())
-    : generateOtpCode();
 
   const challenge: HbceEmailOtpChallenge = {
     email,
@@ -177,18 +151,17 @@ function verifyEmailOtpCodeInDevEchoMode(
   email: string,
   code: string
 ): HbceEmailOtpVerificationResult {
-  if (!isValidDeterministicDevOtpCode(email, code)) {
+  if (!/^\d{6}$/.test(code)) {
     return {
       valid: false,
       reason: "INVALID_CODE",
-      message:
-        "Email verification failed. Invalid development code or expired time window."
+      message: "Email verification failed. The code must contain 6 digits."
     };
   }
 
   const verifiedAt = new Date().toISOString();
   const emailVerificationHash = hmac(
-    `HBCE_EMAIL_VERIFIED_DEV:${email}:${verifiedAt}:${code}`
+    `HBCE_EMAIL_VERIFIED_DEV_ECHO:${email}:${verifiedAt}:${code}`
   );
 
   return {
