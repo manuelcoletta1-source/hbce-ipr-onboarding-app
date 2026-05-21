@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 
 import EmailOtpVerification from "./EmailOtpVerification";
+import PhoneOtpVerification from "./PhoneOtpVerification";
 import IprCertificateUploader from "./IprCertificateUploader";
 
 import {
@@ -24,6 +25,7 @@ import {
 } from "../lib/ipr-phase-map";
 
 import type { EmailOtpVerificationPayload } from "./EmailOtpVerification";
+import type { PhoneOtpVerificationPayload } from "./PhoneOtpVerification";
 
 import type {
   HbceEvidenceUpload,
@@ -68,6 +70,7 @@ export type IprPhaseFormBuildDataContext = {
   previousCertificate: HbceIprCertificate | null;
   issuedAt: string;
   emailVerification: EmailOtpVerificationPayload | null;
+  phoneVerification: PhoneOtpVerificationPayload | null;
 };
 
 export type IprPhaseFormProps = {
@@ -192,6 +195,10 @@ function normalizeEmail(value: string): string {
   return value.trim().toLowerCase();
 }
 
+function normalizePhoneNumber(value: string): string {
+  return value.replace(/\s+/g, "").trim();
+}
+
 function normalizeFieldValue(value: string | boolean): string | boolean {
   if (typeof value === "boolean") {
     return value;
@@ -215,7 +222,7 @@ function normalizeSubjectValue(
   }
 
   if (fieldName === "phone_number") {
-    return trimmedValue.replace(/\s+/g, "");
+    return normalizePhoneNumber(trimmedValue);
   }
 
   return trimmedValue;
@@ -229,6 +236,16 @@ function getEmailValue(values: IprPhaseFormValues): string {
   }
 
   return normalizeEmail(value);
+}
+
+function getPhoneValue(values: IprPhaseFormValues): string {
+  const value = values.phone_number;
+
+  if (typeof value !== "string") {
+    return "";
+  }
+
+  return normalizePhoneNumber(value);
 }
 
 function buildNormalizedValues(values: IprPhaseFormValues): JsonObject {
@@ -288,6 +305,9 @@ async function buildDefaultPhaseData(
     issued_at: context.issuedAt,
     ...(context.emailVerification
       ? { email_verification: context.emailVerification }
+      : {}),
+    ...(context.phoneVerification
+      ? { phone_verification: context.phoneVerification }
       : {})
   };
 }
@@ -346,6 +366,8 @@ export default function IprPhaseForm({
   >(null);
   const [emailVerification, setEmailVerification] =
     useState<EmailOtpVerificationPayload | null>(null);
+  const [phoneVerification, setPhoneVerification] =
+    useState<PhoneOtpVerificationPayload | null>(null);
   const [uploads, setUploads] = useState<HbceEvidenceUpload[]>([]);
   const [missingFields, setMissingFields] = useState<string[]>([]);
   const [missingUploads, setMissingUploads] = useState<
@@ -358,12 +380,18 @@ export default function IprPhaseForm({
 
   const requiresPreviousCertificate = phase.requires_previous_certificate;
   const requiresEmailVerification = phase.phase_code === "SUBJECT_CREATED";
+  const requiresPhoneVerification = phase.phase_code === "SUBJECT_CREATED";
 
   const currentEmailValue = useMemo(() => getEmailValue(values), [values]);
+  const currentPhoneValue = useMemo(() => getPhoneValue(values), [values]);
 
   const emailIsVerifiedForCurrentValue =
     Boolean(emailVerification?.email_verified) &&
     emailVerification?.email === currentEmailValue;
+
+  const phoneIsVerifiedForCurrentValue =
+    Boolean(phoneVerification?.phone_verified) &&
+    phoneVerification?.phone_number === currentPhoneValue;
 
   const expectedPreviousCertificateNextPhase = useMemo(
     () => getExpectedPreviousCertificateNextPhase(phase),
@@ -470,6 +498,15 @@ export default function IprPhaseForm({
         }
       }
 
+      if (name === "phone_number") {
+        const nextPhone =
+          typeof value === "string" ? normalizePhoneNumber(value) : "";
+
+        if (phoneVerification && phoneVerification.phone_number !== nextPhone) {
+          setPhoneVerification(null);
+        }
+      }
+
       return nextValues;
     });
   }
@@ -550,6 +587,13 @@ export default function IprPhaseForm({
       return;
     }
 
+    if (requiresPhoneVerification && !phoneIsVerifiedForCurrentValue) {
+      setError(
+        "Verify the customer phone with the SMS one-time code before generating Certificate 01."
+      );
+      return;
+    }
+
     setIsGenerating(true);
 
     try {
@@ -561,14 +605,16 @@ export default function IprPhaseForm({
             uploads,
             previousCertificate,
             issuedAt,
-            emailVerification
+            emailVerification,
+            phoneVerification
           })
         : await buildDefaultPhaseData({
             values,
             uploads,
             previousCertificate,
             issuedAt,
-            emailVerification
+            emailVerification,
+            phoneVerification
           });
 
       const subjectRef =
@@ -775,6 +821,20 @@ export default function IprPhaseForm({
           }}
           onReset={() => {
             setEmailVerification(null);
+          }}
+        />
+      ) : null}
+
+      {requiresPhoneVerification ? (
+        <PhoneOtpVerification
+          phoneValue={currentPhoneValue}
+          disabled={isGenerating}
+          onVerified={(payload) => {
+            setPhoneVerification(payload);
+            setError("");
+          }}
+          onReset={() => {
+            setPhoneVerification(null);
           }}
         />
       ) : null}
