@@ -37,6 +37,13 @@ type Phase1EmailVerificationFields = {
   email_verification_hash: string;
 };
 
+type Phase1PhoneVerificationFields = {
+  phone_verified: true;
+  phone_verified_at: string;
+  phone_verification_channel: "SMS_OTP";
+  phone_verification_hash: string;
+};
+
 const phase = getPhaseDefinitionByNumber(1);
 
 const fields: IprPhaseFieldDefinition[] = [
@@ -54,7 +61,7 @@ const fields: IprPhaseFieldDefinition[] = [
     type: "tel",
     placeholder: "+39 000 000 0000",
     helperText:
-      "Customer phone number. It is included in the private portable certificate and hashed for audit verification."
+      "Customer phone number. It must be verified by SMS one-time code before Certificate 01 can be generated."
   },
   {
     name: "first_name",
@@ -163,6 +170,24 @@ function buildEmailVerificationFields(
   };
 }
 
+function buildPhoneVerificationFields(
+  context: IprPhaseFormBuildDataContext
+): Phase1PhoneVerificationFields {
+  if (!context.phoneVerification?.phone_verified) {
+    throw new Error(
+      "Phone verification is required before generating Certificate 01."
+    );
+  }
+
+  return {
+    phone_verified: true,
+    phone_verified_at: context.phoneVerification.phone_verified_at,
+    phone_verification_channel:
+      context.phoneVerification.phone_verification_channel,
+    phone_verification_hash: context.phoneVerification.phone_verification_hash
+  };
+}
+
 async function hashPhaseValue(
   context: IprPhaseFormBuildDataContext,
   fieldName: string
@@ -231,6 +256,23 @@ async function buildEmailVerificationAuditHash(
   });
 }
 
+async function buildPhoneVerificationAuditHash(
+  context: IprPhaseFormBuildDataContext,
+  phoneVerificationFields: Phase1PhoneVerificationFields
+): Promise<string> {
+  return sha256Canonical({
+    kind: "HBCE_IPR_PHASE_1_PHONE_VERIFICATION_AUDIT",
+    phase: "SUBJECT_CREATED",
+    phone_number: getNormalizedPhase1Value(context, "phone_number"),
+    phone_verified: phoneVerificationFields.phone_verified,
+    phone_verified_at: phoneVerificationFields.phone_verified_at,
+    phone_verification_channel:
+      phoneVerificationFields.phone_verification_channel,
+    phone_verification_hash: phoneVerificationFields.phone_verification_hash,
+    issued_at: context.issuedAt
+  });
+}
+
 async function buildPhase1SubjectData(
   context: IprPhaseFormBuildDataContext
 ): Promise<JsonObject> {
@@ -238,10 +280,16 @@ async function buildPhase1SubjectData(
   const privateFields = buildNormalizedPrivateFields(context);
   const hashFields = await buildHashFields(context);
   const emailVerificationFields = buildEmailVerificationFields(context);
+  const phoneVerificationFields = buildPhoneVerificationFields(context);
 
   const emailVerificationAuditHash = await buildEmailVerificationAuditHash(
     context,
     emailVerificationFields
+  );
+
+  const phoneVerificationAuditHash = await buildPhoneVerificationAuditHash(
+    context,
+    phoneVerificationFields
   );
 
   return {
@@ -257,7 +305,8 @@ async function buildPhase1SubjectData(
 
     hash_fields: {
       ...hashFields,
-      email_verification_audit_hash: emailVerificationAuditHash
+      email_verification_audit_hash: emailVerificationAuditHash,
+      phone_verification_audit_hash: phoneVerificationAuditHash
     },
 
     email_hash: hashFields.email_hash,
@@ -274,6 +323,13 @@ async function buildPhase1SubjectData(
     email_verification_hash: emailVerificationFields.email_verification_hash,
     email_verification_audit_hash: emailVerificationAuditHash,
 
+    phone_verified: phoneVerificationFields.phone_verified,
+    phone_verified_at: phoneVerificationFields.phone_verified_at,
+    phone_verification_channel:
+      phoneVerificationFields.phone_verification_channel,
+    phone_verification_hash: phoneVerificationFields.phone_verification_hash,
+    phone_verification_audit_hash: phoneVerificationAuditHash,
+
     ipr_status: "NOT_YET_ISSUED",
     ipr_card_status: "NOT_ISSUED",
     joker_c2_access: "DENIED",
@@ -283,7 +339,10 @@ async function buildPhase1SubjectData(
       email_verified_at: emailVerificationFields.email_verified_at,
       email_verification_channel:
         emailVerificationFields.email_verification_channel,
-      phone_verified: false,
+      phone_verified: true,
+      phone_verified_at: phoneVerificationFields.phone_verified_at,
+      phone_verification_channel:
+        phoneVerificationFields.phone_verification_channel,
       fiscal_identity_verified: false,
       official_document_uploaded: false,
       official_document_verified: false,
@@ -302,10 +361,10 @@ async function buildPhase1SubjectData(
     created_at_utc: context.issuedAt,
 
     certificate_boundary:
-      "This file records the creation of the HBCE IPR customer profile request after email OTP verification. It does not certify verified identity, it does not issue an IPR Card and it does not grant JOKER-C2 access.",
+      "This file records the creation of the HBCE IPR customer profile request after email OTP verification and phone SMS OTP verification. It does not certify verified identity, it does not issue an IPR Card and it does not grant JOKER-C2 access.",
 
     privacy_boundary:
-      "This is a private portable HBCE-IPR certificate downloaded by the subject. It may contain customer intake data and email verification references. Public verification must expose hash-only references, not private identity fields. The OTP code is never written inside the certificate."
+      "This is a private portable HBCE-IPR certificate downloaded by the subject. It may contain customer intake data, email verification references and phone verification references. Public verification must expose hash-only references, not private identity fields. OTP codes are never written inside the certificate."
   };
 }
 
@@ -318,7 +377,7 @@ export default function Phase1SubjectCreatedPage() {
         buildPhaseData={buildPhase1SubjectData}
         submitLabel="Generate HBCE IPR Certificate 01"
         successTitle="HBCE IPR Certificate 01 generated"
-        successDescription="The first private HBCE-IPR certificate has been generated and downloaded after email OTP verification. It records the customer profile creation, the exact creation timestamp and the corresponding hash references. It does not verify the identity yet. Use this file in Phase 2 — Fiscal Identity."
+        successDescription="The first private HBCE-IPR certificate has been generated and downloaded after email OTP and phone SMS OTP verification. It records the customer profile creation, the exact creation timestamp and the corresponding hash references. It does not verify the identity yet. Use this file in Phase 2 — Fiscal Identity."
       />
     </div>
   );
