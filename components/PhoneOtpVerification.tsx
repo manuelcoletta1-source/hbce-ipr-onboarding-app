@@ -43,6 +43,10 @@ function normalizePhoneNumber(value: string): string {
   return value.replace(/\s+/g, "").trim();
 }
 
+function normalizeOtpCode(value: string): string {
+  return value.replace(/\D+/g, "").trim();
+}
+
 function getResponseMessage(
   data: SendPhoneCodeResponse | VerifyPhoneCodeResponse,
   fallback: string
@@ -134,8 +138,10 @@ export default function PhoneOtpVerification({
       return;
     }
 
-    if (!/^\d{6}$/.test(code.trim())) {
-      setMessage("Insert the 6-digit verification code.");
+    const normalizedCode = normalizeOtpCode(code);
+
+    if (!/^\d{4,10}$/.test(normalizedCode)) {
+      setMessage("Insert the SMS verification code received by phone.");
       return;
     }
 
@@ -149,7 +155,7 @@ export default function PhoneOtpVerification({
         },
         body: JSON.stringify({
           phone_number: normalizedPhone,
-          code: code.trim()
+          code: normalizedCode
         })
       });
 
@@ -208,13 +214,13 @@ export default function PhoneOtpVerification({
             type="text"
             inputMode="numeric"
             value={code}
-            placeholder="000000"
+            placeholder="000000000"
             disabled={disabled || isVerifying || isVerified}
             onChange={(event) => setCode(event.target.value)}
           />
           <small>
-            Enter the 6-digit code received by SMS. The code is never written
-            inside the HBCE-IPR certificate.
+            Enter the code received by SMS. The code is never written inside the
+            HBCE-IPR certificate.
           </small>
         </label>
 
