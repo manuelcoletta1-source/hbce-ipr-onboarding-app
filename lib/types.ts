@@ -248,7 +248,41 @@ export type HbceLocalTimestamp = JsonObject & {
   timezone: HbceTimezone;
 };
 
-export type HbceInitialVerificationState = JsonObject & {
+export type HbceReviewStatus =
+  | "NOT_STARTED"
+  | "PENDING"
+  | "PENDING_REVIEW"
+  | "APPROVED"
+  | "REJECTED"
+  | "REQUEST_MORE_DATA"
+  | "FISCAL_IDENTITY_COLLECTED"
+  | "OFFICIAL_DOCUMENT_SUBMITTED"
+  | "LIVENESS_SUBMITTED"
+  | "COMPLIANCE_ACCEPTED"
+  | "SUBJECT_CREATED";
+
+export type HbceIprVerificationState = JsonObject & {
+  email_verified?: boolean;
+  email_verified_at?: IsoDateTime;
+  email_verification_channel?: "EMAIL_OTP";
+  phone_verified?: boolean;
+  phone_verified_at?: IsoDateTime;
+  phone_verification_channel?: "SMS_OTP";
+  fiscal_identity_collected?: boolean;
+  fiscal_identity_verified?: boolean;
+  official_document_uploaded?: boolean;
+  official_document_verified?: boolean;
+  liveness_submitted?: boolean;
+  liveness_verified?: boolean;
+  privacy_compliance_accepted?: boolean;
+  hbce_review_status?: HbceReviewStatus;
+  ipr_approved?: boolean;
+  ipr_card_issued?: boolean;
+  operational_certificate_issued?: boolean;
+  joker_c2_access?: "DENIED" | "GRANTED";
+};
+
+export type HbceInitialVerificationState = HbceIprVerificationState & {
   email_verified: false;
   phone_verified: false;
   fiscal_identity_verified: false;
@@ -280,8 +314,7 @@ export type HbceLivenessChallenge =
   | "HEAD_TURN_LEFT_RIGHT"
   | "HEAD_TURN_RIGHT_LEFT"
   | "RANDOM_PROMPT"
-  | "MANUAL_OPERATOR_PROMPT"
-  | "MANUAL";
+  | "MANUAL_OPERATOR_PROMPT";
 
 export type HbceLivenessReviewStatus =
   | "submitted"
@@ -390,20 +423,34 @@ export type HbceJokerC2BiologicalIdentitySnapshot = JsonObject & {
 };
 
 export type HbceJokerC2CustodyFieldPresence = JsonObject & {
-  identity_name: boolean;
-  birth_data: boolean;
-  contact_data: boolean;
-  fiscal_or_tax_identifier_reference: boolean;
-  document_reference: boolean;
-  phone_verification: boolean;
-  email_verification: boolean;
-  document_verification: boolean;
-  liveness_verification: boolean;
-  compliance_review: boolean;
+  identity_name?: boolean;
+  birth_data?: boolean;
+  contact_data?: boolean;
+  fiscal_or_tax_identifier_reference?: boolean;
+  document_reference?: boolean;
+  phone_verification?: boolean;
+  email_verification?: boolean;
+  document_verification?: boolean;
+  liveness_verification?: boolean;
+  compliance_review?: boolean;
   physical_descriptors?: boolean;
   biometric_liveness_media?: boolean;
   face_match_verification?: boolean;
   document_face_comparison?: boolean;
+  identity_snapshot?: boolean;
+  registration_metadata?: boolean;
+  fiscal_identity_metadata?: boolean;
+  fiscal_identity_hashes?: boolean;
+  official_document_metadata?: boolean;
+  official_document_hashes?: boolean;
+  email_verification_reference?: boolean;
+  phone_verification_reference?: boolean;
+  raw_documents?: boolean;
+  raw_document_files?: boolean;
+  raw_document_images?: boolean;
+  raw_fiscal_documents?: boolean;
+  raw_fiscal_document_images?: boolean;
+  raw_biometric_media?: boolean;
 };
 
 export type HbceJokerC2ComplianceCustody = JsonObject & {
@@ -518,10 +565,14 @@ export type HbcePhase1SubjectCreatedData = JsonObject &
     certificate_visibility?: "PRIVATE_PORTABLE_CERTIFICATE";
     certificate_boundary?: string;
     privacy_boundary?: string;
+    biometric_boundary?: string;
+    trust_boundary?: string;
     public_registry_mode?: "HASH_ONLY";
+    phase_scope?: "CLIENT_INTAKE";
     subject_creation_mode?: "SELF_INITIATED_IPR_REQUEST";
     ipr_status?: "NOT_YET_ISSUED";
     ipr_card_status?: "NOT_ISSUED";
+    operational_certificate_issued?: false;
     joker_c2_access?: "DENIED";
     issued_at?: IsoDateTime;
     issued_at_utc?: IsoDateTime;
@@ -532,11 +583,19 @@ export type HbcePhase1SubjectCreatedData = JsonObject &
     timezone?: HbceTimezone;
     previous_payload_sha256?: HashReference | null;
     next_required_phase?: HbceIprNextPhaseCode;
-    private_fields?: HbcePrivateCustomerFields;
-    client_private_data?: HbcePrivateCustomerFields | JsonValue;
+    private_fields?: HbcePrivateCustomerFields | JsonObject;
+    submitted_private_fields?: HbcePrivateCustomerFields | JsonObject;
+    client_private_data?: HbcePrivateCustomerFields | JsonObject;
     client_private_data_included?: boolean;
-    hash_fields?: HbceSubjectCreatedHashFields;
-    verification_state?: HbceInitialVerificationState;
+    registration_fields?: JsonObject;
+    registration_snapshot?: JsonObject;
+    identity_snapshot?: HbceJokerC2BiologicalIdentitySnapshot;
+    biological_identity_snapshot?: HbceJokerC2BiologicalIdentitySnapshot;
+    email_verification_fields?: JsonObject;
+    phone_verification_fields?: JsonObject;
+    hash_fields?: HbceSubjectCreatedHashFields | JsonObject;
+    verification_state?: HbceIprVerificationState;
+    joker_c2_custody?: HbceJokerC2ComplianceCustody;
   };
 
 /**
@@ -550,6 +609,20 @@ export type HbcePhase2FiscalIdentityData = JsonObject & {
   tax_id_metadata_hash: HashReference;
   citizenship_hash: HashReference;
   fiscal_country_hash: HashReference;
+  fiscal_document_type_hash?: HashReference;
+  fiscal_or_tax_identifier_ref?: HashReference;
+  fiscal_identity_collected?: true;
+  fiscal_identity_verified?: false;
+  private_fields?: JsonObject;
+  submitted_private_fields?: JsonObject;
+  fiscal_private_data?: JsonObject;
+  fiscal_identity_snapshot?: JsonObject;
+  identity_snapshot?: HbceJokerC2BiologicalIdentitySnapshot;
+  biological_identity_snapshot?: HbceJokerC2BiologicalIdentitySnapshot;
+  hash_fields?: JsonObject;
+  evidence_hashes?: JsonObject;
+  verification_state?: HbceIprVerificationState;
+  joker_c2_custody?: HbceJokerC2ComplianceCustody;
   issued_at?: IsoDateTime;
   issued_at_utc?: IsoDateTime;
   issued_at_local?: IsoDateTime;
@@ -564,7 +637,15 @@ export type HbcePhase2FiscalIdentityData = JsonObject & {
 export type HbcePhase3OfficialDocumentData = JsonObject & {
   document_type: HbceOfficialDocumentType;
   document_country: string;
+  document_issuer?: string;
+  document_issue_date?: string;
+  document_expiry_date?: string;
+  document_ref?: HashReference;
+  document_hash?: HashReference;
+  identity_document_hash?: HashReference;
+  document_type_hash?: HashReference;
   document_number_hash: HashReference;
+  document_country_hash?: HashReference;
   document_issuer_hash: HashReference;
   document_issue_date_hash: HashReference;
   document_expiry_date_hash: HashReference;
@@ -572,6 +653,18 @@ export type HbcePhase3OfficialDocumentData = JsonObject & {
   document_back_sha256?: HashReference;
   document_passport_page_sha256?: HashReference;
   document_metadata_hash: HashReference;
+  official_document_uploaded?: true;
+  official_document_verified?: false;
+  private_fields?: JsonObject;
+  submitted_private_fields?: JsonObject;
+  official_document_private_data?: JsonObject;
+  official_document_snapshot?: JsonObject;
+  identity_snapshot?: HbceJokerC2BiologicalIdentitySnapshot;
+  biological_identity_snapshot?: HbceJokerC2BiologicalIdentitySnapshot;
+  hash_fields?: JsonObject;
+  evidence_hashes?: JsonObject;
+  verification_state?: HbceIprVerificationState;
+  joker_c2_custody?: HbceJokerC2ComplianceCustody;
   issued_at?: IsoDateTime;
   issued_at_utc?: IsoDateTime;
   issued_at_local?: IsoDateTime;
@@ -608,10 +701,19 @@ export type HbcePhase4LivenessData = JsonObject & {
   liveness_challenge?: HbceLivenessChallenge;
   liveness_verified?: boolean;
   biometric_verification_consent?: boolean;
+  descriptor_accuracy_declaration?: boolean;
   manual_review_required?: boolean;
+  identity_snapshot?: HbceJokerC2BiologicalIdentitySnapshot;
+  biological_identity_snapshot?: HbceJokerC2BiologicalIdentitySnapshot;
   physical_descriptor_profile?: HbcePhysicalDescriptorProfile;
   biometric_liveness_snapshot?: HbceJokerC2BiometricLivenessSnapshot;
   joker_c2_custody_reference?: HbceJokerC2CustodyReference;
+  joker_c2_custody?: HbceJokerC2ComplianceCustody;
+  private_fields?: JsonObject;
+  submitted_private_fields?: JsonObject;
+  hash_fields?: JsonObject;
+  evidence_hashes?: JsonObject;
+  verification_state?: HbceIprVerificationState;
   issued_at?: IsoDateTime;
   issued_at_utc?: IsoDateTime;
   issued_at_local?: IsoDateTime;
@@ -634,6 +736,21 @@ export type HbcePhase5PrivacyComplianceData = JsonObject & {
   biometric_liveness_consent_hash?: HashReference;
   photo_video_liveness_consent_hash?: HashReference;
   joker_c2_custody_acknowledgement?: true;
+  privacy_consent?: true;
+  data_accuracy_confirmation?: true;
+  document_authenticity_confirmation?: true;
+  hbce_policy_acceptance?: true;
+  biometric_liveness_verification_consent?: true;
+  private_fields?: JsonObject;
+  submitted_private_fields?: JsonObject;
+  compliance_fields?: JsonObject;
+  identity_snapshot?: HbceJokerC2BiologicalIdentitySnapshot;
+  biological_identity_snapshot?: HbceJokerC2BiologicalIdentitySnapshot;
+  physical_descriptor_profile?: HbcePhysicalDescriptorProfile;
+  biometric_liveness_snapshot?: HbceJokerC2BiometricLivenessSnapshot;
+  joker_c2_custody?: HbceJokerC2ComplianceCustody;
+  hash_fields?: JsonObject;
+  verification_state?: HbceIprVerificationState;
   issued_at?: IsoDateTime;
   issued_at_utc?: IsoDateTime;
   issued_at_local?: IsoDateTime;
@@ -648,6 +765,15 @@ export type HbcePhase5PrivacyComplianceData = JsonObject & {
 export type HbcePhase6ReviewPendingData = JsonObject & {
   review_package_hash: HashReference;
   submitted_at: IsoDateTime;
+  private_fields?: JsonObject;
+  submitted_private_fields?: JsonObject;
+  review_package?: JsonObject;
+  identity_snapshot?: HbceJokerC2BiologicalIdentitySnapshot;
+  biological_identity_snapshot?: HbceJokerC2BiologicalIdentitySnapshot;
+  physical_descriptor_profile?: HbcePhysicalDescriptorProfile;
+  biometric_liveness_snapshot?: HbceJokerC2BiometricLivenessSnapshot;
+  joker_c2_custody?: HbceJokerC2ComplianceCustody;
+  verification_state?: HbceIprVerificationState;
   issued_at?: IsoDateTime;
   issued_at_utc?: IsoDateTime;
   issued_at_local?: IsoDateTime;
@@ -664,6 +790,14 @@ export type HbcePhase7IprApprovedData = JsonObject & {
   approved_at: IsoDateTime;
   approval_decision_hash: HashReference;
   approval_decision: "APPROVE";
+  private_fields?: JsonObject;
+  approval_fields?: JsonObject;
+  identity_snapshot?: HbceJokerC2BiologicalIdentitySnapshot;
+  biological_identity_snapshot?: HbceJokerC2BiologicalIdentitySnapshot;
+  physical_descriptor_profile?: HbcePhysicalDescriptorProfile;
+  biometric_liveness_snapshot?: HbceJokerC2BiometricLivenessSnapshot;
+  joker_c2_custody?: HbceJokerC2ComplianceCustody;
+  verification_state?: HbceIprVerificationState;
   issued_at?: IsoDateTime;
   issued_at_utc?: IsoDateTime;
   issued_at_local?: IsoDateTime;
@@ -686,6 +820,14 @@ export type HbcePhase8IprCardData = JsonObject & {
   issued_at_local?: IsoDateTime;
   timezone?: HbceTimezone;
   valid_until: IsoDateTime;
+  private_fields?: JsonObject;
+  card_fields?: JsonObject;
+  identity_snapshot?: HbceJokerC2BiologicalIdentitySnapshot;
+  biological_identity_snapshot?: HbceJokerC2BiologicalIdentitySnapshot;
+  physical_descriptor_profile?: HbcePhysicalDescriptorProfile;
+  biometric_liveness_snapshot?: HbceJokerC2BiometricLivenessSnapshot;
+  joker_c2_custody?: HbceJokerC2ComplianceCustody;
+  verification_state?: HbceIprVerificationState;
   previous_payload_sha256?: HashReference | null;
   next_required_phase?: HbceIprNextPhaseCode;
 };
@@ -719,6 +861,7 @@ export type HbcePhase9OperationalCertificateData = JsonObject & {
   physical_descriptor_profile?: HbcePhysicalDescriptorProfile;
   biometric_liveness_snapshot?: HbceJokerC2BiometricLivenessSnapshot;
   joker_c2_custody?: HbceJokerC2ComplianceCustody;
+  verification_state?: HbceIprVerificationState;
 };
 
 export type HbceIprPhaseData =
@@ -985,6 +1128,7 @@ export type EventType =
   | "ONBOARDING_STARTED"
   | "EMAIL_REGISTERED"
   | "EMAIL_VERIFIED"
+  | "PHONE_VERIFIED"
   | "SUBJECT_CREATED"
   | "IDENTITY_DATA_SUBMITTED"
   | "FISCAL_IDENTIFIER_SUBMITTED"
