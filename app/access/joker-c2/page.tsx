@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 import IprCertificateUploader from "@/components/IprCertificateUploader";
 
@@ -27,6 +27,94 @@ type ActiveJokerC2CertificateUpload = {
   source: "session" | "upload";
 };
 
+type HbceJokerC2BiologicalIdentitySnapshot = {
+  display_name: string | null;
+  first_name: string | null;
+  last_name: string | null;
+  birth_date: string | null;
+  birth_place: string | null;
+  nationality: string | null;
+  country: string | null;
+  email: string | null;
+  phone_number: string | null;
+  fiscal_or_tax_identifier_ref: string | null;
+  document_ref: string | null;
+  phone_verified: boolean;
+  email_verified: boolean;
+  document_verified: boolean;
+  liveness_verified: boolean;
+  compliance_review_status: string | null;
+};
+
+type HbceJokerC2IdentityHandoff = {
+  handoff_version: "HBCE-JOKER-C2-IPR-HANDOFF-v1";
+  handoff_id: string;
+  issued_at: string;
+  expires_at: string;
+  issuer: {
+    legal_name: string;
+    hallmark: string | null;
+    jurisdiction: string | null;
+  };
+  gateway: {
+    source_app: "HBCE_IPR_ONBOARDING_APP";
+    source_route: "/access/joker-c2";
+    target_runtime: "AI_JOKER_C2";
+    target_url: string;
+    transport: "URL_FRAGMENT_BASE64URL_JSON";
+    custody_mode: "JOKER_C2_CONTROLLED_CUSTODY";
+  };
+  access: {
+    decision: "ACCESS_GRANTED";
+    checked_at: string;
+    reason: string;
+  };
+  certificate: {
+    file_name: string;
+    proto: string;
+    kind: string;
+    phase_code: string;
+    phase_status: string;
+    certificate_id: string | null;
+    certificate_status: string | null;
+    certificate_scope: string | null;
+    ipr_id: string | null;
+    subject_id: string | null;
+    card_serial: string | null;
+    issued_at: string | null;
+    valid_until: string | null;
+  };
+  biological_identity: HbceJokerC2BiologicalIdentitySnapshot;
+  compliance_custody: {
+    custody_statement: string;
+    full_data_custodian: "AI_JOKER_C2";
+    custody_subject: string | null;
+    custody_ipr_id: string | null;
+    custody_certificate_id: string | null;
+    custody_fields_present: Record<string, boolean>;
+    raw_documents_in_fragment: false;
+    raw_document_images_in_fragment: false;
+    raw_video_liveness_in_fragment: false;
+    fragment_policy: "MINIMIZED_HANDOFF_ONLY";
+  };
+  integrity: {
+    payload_sha256: string;
+    previous_payload_sha256: string | null;
+    handoff_payload_canonicalization: "JSON_STRINGIFY_BASE64URL_CLIENT_MVP";
+  };
+  runtime_claims: {
+    no_simple_email_access: true;
+    no_simple_subscription_access: true;
+    ipr_verified_required: true;
+    joker_c2_identity_bound_session: true;
+    governed_runtime_required: true;
+  };
+  boundary: {
+    statement: string;
+    production_upgrade: string;
+  };
+};
+
 const ACCESS_REQUIREMENTS = [
   "The uploaded file must be the final HBCE operational certificate.",
   "The protocol must be HBCE-IPR-RELEASE-v3.",
@@ -44,6 +132,10 @@ const FINAL_CERTIFICATE_FILE_NAME =
   "hbce-ipr-09-operational-certificate.hbce.json";
 
 const SESSION_CERTIFICATE_PREFIX = "HBCE_IPR_CERTIFICATE_FOR_NEXT_PHASE";
+
+const JOKER_C2_HANDOFF_FRAGMENT_KEY = "hbce_ipr_handoff";
+
+const HANDOFF_VALIDITY_MINUTES = 15;
 
 function getSessionCertificateKey(nextPhase: HbceIprNextPhaseCode): string {
   return `${SESSION_CERTIFICATE_PREFIX}:${nextPhase}`;
@@ -206,6 +298,14 @@ function getStringField(fields: JsonObject | null, key: string): string | null {
     : null;
 }
 
+function getBooleanField(fields: JsonObject | null, key: string): boolean {
+  if (!fields) {
+    return false;
+  }
+
+  return fields[key] === true;
+}
+
 function getPhaseDataString(
   upload: ActiveJokerC2CertificateUpload | null,
   key: string
@@ -219,6 +319,72 @@ function getPhaseDataString(
   return typeof value === "string" && value.trim().length > 0
     ? value.trim()
     : null;
+}
+
+function getPhaseDataBoolean(
+  upload: ActiveJokerC2CertificateUpload | null,
+  key: string
+): boolean {
+  if (!upload) {
+    return false;
+  }
+
+  return upload.certificate.payload.phase_data[key] === true;
+}
+
+function getRecordString(
+  value: unknown,
+  key: string
+): string | null {
+  if (!isRecord(value)) {
+    return null;
+  }
+
+  const field = value[key];
+
+  return typeof field === "string" && field.trim().length > 0
+    ? field.trim()
+    : null;
+}
+
+function getFirstAvailableString(
+  upload: ActiveJokerC2CertificateUpload | null,
+  privateFields: JsonObject | null,
+  keys: readonly string[]
+): string | null {
+  for (const key of keys) {
+    const privateField = getStringField(privateFields, key);
+
+    if (privateField) {
+      return privateField;
+    }
+
+    const phaseField = getPhaseDataString(upload, key);
+
+    if (phaseField) {
+      return phaseField;
+    }
+  }
+
+  return null;
+}
+
+function getFirstAvailableBoolean(
+  upload: ActiveJokerC2CertificateUpload | null,
+  privateFields: JsonObject | null,
+  keys: readonly string[]
+): boolean {
+  for (const key of keys) {
+    if (getBooleanField(privateFields, key)) {
+      return true;
+    }
+
+    if (getPhaseDataBoolean(upload, key)) {
+      return true;
+    }
+  }
+
+  return false;
 }
 
 function getDisplayedCertificateStatus(
@@ -241,6 +407,313 @@ function getDisplayedCertificateScope(
     getPhaseDataString(upload, "certificate_scope") ??
     null
   );
+}
+
+function addMinutesToIso(baseIso: string, minutes: number): string {
+  const baseDate = new Date(baseIso);
+  const safeDate = Number.isNaN(baseDate.getTime()) ? new Date() : baseDate;
+
+  return new Date(safeDate.getTime() + minutes * 60 * 1000).toISOString();
+}
+
+function buildSafeHandoffId(): string {
+  if (typeof crypto !== "undefined" && "randomUUID" in crypto) {
+    return `HBCE-JOKER-C2-HANDOFF-${crypto.randomUUID()}`;
+  }
+
+  return `HBCE-JOKER-C2-HANDOFF-${Date.now().toString(36)}`;
+}
+
+function encodeBase64UrlJson(value: unknown): string {
+  const json = JSON.stringify(value);
+  const bytes = new TextEncoder().encode(json);
+
+  let binary = "";
+
+  for (const byte of bytes) {
+    binary += String.fromCharCode(byte);
+  }
+
+  return btoa(binary)
+    .replace(/\+/g, "-")
+    .replace(/\//g, "_")
+    .replace(/=+$/g, "");
+}
+
+function buildJokerC2GatewayUrlWithHandoff(
+  handoff: HbceJokerC2IdentityHandoff
+): string {
+  const encodedHandoff = encodeBase64UrlJson(handoff);
+  const gatewayWithoutFragment = JOKER_C2_GATEWAY_URL.split("#")[0];
+
+  return `${gatewayWithoutFragment}#${JOKER_C2_HANDOFF_FRAGMENT_KEY}=${encodedHandoff}`;
+}
+
+function buildBiologicalDisplayName(
+  upload: ActiveJokerC2CertificateUpload | null,
+  privateFields: JsonObject | null
+): string | null {
+  const explicitDisplayName = getFirstAvailableString(upload, privateFields, [
+    "display_name",
+    "full_name",
+    "legal_name",
+    "subject_name",
+    "name"
+  ]);
+
+  if (explicitDisplayName) {
+    return explicitDisplayName;
+  }
+
+  const firstName = getFirstAvailableString(upload, privateFields, [
+    "first_name",
+    "given_name"
+  ]);
+
+  const lastName = getFirstAvailableString(upload, privateFields, [
+    "last_name",
+    "family_name",
+    "surname"
+  ]);
+
+  const composedName = [firstName, lastName].filter(Boolean).join(" ").trim();
+
+  return composedName.length > 0 ? composedName : null;
+}
+
+function buildBiologicalIdentitySnapshot(
+  upload: ActiveJokerC2CertificateUpload | null,
+  privateFields: JsonObject | null
+): HbceJokerC2BiologicalIdentitySnapshot {
+  return {
+    display_name: buildBiologicalDisplayName(upload, privateFields),
+    first_name: getFirstAvailableString(upload, privateFields, [
+      "first_name",
+      "given_name"
+    ]),
+    last_name: getFirstAvailableString(upload, privateFields, [
+      "last_name",
+      "family_name",
+      "surname"
+    ]),
+    birth_date: getFirstAvailableString(upload, privateFields, [
+      "birth_date",
+      "date_of_birth",
+      "dob"
+    ]),
+    birth_place: getFirstAvailableString(upload, privateFields, [
+      "birth_place",
+      "place_of_birth"
+    ]),
+    nationality: getFirstAvailableString(upload, privateFields, [
+      "nationality",
+      "citizenship"
+    ]),
+    country: getFirstAvailableString(upload, privateFields, [
+      "country",
+      "country_code",
+      "residence_country"
+    ]),
+    email: getFirstAvailableString(upload, privateFields, [
+      "email",
+      "email_address"
+    ]),
+    phone_number: getFirstAvailableString(upload, privateFields, [
+      "phone_number",
+      "phone",
+      "mobile_phone"
+    ]),
+    fiscal_or_tax_identifier_ref: getFirstAvailableString(upload, privateFields, [
+      "fiscal_code_ref",
+      "tax_identifier_ref",
+      "national_tax_identifier_ref",
+      "fiscal_code_hash",
+      "tax_identifier_hash"
+    ]),
+    document_ref: getFirstAvailableString(upload, privateFields, [
+      "document_ref",
+      "document_hash",
+      "identity_document_hash",
+      "document_identifier_ref"
+    ]),
+    phone_verified: getFirstAvailableBoolean(upload, privateFields, [
+      "phone_verified",
+      "is_phone_verified"
+    ]),
+    email_verified: getFirstAvailableBoolean(upload, privateFields, [
+      "email_verified",
+      "is_email_verified"
+    ]),
+    document_verified: getFirstAvailableBoolean(upload, privateFields, [
+      "document_verified",
+      "identity_document_verified",
+      "is_document_verified"
+    ]),
+    liveness_verified: getFirstAvailableBoolean(upload, privateFields, [
+      "liveness_verified",
+      "selfie_verified",
+      "video_verified",
+      "is_liveness_verified"
+    ]),
+    compliance_review_status: getFirstAvailableString(upload, privateFields, [
+      "compliance_review_status",
+      "kyc_status",
+      "review_status"
+    ])
+  };
+}
+
+function buildCustodyFieldPresence(
+  upload: ActiveJokerC2CertificateUpload | null,
+  privateFields: JsonObject | null
+): Record<string, boolean> {
+  const hasValue = (keys: readonly string[]) =>
+    getFirstAvailableString(upload, privateFields, keys) !== null ||
+    getFirstAvailableBoolean(upload, privateFields, keys);
+
+  return {
+    identity_name: hasValue([
+      "display_name",
+      "full_name",
+      "legal_name",
+      "subject_name",
+      "first_name",
+      "last_name"
+    ]),
+    birth_data: hasValue(["birth_date", "date_of_birth", "birth_place"]),
+    contact_data: hasValue(["email", "email_address", "phone_number", "phone"]),
+    fiscal_or_tax_identifier_reference: hasValue([
+      "fiscal_code_ref",
+      "tax_identifier_ref",
+      "national_tax_identifier_ref",
+      "fiscal_code_hash",
+      "tax_identifier_hash"
+    ]),
+    document_reference: hasValue([
+      "document_ref",
+      "document_hash",
+      "identity_document_hash",
+      "document_identifier_ref"
+    ]),
+    phone_verification: hasValue(["phone_verified", "is_phone_verified"]),
+    email_verification: hasValue(["email_verified", "is_email_verified"]),
+    document_verification: hasValue([
+      "document_verified",
+      "identity_document_verified",
+      "is_document_verified"
+    ]),
+    liveness_verification: hasValue([
+      "liveness_verified",
+      "selfie_verified",
+      "video_verified",
+      "is_liveness_verified"
+    ]),
+    compliance_review: hasValue([
+      "compliance_review_status",
+      "kyc_status",
+      "review_status"
+    ])
+  };
+}
+
+function buildJokerC2IdentityHandoff(
+  upload: ActiveJokerC2CertificateUpload,
+  accessResult: HbceJokerC2AccessGateResult,
+  privateFields: JsonObject | null
+): HbceJokerC2IdentityHandoff {
+  const handoffIssuedAt = nowIso();
+  const certificateStatus = getDisplayedCertificateStatus(upload, privateFields);
+  const certificateScope = getDisplayedCertificateScope(upload, privateFields);
+  const certificateId = getStringField(privateFields, "certificate_id");
+  const iprId = getStringField(privateFields, "ipr_id");
+  const subjectId =
+    getStringField(privateFields, "subject_id") ??
+    getRecordString(upload.certificate.subject, "subject_id") ??
+    getRecordString(upload.certificate.subject, "id");
+  const cardSerial = getStringField(privateFields, "card_serial");
+  const issuedAt = getStringField(privateFields, "issued_at");
+  const validUntil = getStringField(privateFields, "valid_until");
+  const issuerHallmark = getRecordString(upload.certificate.issuer, "hallmark");
+  const issuerJurisdiction = getRecordString(
+    upload.certificate.issuer,
+    "jurisdiction"
+  );
+  const biologicalIdentity = buildBiologicalIdentitySnapshot(
+    upload,
+    privateFields
+  );
+
+  return {
+    handoff_version: "HBCE-JOKER-C2-IPR-HANDOFF-v1",
+    handoff_id: buildSafeHandoffId(),
+    issued_at: handoffIssuedAt,
+    expires_at: addMinutesToIso(handoffIssuedAt, HANDOFF_VALIDITY_MINUTES),
+    issuer: {
+      legal_name: upload.certificate.issuer.legal_name,
+      hallmark: issuerHallmark,
+      jurisdiction: issuerJurisdiction
+    },
+    gateway: {
+      source_app: "HBCE_IPR_ONBOARDING_APP",
+      source_route: "/access/joker-c2",
+      target_runtime: "AI_JOKER_C2",
+      target_url: JOKER_C2_GATEWAY_URL,
+      transport: "URL_FRAGMENT_BASE64URL_JSON",
+      custody_mode: "JOKER_C2_CONTROLLED_CUSTODY"
+    },
+    access: {
+      decision: "ACCESS_GRANTED",
+      checked_at: accessResult.checked_at,
+      reason: accessResult.reason
+    },
+    certificate: {
+      file_name: upload.fileName,
+      proto: upload.certificate.proto,
+      kind: upload.certificate.kind,
+      phase_code: upload.certificate.phase.code,
+      phase_status: upload.certificate.phase.status,
+      certificate_id: certificateId,
+      certificate_status: certificateStatus,
+      certificate_scope: certificateScope,
+      ipr_id: iprId,
+      subject_id: subjectId,
+      card_serial: cardSerial,
+      issued_at: issuedAt,
+      valid_until: validUntil
+    },
+    biological_identity: biologicalIdentity,
+    compliance_custody: {
+      custody_statement:
+        "AI JOKER-C2 is the controlled operational custodian for compliance data, bureaucratic procedure data, document references and identity-bound runtime continuity. This handoff transmits a minimized operational identity snapshot and custody references only.",
+      full_data_custodian: "AI_JOKER_C2",
+      custody_subject: biologicalIdentity.display_name,
+      custody_ipr_id: iprId,
+      custody_certificate_id: certificateId,
+      custody_fields_present: buildCustodyFieldPresence(upload, privateFields),
+      raw_documents_in_fragment: false,
+      raw_document_images_in_fragment: false,
+      raw_video_liveness_in_fragment: false,
+      fragment_policy: "MINIMIZED_HANDOFF_ONLY"
+    },
+    integrity: {
+      payload_sha256: upload.payloadSha256,
+      previous_payload_sha256: upload.previousPayloadSha256,
+      handoff_payload_canonicalization: "JSON_STRINGIFY_BASE64URL_CLIENT_MVP"
+    },
+    runtime_claims: {
+      no_simple_email_access: true,
+      no_simple_subscription_access: true,
+      ipr_verified_required: true,
+      joker_c2_identity_bound_session: true,
+      governed_runtime_required: true
+    },
+    boundary: {
+      statement:
+        "This client-side handoff enables the MVP identity-bound JOKER-C2 test. It does not replace future server-side token issuance, revocation checks, encrypted custody storage or regulated trust-service integrations.",
+      production_upgrade:
+        "Replace URL fragment handoff with a server-issued, signed, short-lived, one-time access token bound to the operational certificate and validated by JOKER-C2 before runtime initialization."
+    }
+  };
 }
 
 export default function JokerC2AccessPage() {
@@ -368,10 +841,34 @@ export default function JokerC2AccessPage() {
 
   const certificateId = getStringField(privateFields, "certificate_id");
   const iprId = getStringField(privateFields, "ipr_id");
-  const subjectId = getStringField(privateFields, "subject_id");
+  const subjectId =
+    getStringField(privateFields, "subject_id") ??
+    getRecordString(acceptedUpload?.certificate.subject, "subject_id") ??
+    getRecordString(acceptedUpload?.certificate.subject, "id");
   const cardSerial = getStringField(privateFields, "card_serial");
   const issuedAt = getStringField(privateFields, "issued_at");
   const validUntil = getStringField(privateFields, "valid_until");
+
+  const biologicalIdentity = useMemo(
+    () => buildBiologicalIdentitySnapshot(acceptedUpload, privateFields),
+    [acceptedUpload, privateFields]
+  );
+
+  const jokerC2IdentityHandoff = useMemo(() => {
+    if (!acceptedUpload || !accessResult || !isAccessGranted) {
+      return null;
+    }
+
+    return buildJokerC2IdentityHandoff(
+      acceptedUpload,
+      accessResult,
+      privateFields
+    );
+  }, [acceptedUpload, accessResult, isAccessGranted, privateFields]);
+
+  const jokerC2GatewayUrl = jokerC2IdentityHandoff
+    ? buildJokerC2GatewayUrlWithHandoff(jokerC2IdentityHandoff)
+    : JOKER_C2_GATEWAY_URL;
 
   return (
     <div className="hbce-container">
@@ -483,6 +980,10 @@ export default function JokerC2AccessPage() {
             </div>
 
             <p className="hbce-mono">
+              biological_subject:{" "}
+              {biologicalIdentity.display_name ?? "unavailable"}
+            </p>
+            <p className="hbce-mono">
               certificate_id: {certificateId ?? "unavailable"}
             </p>
             <p className="hbce-mono">ipr_id: {iprId ?? "unavailable"}</p>
@@ -505,17 +1006,71 @@ export default function JokerC2AccessPage() {
             <div className="hbce-actions">
               <a
                 className="hbce-btn hbce-btn--primary"
-                href={JOKER_C2_GATEWAY_URL}
+                href={jokerC2GatewayUrl}
                 rel="noopener noreferrer"
                 target="_blank"
               >
-                Open JOKER-C2 Runtime
+                Open JOKER-C2 Runtime with IPR Handoff
               </a>
 
               <Link className="hbce-btn" href={ROUTES.onboarding}>
                 Start another IPR onboarding
               </Link>
             </div>
+          </section>
+        ) : null}
+
+        {jokerC2IdentityHandoff ? (
+          <section className="hbce-card hbce-card--soft">
+            <p className="hbce-kicker">JOKER-C2 identity handoff</p>
+
+            <h2>IPR biological identity handoff prepared.</h2>
+
+            <p>
+              The access gate has prepared a minimized identity handoff for
+              JOKER-C2. The runtime receives the IPR identity, certificate
+              reference, custody context and hash continuity needed to start an
+              identity-bound governed session.
+            </p>
+
+            <p className="hbce-mono">
+              handoff_version: {jokerC2IdentityHandoff.handoff_version}
+            </p>
+            <p className="hbce-mono">
+              handoff_id: {jokerC2IdentityHandoff.handoff_id}
+            </p>
+            <p className="hbce-mono">
+              handoff_expires_at: {jokerC2IdentityHandoff.expires_at}
+            </p>
+            <p className="hbce-mono">
+              custody_mode:{" "}
+              {jokerC2IdentityHandoff.gateway.custody_mode}
+            </p>
+            <p className="hbce-mono">
+              fragment_policy:{" "}
+              {jokerC2IdentityHandoff.compliance_custody.fragment_policy}
+            </p>
+            <p className="hbce-mono">
+              raw_documents_in_fragment:{" "}
+              {String(
+                jokerC2IdentityHandoff.compliance_custody
+                  .raw_documents_in_fragment
+              )}
+            </p>
+            <p className="hbce-mono">
+              raw_document_images_in_fragment:{" "}
+              {String(
+                jokerC2IdentityHandoff.compliance_custody
+                  .raw_document_images_in_fragment
+              )}
+            </p>
+            <p className="hbce-mono">
+              raw_video_liveness_in_fragment:{" "}
+              {String(
+                jokerC2IdentityHandoff.compliance_custody
+                  .raw_video_liveness_in_fragment
+              )}
+            </p>
           </section>
         ) : null}
 
@@ -606,6 +1161,24 @@ export default function JokerC2AccessPage() {
             <p className="hbce-kicker">Private certificate fields</p>
             <h2>Operational identity data read from the private certificate.</h2>
 
+            {biologicalIdentity.display_name ? (
+              <p className="hbce-mono">
+                biological_subject: {biologicalIdentity.display_name}
+              </p>
+            ) : null}
+
+            {biologicalIdentity.first_name ? (
+              <p className="hbce-mono">
+                first_name: {biologicalIdentity.first_name}
+              </p>
+            ) : null}
+
+            {biologicalIdentity.last_name ? (
+              <p className="hbce-mono">
+                last_name: {biologicalIdentity.last_name}
+              </p>
+            ) : null}
+
             {certificateId ? (
               <p className="hbce-mono">certificate_id: {certificateId}</p>
             ) : null}
@@ -693,6 +1266,13 @@ export default function JokerC2AccessPage() {
             The HBCE operational certificate enables JOKER-C2 access evaluation.
             It does not bypass governance, revocation, suspension, expiry,
             runtime policy or future server-side enforcement.
+          </p>
+
+          <p>
+            For the MVP test, this page sends a minimized IPR handoff to
+            JOKER-C2 through a browser fragment. In production, the same logic
+            must become a short-lived server-side signed token with revocation,
+            expiry, encrypted custody storage and runtime-side verification.
           </p>
         </section>
       </main>
