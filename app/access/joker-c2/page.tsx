@@ -816,7 +816,8 @@ function buildCustodyFieldPresence(
     email_verification: Boolean(biologicalIdentity.email_verified),
     document_verification: Boolean(biologicalIdentity.document_verified),
     liveness_verification: Boolean(
-      biologicalIdentity.liveness_verified || biometricSnapshot?.liveness_verified
+      biologicalIdentity.liveness_verified ||
+        biometricSnapshot?.liveness_verified
     ),
     compliance_review: Boolean(biologicalIdentity.compliance_review_status),
     physical_descriptors: hasPhysicalDescriptorProfileContent(physicalProfile),
@@ -850,11 +851,6 @@ function buildJokerC2IdentityHandoff(
   const cardSerial = getStringField(privateFields, "card_serial");
   const issuedAt = getStringField(privateFields, "issued_at");
   const validUntil = getStringField(privateFields, "valid_until");
-  const issuerHallmark = getRecordString(upload.certificate.issuer, "hallmark");
-  const issuerJurisdiction = getRecordString(
-    upload.certificate.issuer,
-    "jurisdiction"
-  );
   const biologicalIdentity = buildBiologicalIdentitySnapshot(
     upload,
     privateFields
@@ -865,11 +861,7 @@ function buildJokerC2IdentityHandoff(
     handoff_id: buildSafeHandoffId(),
     issued_at: handoffIssuedAt,
     expires_at: addMinutesToIso(handoffIssuedAt, HANDOFF_VALIDITY_MINUTES),
-    issuer: {
-      legal_name: upload.certificate.issuer.legal_name,
-      hallmark: issuerHallmark,
-      jurisdiction: issuerJurisdiction
-    },
+    issuer: upload.certificate.issuer,
     gateway: {
       source_app: "HBCE_IPR_ONBOARDING_APP",
       source_route: "/access/joker-c2",
@@ -1072,7 +1064,6 @@ export default function JokerC2AccessPage() {
     getRecordString(acceptedUpload?.certificate.subject, "subject_id") ??
     getRecordString(acceptedUpload?.certificate.subject, "id");
   const cardSerial = getStringField(privateFields, "card_serial");
-  const issuedAt = getStringField(privateFields, "issued_at");
   const validUntil = getStringField(privateFields, "valid_until");
 
   const biologicalIdentity = useMemo(
@@ -1292,8 +1283,7 @@ export default function JokerC2AccessPage() {
               handoff_expires_at: {jokerC2IdentityHandoff.expires_at}
             </p>
             <p className="hbce-mono">
-              custody_mode:{" "}
-              {jokerC2IdentityHandoff.gateway.custody_mode}
+              custody_mode: {jokerC2IdentityHandoff.gateway.custody_mode}
             </p>
             <p className="hbce-mono">
               fragment_policy:{" "}
@@ -1467,10 +1457,6 @@ export default function JokerC2AccessPage() {
               <p className="hbce-mono">
                 certificate_scope: {displayedCertificateScope}
               </p>
-            ) : null}
-
-            {issuedAt ? (
-              <p className="hbce-mono">issued_at: {issuedAt}</p>
             ) : null}
 
             {validUntil ? (
