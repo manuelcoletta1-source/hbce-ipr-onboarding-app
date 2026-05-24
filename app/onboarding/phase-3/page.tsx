@@ -640,12 +640,24 @@ async function buildPhase3OfficialDocumentData(
     document_ref: officialDocumentSnapshot.document_ref,
     document_hash: officialDocumentSnapshot.document_hash,
     identity_document_hash: officialDocumentSnapshot.identity_document_hash,
-    document_front_sha256:
-      officialDocumentSnapshot.document_front_sha256 ?? undefined,
-    document_back_sha256:
-      officialDocumentSnapshot.document_back_sha256 ?? undefined,
-    document_passport_page_sha256:
-      officialDocumentSnapshot.document_passport_page_sha256 ?? undefined,
+    ...(officialDocumentSnapshot.document_front_sha256
+      ? {
+          document_front_sha256:
+            officialDocumentSnapshot.document_front_sha256
+        }
+      : {}),
+    ...(officialDocumentSnapshot.document_back_sha256
+      ? {
+          document_back_sha256:
+            officialDocumentSnapshot.document_back_sha256
+        }
+      : {}),
+    ...(officialDocumentSnapshot.document_passport_page_sha256
+      ? {
+          document_passport_page_sha256:
+            officialDocumentSnapshot.document_passport_page_sha256
+        }
+      : {}),
     document_metadata_hash: officialDocumentSnapshot.document_metadata_hash,
     official_document_uploaded: true,
     official_document_verified: false,
