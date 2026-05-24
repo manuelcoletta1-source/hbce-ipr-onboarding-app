@@ -26,14 +26,14 @@ export type HbceIprDocumentEvidenceProfile =
   | "DRIVING_LICENCE"
   | "PASSPORT"
   | "EU_IDENTITY_CARD"
-  | "OTHER_OFFICIAL_DOCUMENT";
+  | "OTHER_AUTHORIZED_OFFICIAL_DOCUMENT";
 
 export type HbceIprFiscalEvidenceProfile =
   | "ITALIAN_TESSERA_SANITARIA"
   | "ITALIAN_CODICE_FISCALE"
   | "EU_TAX_ID_DOCUMENT"
   | "NATIONAL_FISCAL_DOCUMENT"
-  | "OTHER_FISCAL_DOCUMENT";
+  | "OTHER_AUTHORIZED_FISCAL_DOCUMENT";
 
 export type HbceEvidenceRequirementSet = {
   code: string;
@@ -52,6 +52,8 @@ export type HbceUploadValidationResult = {
   missing_uploads: HbceEvidenceUploadKind[];
 };
 
+const PHASE_4_LIVENESS_ROUTE = "/onboarding/photo-video" as HbceIprRoute;
+
 export const HBCE_IPR_PHASE_DEFINITIONS: readonly HbceIprPhaseDefinition[] = [
   {
     phase_number: 1,
@@ -61,9 +63,9 @@ export const HBCE_IPR_PHASE_DEFINITIONS: readonly HbceIprPhaseDefinition[] = [
     expected_previous_phase: null,
     expected_previous_file_name: null,
     next_required_phase: "FISCAL_IDENTITY",
-    title: "Phase 1 — Customer Profile Created",
+    title: "Phase 1 — Subject Created",
     description:
-      "Create the first private HBCE-IPR intake certificate. This step records the customer profile, customer data, exact creation timestamp and hash references. It does not verify identity, issue an IPR Card or grant JOKER-C2 access.",
+      "Create the first private HBCE-IPR intake certificate after email OTP and phone SMS OTP verification. This step records the subject profile, contact verification state, creation timestamp, identity snapshot and hash references. It does not verify official identity, issue an IPR Card or grant JOKER-C2 access.",
     requires_previous_certificate: false,
     requires_hbce_operator: false,
     required_fields: [
@@ -86,11 +88,16 @@ export const HBCE_IPR_PHASE_DEFINITIONS: readonly HbceIprPhaseDefinition[] = [
     next_required_phase: "OFFICIAL_ID_DOCUMENT",
     title: "Phase 2 — Fiscal Identity",
     description:
-      "Upload Certificate 01 and collect fiscal identity evidence: codice fiscale, tessera sanitaria, tax ID, national tax identifier or equivalent fiscal document. This step links the customer profile to fiscal identity evidence.",
+      "Upload Certificate 01 and collect fiscal identity evidence: codice fiscale, tessera sanitaria, tax ID, national tax identifier or equivalent fiscal document. This step links the subject profile to fiscal identity evidence and produces a fiscal identity snapshot.",
     requires_previous_certificate: true,
     requires_hbce_operator: false,
-    required_fields: ["tax_id", "citizenship", "fiscal_country"],
-    required_uploads: ["TAX_ID_DOCUMENT_SINGLE"]
+    required_fields: [
+      "tax_id",
+      "citizenship",
+      "fiscal_country",
+      "fiscal_document_type"
+    ],
+    required_uploads: ["TAX_ID_DOCUMENT_FRONT", "TAX_ID_DOCUMENT_BACK"]
   },
   {
     phase_number: 3,
@@ -102,7 +109,7 @@ export const HBCE_IPR_PHASE_DEFINITIONS: readonly HbceIprPhaseDefinition[] = [
     next_required_phase: "LIVENESS_CHECK",
     title: "Phase 3 — Official ID Document",
     description:
-      "Upload Certificate 02 and collect official identity evidence: CIE, driving licence, passport, EU identity card or another authorized official document.",
+      "Upload Certificate 02 and collect official identity evidence: CIE, driving licence, passport, EU identity card or another authorized official document. This step creates the official document snapshot required by the liveness phase.",
     requires_previous_certificate: true,
     requires_hbce_operator: false,
     required_fields: [
@@ -118,18 +125,28 @@ export const HBCE_IPR_PHASE_DEFINITIONS: readonly HbceIprPhaseDefinition[] = [
   {
     phase_number: 4,
     phase_code: "LIVENESS_SUBMITTED",
-    route: "/onboarding/phase-4",
+    route: PHASE_4_LIVENESS_ROUTE,
     file_name: "hbce-ipr-04-liveness-submitted.hbce.json",
     expected_previous_phase: "OFFICIAL_DOCUMENT_SUBMITTED",
     expected_previous_file_name: "hbce-ipr-03-official-document.hbce.json",
     next_required_phase: "PRIVACY_COMPLIANCE",
-    title: "Phase 4 — Liveness Check",
+    title: "Phase 4 — Photo / Video Liveness",
     description:
-      "Upload Certificate 03 and submit selfie, video verification and liveness declaration. This step connects the applicant to the identity and document evidence already submitted.",
+      "Upload Certificate 03 and submit protected document-face, selfie and liveness-video references, SHA-256 hashes, physical descriptor profile, consent state and liveness review state. This step connects the applicant to the fiscal and official document evidence already submitted.",
     requires_previous_certificate: true,
     requires_hbce_operator: false,
-    required_fields: ["liveness_declaration"],
-    required_uploads: ["SELFIE", "VIDEO_VERIFICATION"]
+    required_fields: [
+      "document_face_reference",
+      "selfie_reference",
+      "liveness_video_reference",
+      "document_face_sha256",
+      "selfie_sha256",
+      "video_sha256",
+      "face_match_method",
+      "biometric_verification_consent",
+      "descriptor_accuracy_declaration"
+    ],
+    required_uploads: []
   },
   {
     phase_number: 5,
@@ -141,7 +158,7 @@ export const HBCE_IPR_PHASE_DEFINITIONS: readonly HbceIprPhaseDefinition[] = [
     next_required_phase: "REVIEW_SUBMISSION",
     title: "Phase 5 — Privacy & Compliance",
     description:
-      "Upload Certificate 04 and accept privacy, hash-only, document authenticity and HBCE internal operational identity conditions.",
+      "Upload Certificate 04 and accept privacy, hash-only, data accuracy, document authenticity, biometric/liveness verification consent, JOKER-C2 custody acknowledgement and HBCE internal operational identity conditions.",
     requires_previous_certificate: true,
     requires_hbce_operator: false,
     required_fields: [
@@ -150,6 +167,8 @@ export const HBCE_IPR_PHASE_DEFINITIONS: readonly HbceIprPhaseDefinition[] = [
       "data_accuracy_confirmation",
       "document_authenticity_confirmation",
       "hbce_policy_acceptance",
+      "biometric_liveness_verification_consent",
+      "joker_c2_custody_acknowledgement",
       "no_state_identity_claim_acknowledgement",
       "internal_operational_identity_acknowledgement"
     ],
@@ -165,7 +184,7 @@ export const HBCE_IPR_PHASE_DEFINITIONS: readonly HbceIprPhaseDefinition[] = [
     next_required_phase: "HBCE_APPROVAL",
     title: "Phase 6 — HBCE Review Submission",
     description:
-      "Upload Certificate 05 and submit the complete onboarding package for HBCE review. This phase records that the customer file is ready for approval evaluation.",
+      "Upload Certificate 05 and submit the complete onboarding package for HBCE review. This phase records that the subject file is ready for approval evaluation. It does not self-approve the IPR.",
     requires_previous_certificate: true,
     requires_hbce_operator: false,
     required_fields: ["submit_for_review"],
@@ -181,7 +200,7 @@ export const HBCE_IPR_PHASE_DEFINITIONS: readonly HbceIprPhaseDefinition[] = [
     next_required_phase: "IPR_CARD_ISSUANCE",
     title: "Phase 7 — HBCE Approval",
     description:
-      "HBCE operator approval phase. This certificate must not be freely generated by the user. It records the HBCE approval decision required before IPR Card issuance.",
+      "HBCE operator approval phase. This certificate must not be freely generated by the subject. It records the HBCE approval decision required before IPR Card issuance.",
     requires_previous_certificate: true,
     requires_hbce_operator: true,
     required_fields: [
@@ -201,7 +220,7 @@ export const HBCE_IPR_PHASE_DEFINITIONS: readonly HbceIprPhaseDefinition[] = [
     next_required_phase: "OPERATIONAL_CERTIFICATE",
     title: "Phase 8 — IPR Card Issued",
     description:
-      "Upload Certificate 07 and issue the virtual IPR Card. This step creates the internal operational identity credential used before the final operational certificate.",
+      "Upload Certificate 07 and issue the virtual IPR Card. This step creates the internal HBCE operational identity credential used before the final operational certificate.",
     requires_previous_certificate: true,
     requires_hbce_operator: false,
     required_fields: [
@@ -272,8 +291,8 @@ export const HBCE_FISCAL_EVIDENCE_REQUIREMENTS: Record<
       "Upload a national fiscal document or national tax identifier certificate.",
     uploads: ["TAX_ID_DOCUMENT_SINGLE"]
   },
-  OTHER_FISCAL_DOCUMENT: {
-    code: "OTHER_FISCAL_DOCUMENT",
+  OTHER_AUTHORIZED_FISCAL_DOCUMENT: {
+    code: "OTHER_AUTHORIZED_FISCAL_DOCUMENT",
     label: "Other authorized fiscal document",
     description: "Upload another authorized fiscal evidence document.",
     uploads: ["TAX_ID_DOCUMENT_SINGLE"]
@@ -289,13 +308,13 @@ export const HBCE_DOCUMENT_EVIDENCE_REQUIREMENTS: Record<
     label: "Carta d’Identità Elettronica — CIE",
     description:
       "Upload front and back of the Italian Carta d’Identità Elettronica.",
-    uploads: ["CIE_FRONT", "CIE_BACK"]
+    uploads: ["OFFICIAL_DOCUMENT_FRONT", "OFFICIAL_DOCUMENT_BACK"]
   },
   DRIVING_LICENCE: {
     code: "DRIVING_LICENCE",
     label: "Driving licence",
     description: "Upload front and back of the driving licence.",
-    uploads: ["DRIVING_LICENCE_FRONT", "DRIVING_LICENCE_BACK"]
+    uploads: ["OFFICIAL_DOCUMENT_FRONT", "OFFICIAL_DOCUMENT_BACK"]
   },
   PASSPORT: {
     code: "PASSPORT",
@@ -309,8 +328,8 @@ export const HBCE_DOCUMENT_EVIDENCE_REQUIREMENTS: Record<
     description: "Upload front and back of the EU national identity card.",
     uploads: ["OFFICIAL_DOCUMENT_FRONT", "OFFICIAL_DOCUMENT_BACK"]
   },
-  OTHER_OFFICIAL_DOCUMENT: {
-    code: "OTHER_OFFICIAL_DOCUMENT",
+  OTHER_AUTHORIZED_OFFICIAL_DOCUMENT: {
+    code: "OTHER_AUTHORIZED_OFFICIAL_DOCUMENT",
     label: "Other authorized official identity document",
     description:
       "Upload front and back of another authorized official identity document.",
@@ -405,7 +424,7 @@ export function getContinuationRouteFromCertificate(
     case "OFFICIAL_ID_DOCUMENT":
       return "/onboarding/phase-3";
     case "LIVENESS_CHECK":
-      return "/onboarding/phase-4";
+      return PHASE_4_LIVENESS_ROUTE;
     case "PRIVACY_COMPLIANCE":
       return "/onboarding/phase-5";
     case "REVIEW_SUBMISSION":
