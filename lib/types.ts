@@ -264,6 +264,156 @@ export type HbceInitialVerificationState = JsonObject & {
 };
 
 /**
+ * JOKER-C2 identity handoff types.
+ *
+ * These types define the controlled identity bridge between the HBCE IPR
+ * Onboarding App and the AI JOKER-C2 runtime.
+ *
+ * The public registry remains hash-only. The browser handoff must remain
+ * minimized. Full compliance data custody belongs to the controlled JOKER-C2
+ * runtime/backend layer, not to public routes or public registry records.
+ */
+export type HbceJokerC2HandoffVersion = "HBCE-JOKER-C2-IPR-HANDOFF-v1";
+
+export type HbceJokerC2HandoffTransport = "URL_FRAGMENT_BASE64URL_JSON";
+
+export type HbceJokerC2CustodyMode = "JOKER_C2_CONTROLLED_CUSTODY";
+
+export type HbceJokerC2FragmentPolicy = "MINIMIZED_HANDOFF_ONLY";
+
+export type HbceJokerC2RuntimeTarget = "AI_JOKER_C2";
+
+export type HbceJokerC2SourceApp = "HBCE_IPR_ONBOARDING_APP";
+
+export type HbceJokerC2SourceRoute = "/access/joker-c2";
+
+export type HbceJokerC2BiologicalIdentitySnapshot = JsonObject & {
+  display_name: string | null;
+  first_name: string | null;
+  last_name: string | null;
+  birth_date: string | null;
+  birth_place: string | null;
+  nationality: string | null;
+  country: string | null;
+  email: string | null;
+  phone_number: string | null;
+  fiscal_or_tax_identifier_ref: string | null;
+  document_ref: string | null;
+  phone_verified: boolean;
+  email_verified: boolean;
+  document_verified: boolean;
+  liveness_verified: boolean;
+  compliance_review_status: string | null;
+};
+
+export type HbceJokerC2CustodyFieldPresence = JsonObject & {
+  identity_name: boolean;
+  birth_data: boolean;
+  contact_data: boolean;
+  fiscal_or_tax_identifier_reference: boolean;
+  document_reference: boolean;
+  phone_verification: boolean;
+  email_verification: boolean;
+  document_verification: boolean;
+  liveness_verification: boolean;
+  compliance_review: boolean;
+};
+
+export type HbceJokerC2ComplianceCustody = JsonObject & {
+  custody_statement: string;
+  full_data_custodian: HbceJokerC2RuntimeTarget;
+  custody_subject: string | null;
+  custody_ipr_id: string | null;
+  custody_certificate_id: string | null;
+  custody_fields_present: HbceJokerC2CustodyFieldPresence;
+  raw_documents_in_fragment: false;
+  raw_document_images_in_fragment: false;
+  raw_video_liveness_in_fragment: false;
+  fragment_policy: HbceJokerC2FragmentPolicy;
+};
+
+export type HbceJokerC2GatewayHandoff = JsonObject & {
+  source_app: HbceJokerC2SourceApp;
+  source_route: HbceJokerC2SourceRoute;
+  target_runtime: HbceJokerC2RuntimeTarget;
+  target_url: string;
+  transport: HbceJokerC2HandoffTransport;
+  custody_mode: HbceJokerC2CustodyMode;
+};
+
+export type HbceJokerC2AccessHandoffDecision = JsonObject & {
+  decision: "ACCESS_GRANTED";
+  checked_at: IsoDateTime;
+  reason: string;
+};
+
+export type HbceJokerC2CertificateHandoffReference = JsonObject & {
+  file_name: string;
+  proto: HbceIprReleaseProtocol;
+  kind: HbceIprCertificateKind;
+  phase_code: HbceIprCertificatePhaseCode;
+  phase_status: HbceIprPhaseRuntimeStatus;
+  certificate_id: string | null;
+  certificate_status: "ACTIVE" | "EXPIRED" | "REVOKED" | "SUSPENDED" | null;
+  certificate_scope: "JOKER_C2_ACCESS" | null;
+  ipr_id: string | null;
+  subject_id: string | null;
+  card_serial: string | null;
+  issued_at: IsoDateTime | null;
+  valid_until: IsoDateTime | null;
+};
+
+export type HbceJokerC2HandoffIntegrity = JsonObject & {
+  payload_sha256: HashReference;
+  previous_payload_sha256: HashReference | null;
+  handoff_payload_canonicalization: "JSON_STRINGIFY_BASE64URL_CLIENT_MVP";
+};
+
+export type HbceJokerC2RuntimeClaims = JsonObject & {
+  no_simple_email_access: true;
+  no_simple_subscription_access: true;
+  ipr_verified_required: true;
+  joker_c2_identity_bound_session: true;
+  governed_runtime_required: true;
+};
+
+export type HbceJokerC2HandoffBoundary = JsonObject & {
+  statement: string;
+  production_upgrade: string;
+};
+
+export type HbceJokerC2IdentityHandoff = JsonObject & {
+  handoff_version: HbceJokerC2HandoffVersion;
+  handoff_id: string;
+  issued_at: IsoDateTime;
+  expires_at: IsoDateTime;
+  issuer: HbceIssuer;
+  gateway: HbceJokerC2GatewayHandoff;
+  access: HbceJokerC2AccessHandoffDecision;
+  certificate: HbceJokerC2CertificateHandoffReference;
+  biological_identity: HbceJokerC2BiologicalIdentitySnapshot;
+  compliance_custody: HbceJokerC2ComplianceCustody;
+  integrity: HbceJokerC2HandoffIntegrity;
+  runtime_claims: HbceJokerC2RuntimeClaims;
+  boundary: HbceJokerC2HandoffBoundary;
+};
+
+export type HbceJokerC2OperationalCertificatePrivateFields = JsonObject & {
+  certificate_id: string;
+  ipr_id: string;
+  subject_id: string;
+  card_serial: string;
+  certificate_status: "ACTIVE";
+  certificate_scope: "JOKER_C2_ACCESS";
+  issuer: "HERMETICUM B.C.E. S.r.l.";
+  issued_at: IsoDateTime;
+  valid_until: IsoDateTime;
+  identity_snapshot?: HbceJokerC2BiologicalIdentitySnapshot;
+  biological_identity_snapshot?: HbceJokerC2BiologicalIdentitySnapshot;
+  joker_c2_custody?: HbceJokerC2ComplianceCustody;
+};
+
+/**
  * Phase 1 payload.
  *
  * This is the first HBCE IPR step.
@@ -424,6 +574,10 @@ export type HbcePhase8IprCardData = JsonObject & {
 
 /**
  * Phase 9 payload.
+ *
+ * The operational certificate is the final portable certificate used by the
+ * JOKER-C2 access gate. It carries the operational IPR references and may also
+ * carry a minimized private identity snapshot for controlled JOKER-C2 custody.
  */
 export type HbcePhase9OperationalCertificateData = JsonObject & {
   certificate_id: string;
@@ -440,6 +594,10 @@ export type HbcePhase9OperationalCertificateData = JsonObject & {
   valid_until: IsoDateTime;
   previous_payload_sha256?: HashReference | null;
   next_required_phase?: HbceIprNextPhaseCode;
+  private_fields?: HbceJokerC2OperationalCertificatePrivateFields;
+  identity_snapshot?: HbceJokerC2BiologicalIdentitySnapshot;
+  biological_identity_snapshot?: HbceJokerC2BiologicalIdentitySnapshot;
+  joker_c2_custody?: HbceJokerC2ComplianceCustody;
 };
 
 export type HbceIprPhaseData =
