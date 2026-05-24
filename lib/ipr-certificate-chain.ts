@@ -14,9 +14,11 @@ import type {
   HbceIssuer,
   HbceJokerC2AccessGateResult,
   HbceJokerC2BiologicalIdentitySnapshot,
+  HbceJokerC2BiometricLivenessSnapshot,
   HbceJokerC2ComplianceCustody,
   HbceJokerC2CustodyFieldPresence,
   HbceJokerC2OperationalCertificatePrivateFields,
+  HbcePhysicalDescriptorProfile,
   HashReference,
   IsoDateTime,
   JsonObject,
@@ -358,6 +360,33 @@ function getStringFromObject(
   return null;
 }
 
+function getNumberFromObject(
+  source: JsonObject | null,
+  keys: readonly string[]
+): number | null {
+  if (!source) {
+    return null;
+  }
+
+  for (const key of keys) {
+    const value = source[key];
+
+    if (typeof value === "number" && Number.isFinite(value)) {
+      return value;
+    }
+
+    if (typeof value === "string" && value.trim().length > 0) {
+      const parsed = Number(value.trim());
+
+      if (Number.isFinite(parsed)) {
+        return parsed;
+      }
+    }
+  }
+
+  return null;
+}
+
 function getBooleanFromObject(
   source: JsonObject | null,
   keys: readonly string[]
@@ -390,6 +419,21 @@ function getRequiredStringFromObject(
   return value.trim();
 }
 
+function getAllowedString<TAllowed extends string>(
+  source: JsonObject | null,
+  keys: readonly string[],
+  allowedValues: readonly TAllowed[],
+  fallback: TAllowed
+): TAllowed {
+  const value = getStringFromObject(source, keys);
+
+  if (value && allowedValues.includes(value as TAllowed)) {
+    return value as TAllowed;
+  }
+
+  return fallback;
+}
+
 function buildDisplayNameFromSource(source: JsonObject | null): string | null {
   const explicitName = getStringFromObject(source, [
     "display_name",
@@ -415,9 +459,299 @@ function buildDisplayNameFromSource(source: JsonObject | null): string | null {
   return displayName.length > 0 ? displayName : null;
 }
 
+function hasPhysicalDescriptorProfileContent(
+  profile: HbcePhysicalDescriptorProfile | null
+): boolean {
+  if (!profile) {
+    return false;
+  }
+
+  return (
+    profile.height_cm !== null ||
+    profile.weight_kg !== null ||
+    profile.body_build !== null ||
+    profile.eye_color !== null ||
+    profile.hair_color !== null ||
+    profile.hair_type !== null ||
+    profile.visible_scars !== null ||
+    profile.tattoos !== null ||
+    profile.piercings !== null ||
+    profile.distinctive_marks !== null ||
+    profile.descriptor_accuracy_declaration
+  );
+}
+
+function buildPhysicalDescriptorProfileFromSource(
+  source: JsonObject | null
+): HbcePhysicalDescriptorProfile | null {
+  if (!source) {
+    return null;
+  }
+
+  const profileSource =
+    getNestedJsonObject(source, "physical_descriptor_profile") ?? source;
+
+  const profile: HbcePhysicalDescriptorProfile = {
+    height_cm: getNumberFromObject(profileSource, ["height_cm"]),
+    weight_kg: getNumberFromObject(profileSource, ["weight_kg"]),
+    body_build: getStringFromObject(profileSource, ["body_build"]),
+    eye_color: getStringFromObject(profileSource, ["eye_color"]),
+    hair_color: getStringFromObject(profileSource, ["hair_color"]),
+    hair_type: getStringFromObject(profileSource, ["hair_type"]),
+    visible_scars: getStringFromObject(profileSource, ["visible_scars"]),
+    tattoos: getStringFromObject(profileSource, ["tattoos"]),
+    piercings: getStringFromObject(profileSource, ["piercings"]),
+    distinctive_marks: getStringFromObject(profileSource, [
+      "distinctive_marks"
+    ]),
+    descriptor_accuracy_declaration: getBooleanFromObject(profileSource, [
+      "descriptor_accuracy_declaration"
+    ])
+  };
+
+  return hasPhysicalDescriptorProfileContent(profile) ? profile : null;
+}
+
+function mergePhysicalDescriptorProfiles(
+  primary: HbcePhysicalDescriptorProfile | null,
+  fallback: HbcePhysicalDescriptorProfile | null
+): HbcePhysicalDescriptorProfile | null {
+  if (
+    !hasPhysicalDescriptorProfileContent(primary) &&
+    !hasPhysicalDescriptorProfileContent(fallback)
+  ) {
+    return null;
+  }
+
+  return {
+    height_cm: primary?.height_cm ?? fallback?.height_cm ?? null,
+    weight_kg: primary?.weight_kg ?? fallback?.weight_kg ?? null,
+    body_build: primary?.body_build ?? fallback?.body_build ?? null,
+    eye_color: primary?.eye_color ?? fallback?.eye_color ?? null,
+    hair_color: primary?.hair_color ?? fallback?.hair_color ?? null,
+    hair_type: primary?.hair_type ?? fallback?.hair_type ?? null,
+    visible_scars: primary?.visible_scars ?? fallback?.visible_scars ?? null,
+    tattoos: primary?.tattoos ?? fallback?.tattoos ?? null,
+    piercings: primary?.piercings ?? fallback?.piercings ?? null,
+    distinctive_marks:
+      primary?.distinctive_marks ?? fallback?.distinctive_marks ?? null,
+    descriptor_accuracy_declaration: Boolean(
+      primary?.descriptor_accuracy_declaration ||
+        fallback?.descriptor_accuracy_declaration
+    )
+  };
+}
+
+function hasBiometricLivenessSnapshotContent(
+  snapshot: HbceJokerC2BiometricLivenessSnapshot | null
+): boolean {
+  if (!snapshot) {
+    return false;
+  }
+
+  return (
+    snapshot.document_face_reference !== null ||
+    snapshot.selfie_reference !== null ||
+    snapshot.liveness_video_reference !== null ||
+    snapshot.document_face_sha256 !== null ||
+    snapshot.selfie_sha256 !== null ||
+    snapshot.video_sha256 !== null ||
+    snapshot.liveness_declaration_sha256 !== null ||
+    snapshot.face_match_status !== "NOT_STARTED" ||
+    snapshot.face_match_method !== null ||
+    snapshot.liveness_verified ||
+    snapshot.liveness_timestamp !== null ||
+    snapshot.photo_verification_status !== null ||
+    snapshot.video_verification_status !== null ||
+    snapshot.liveness_status !== null ||
+    snapshot.biometric_verification_consent
+  );
+}
+
+function buildBiometricLivenessSnapshotFromSource(
+  source: JsonObject | null
+): HbceJokerC2BiometricLivenessSnapshot | null {
+  if (!source) {
+    return null;
+  }
+
+  const livenessSource =
+    getNestedJsonObject(source, "biometric_liveness_snapshot") ?? source;
+
+  const snapshot: HbceJokerC2BiometricLivenessSnapshot = {
+    document_face_reference: getStringFromObject(livenessSource, [
+      "document_face_reference"
+    ]),
+    selfie_reference: getStringFromObject(livenessSource, [
+      "selfie_reference",
+      "photo_reference"
+    ]),
+    liveness_video_reference: getStringFromObject(livenessSource, [
+      "liveness_video_reference",
+      "video_reference"
+    ]),
+    document_face_sha256: getStringFromObject(livenessSource, [
+      "document_face_sha256"
+    ]),
+    selfie_sha256: getStringFromObject(livenessSource, [
+      "selfie_sha256",
+      "photo_hash"
+    ]),
+    video_sha256: getStringFromObject(livenessSource, [
+      "video_sha256",
+      "video_hash"
+    ]),
+    liveness_declaration_sha256: getStringFromObject(livenessSource, [
+      "liveness_declaration_sha256"
+    ]),
+    face_match_status: getAllowedString(
+      livenessSource,
+      ["face_match_status"],
+      ["NOT_STARTED", "PENDING", "MATCHED", "FAILED", "MANUAL_REVIEW"],
+      "NOT_STARTED"
+    ),
+    face_match_method: getStringFromObject(livenessSource, [
+      "face_match_method"
+    ]),
+    liveness_challenge: getAllowedString(
+      livenessSource,
+      ["liveness_challenge"],
+      [
+        "HEAD_TURN_LEFT_RIGHT",
+        "HEAD_TURN_RIGHT_LEFT",
+        "RANDOM_PROMPT",
+        "MANUAL_OPERATOR_PROMPT",
+        "MANUAL"
+      ],
+      "MANUAL"
+    ),
+    liveness_verified: getBooleanFromObject(livenessSource, [
+      "liveness_verified"
+    ]),
+    liveness_timestamp: getStringFromObject(livenessSource, [
+      "liveness_timestamp"
+    ]),
+    photo_verification_status: getAllowedString(
+      livenessSource,
+      ["photo_verification_status"],
+      ["submitted", "manual_review", "approved", "rejected"],
+      "manual_review"
+    ),
+    video_verification_status: getAllowedString(
+      livenessSource,
+      ["video_verification_status"],
+      ["submitted", "manual_review", "approved", "rejected"],
+      "manual_review"
+    ),
+    liveness_status: getAllowedString(
+      livenessSource,
+      ["liveness_status"],
+      ["submitted", "manual_review", "approved", "rejected"],
+      "manual_review"
+    ),
+    biometric_verification_consent: getBooleanFromObject(livenessSource, [
+      "biometric_verification_consent"
+    ]),
+    manual_review_required:
+      getBooleanFromObject(livenessSource, ["manual_review_required"]) ||
+      getAllowedString(
+        livenessSource,
+        ["face_match_status"],
+        ["NOT_STARTED", "PENDING", "MATCHED", "FAILED", "MANUAL_REVIEW"],
+        "NOT_STARTED"
+      ) !== "MATCHED",
+    raw_photo_in_certificate: false,
+    raw_video_in_certificate: false,
+    raw_media_in_public_registry: false,
+    biometric_template_generated: false,
+    face_template_generated: false,
+    custody_mode: "JOKER_C2_CONTROLLED_CUSTODY"
+  };
+
+  return hasBiometricLivenessSnapshotContent(snapshot) ? snapshot : null;
+}
+
+function mergeBiometricLivenessSnapshots(
+  primary: HbceJokerC2BiometricLivenessSnapshot | null,
+  fallback: HbceJokerC2BiometricLivenessSnapshot | null
+): HbceJokerC2BiometricLivenessSnapshot | null {
+  if (
+    !hasBiometricLivenessSnapshotContent(primary) &&
+    !hasBiometricLivenessSnapshotContent(fallback)
+  ) {
+    return null;
+  }
+
+  return {
+    document_face_reference:
+      primary?.document_face_reference ??
+      fallback?.document_face_reference ??
+      null,
+    selfie_reference:
+      primary?.selfie_reference ?? fallback?.selfie_reference ?? null,
+    liveness_video_reference:
+      primary?.liveness_video_reference ??
+      fallback?.liveness_video_reference ??
+      null,
+    document_face_sha256:
+      primary?.document_face_sha256 ??
+      fallback?.document_face_sha256 ??
+      null,
+    selfie_sha256: primary?.selfie_sha256 ?? fallback?.selfie_sha256 ?? null,
+    video_sha256: primary?.video_sha256 ?? fallback?.video_sha256 ?? null,
+    liveness_declaration_sha256:
+      primary?.liveness_declaration_sha256 ??
+      fallback?.liveness_declaration_sha256 ??
+      null,
+    face_match_status:
+      primary?.face_match_status ??
+      fallback?.face_match_status ??
+      "NOT_STARTED",
+    face_match_method:
+      primary?.face_match_method ?? fallback?.face_match_method ?? null,
+    liveness_challenge:
+      primary?.liveness_challenge ?? fallback?.liveness_challenge ?? "MANUAL",
+    liveness_verified: Boolean(
+      primary?.liveness_verified || fallback?.liveness_verified
+    ),
+    liveness_timestamp:
+      primary?.liveness_timestamp ?? fallback?.liveness_timestamp ?? null,
+    photo_verification_status:
+      primary?.photo_verification_status ??
+      fallback?.photo_verification_status ??
+      null,
+    video_verification_status:
+      primary?.video_verification_status ??
+      fallback?.video_verification_status ??
+      null,
+    liveness_status:
+      primary?.liveness_status ?? fallback?.liveness_status ?? null,
+    biometric_verification_consent: Boolean(
+      primary?.biometric_verification_consent ||
+        fallback?.biometric_verification_consent
+    ),
+    manual_review_required: Boolean(
+      primary?.manual_review_required || fallback?.manual_review_required
+    ),
+    raw_photo_in_certificate: false,
+    raw_video_in_certificate: false,
+    raw_media_in_public_registry: false,
+    biometric_template_generated: false,
+    face_template_generated: false,
+    custody_mode: "JOKER_C2_CONTROLLED_CUSTODY"
+  };
+}
+
 function buildIdentitySnapshotFromSource(
   source: JsonObject | null
 ): HbceJokerC2BiologicalIdentitySnapshot {
+  const physicalDescriptorProfile = buildPhysicalDescriptorProfileFromSource(
+    source
+  );
+  const biometricLivenessSnapshot = buildBiometricLivenessSnapshotFromSource(
+    source
+  );
+
   return {
     display_name: buildDisplayNameFromSource(source),
     first_name: getStringFromObject(source, ["first_name", "given_name"]),
@@ -484,12 +818,13 @@ function buildIdentitySnapshotFromSource(
       "official_document_verified",
       "is_document_verified"
     ]),
-    liveness_verified: getBooleanFromObject(source, [
-      "liveness_verified",
-      "selfie_verified",
-      "video_verified",
-      "is_liveness_verified"
-    ]),
+    liveness_verified:
+      getBooleanFromObject(source, [
+        "liveness_verified",
+        "selfie_verified",
+        "video_verified",
+        "is_liveness_verified"
+      ]) || Boolean(biometricLivenessSnapshot?.liveness_verified),
     compliance_review_status:
       getStringFromObject(source, [
         "compliance_review_status",
@@ -504,7 +839,13 @@ function buildIdentitySnapshotFromSource(
         "identity_verification_consent_hash"
       ])
         ? "COMPLIANCE_ACCEPTED"
-        : null)
+        : null),
+    ...(physicalDescriptorProfile
+      ? { physical_descriptor_profile: physicalDescriptorProfile }
+      : {}),
+    ...(biometricLivenessSnapshot
+      ? { biometric_liveness_snapshot: biometricLivenessSnapshot }
+      : {})
   };
 }
 
@@ -531,7 +872,13 @@ function hasIdentitySnapshotContent(
     snapshot.email_verified ||
     snapshot.document_verified ||
     snapshot.liveness_verified ||
-    snapshot.compliance_review_status !== null
+    snapshot.compliance_review_status !== null ||
+    hasPhysicalDescriptorProfileContent(
+      snapshot.physical_descriptor_profile ?? null
+    ) ||
+    hasBiometricLivenessSnapshotContent(
+      snapshot.biometric_liveness_snapshot ?? null
+    )
   );
 }
 
@@ -539,9 +886,21 @@ function mergeIdentitySnapshots(
   primary: HbceJokerC2BiologicalIdentitySnapshot | null,
   fallback: HbceJokerC2BiologicalIdentitySnapshot | null
 ): HbceJokerC2BiologicalIdentitySnapshot | null {
-  if (!hasIdentitySnapshotContent(primary) && !hasIdentitySnapshotContent(fallback)) {
+  if (
+    !hasIdentitySnapshotContent(primary) &&
+    !hasIdentitySnapshotContent(fallback)
+  ) {
     return null;
   }
+
+  const physicalDescriptorProfile = mergePhysicalDescriptorProfiles(
+    primary?.physical_descriptor_profile ?? null,
+    fallback?.physical_descriptor_profile ?? null
+  );
+  const biometricLivenessSnapshot = mergeBiometricLivenessSnapshots(
+    primary?.biometric_liveness_snapshot ?? null,
+    fallback?.biometric_liveness_snapshot ?? null
+  );
 
   return {
     display_name: primary?.display_name ?? fallback?.display_name ?? null,
@@ -558,18 +917,30 @@ function mergeIdentitySnapshots(
       fallback?.fiscal_or_tax_identifier_ref ??
       null,
     document_ref: primary?.document_ref ?? fallback?.document_ref ?? null,
-    phone_verified: Boolean(primary?.phone_verified || fallback?.phone_verified),
-    email_verified: Boolean(primary?.email_verified || fallback?.email_verified),
+    phone_verified: Boolean(
+      primary?.phone_verified || fallback?.phone_verified
+    ),
+    email_verified: Boolean(
+      primary?.email_verified || fallback?.email_verified
+    ),
     document_verified: Boolean(
       primary?.document_verified || fallback?.document_verified
     ),
     liveness_verified: Boolean(
-      primary?.liveness_verified || fallback?.liveness_verified
+      primary?.liveness_verified ||
+        fallback?.liveness_verified ||
+        biometricLivenessSnapshot?.liveness_verified
     ),
     compliance_review_status:
       primary?.compliance_review_status ??
       fallback?.compliance_review_status ??
-      null
+      null,
+    ...(physicalDescriptorProfile
+      ? { physical_descriptor_profile: physicalDescriptorProfile }
+      : {}),
+    ...(biometricLivenessSnapshot
+      ? { biometric_liveness_snapshot: biometricLivenessSnapshot }
+      : {})
   };
 }
 
@@ -640,6 +1011,9 @@ function extractIdentitySnapshotFromCertificate(
 function buildCustodyFieldPresence(
   identitySnapshot: HbceJokerC2BiologicalIdentitySnapshot | null
 ): HbceJokerC2CustodyFieldPresence {
+  const biometricSnapshot = identitySnapshot?.biometric_liveness_snapshot ?? null;
+  const physicalProfile = identitySnapshot?.physical_descriptor_profile ?? null;
+
   return {
     identity_name: Boolean(
       identitySnapshot?.display_name ||
@@ -659,8 +1033,21 @@ function buildCustodyFieldPresence(
     phone_verification: Boolean(identitySnapshot?.phone_verified),
     email_verification: Boolean(identitySnapshot?.email_verified),
     document_verification: Boolean(identitySnapshot?.document_verified),
-    liveness_verification: Boolean(identitySnapshot?.liveness_verified),
-    compliance_review: Boolean(identitySnapshot?.compliance_review_status)
+    liveness_verification: Boolean(
+      identitySnapshot?.liveness_verified || biometricSnapshot?.liveness_verified
+    ),
+    compliance_review: Boolean(identitySnapshot?.compliance_review_status),
+    physical_descriptors: hasPhysicalDescriptorProfileContent(physicalProfile),
+    biometric_liveness_media:
+      hasBiometricLivenessSnapshotContent(biometricSnapshot),
+    face_match_verification: Boolean(
+      biometricSnapshot?.face_match_status === "MATCHED" ||
+        biometricSnapshot?.face_match_status === "MANUAL_REVIEW"
+    ),
+    document_face_comparison: Boolean(
+      biometricSnapshot?.document_face_reference ||
+        biometricSnapshot?.document_face_sha256
+    )
   };
 }
 
@@ -671,7 +1058,7 @@ function buildJokerC2ComplianceCustody(params: {
 }): HbceJokerC2ComplianceCustody {
   return {
     custody_statement:
-      "AI JOKER-C2 is the controlled operational custodian for compliance data, bureaucratic procedure data, document references and identity-bound runtime continuity. The portable certificate exposes minimized identity and hash references only.",
+      "AI JOKER-C2 is the controlled operational custodian for compliance data, bureaucratic procedure data, document references, face/photo/video liveness references and identity-bound runtime continuity. The portable certificate exposes minimized identity, hashes, references and verification states only.",
     full_data_custodian: "AI_JOKER_C2",
     custody_subject: params.identitySnapshot?.display_name ?? null,
     custody_ipr_id: params.iprId,
@@ -680,6 +1067,8 @@ function buildJokerC2ComplianceCustody(params: {
     raw_documents_in_fragment: false,
     raw_document_images_in_fragment: false,
     raw_video_liveness_in_fragment: false,
+    raw_biometric_templates_in_fragment: false,
+    raw_face_templates_in_fragment: false,
     fragment_policy: "MINIMIZED_HANDOFF_ONLY"
   };
 }
@@ -693,6 +1082,10 @@ function buildOperationalCertificatePrivateFields(
     "certificate_id"
   );
   const iprId = getRequiredStringFromObject(phaseData, "ipr_id");
+  const physicalDescriptorProfile =
+    identitySnapshot?.physical_descriptor_profile ?? undefined;
+  const biometricLivenessSnapshot =
+    identitySnapshot?.biometric_liveness_snapshot ?? undefined;
 
   return {
     certificate_id: certificateId,
@@ -708,6 +1101,12 @@ function buildOperationalCertificatePrivateFields(
       ? {
           identity_snapshot: identitySnapshot,
           biological_identity_snapshot: identitySnapshot,
+          ...(physicalDescriptorProfile
+            ? { physical_descriptor_profile: physicalDescriptorProfile }
+            : {}),
+          ...(biometricLivenessSnapshot
+            ? { biometric_liveness_snapshot: biometricLivenessSnapshot }
+            : {}),
           joker_c2_custody: buildJokerC2ComplianceCustody({
             identitySnapshot,
             iprId,
@@ -768,6 +1167,44 @@ function enrichSubjectCreatedPhaseData(params: {
   return output;
 }
 
+function enrichLivenessPhaseData(phaseData: JsonObject): JsonObject {
+  const physicalDescriptorProfile = buildPhysicalDescriptorProfileFromSource(
+    phaseData
+  );
+  const biometricLivenessSnapshot = buildBiometricLivenessSnapshotFromSource(
+    phaseData
+  );
+
+  return {
+    ...phaseData,
+    certificate_role: "PHOTO_VIDEO_LIVENESS_EVIDENCE",
+    certificate_visibility: "PRIVATE_PORTABLE_CERTIFICATE",
+    public_registry_mode: "HASH_ONLY",
+    raw_photo_in_certificate: false,
+    raw_video_in_certificate: false,
+    raw_media_in_public_registry: false,
+    biometric_template_generated: false,
+    face_template_generated: false,
+    custody_mode: "JOKER_C2_CONTROLLED_CUSTODY",
+    ...(physicalDescriptorProfile
+      ? { physical_descriptor_profile: physicalDescriptorProfile }
+      : {}),
+    ...(biometricLivenessSnapshot
+      ? { biometric_liveness_snapshot: biometricLivenessSnapshot }
+      : {}),
+    joker_c2_custody_reference: {
+      custodian: "AI_JOKER_C2",
+      custody_mode: "JOKER_C2_CONTROLLED_CUSTODY",
+      raw_photo_in_certificate: false,
+      raw_video_in_certificate: false,
+      raw_media_in_public_registry: false,
+      certificate_contains: "hashes_references_states_only"
+    },
+    liveness_boundary:
+      "This certificate stores protected references, hashes, verification states and custody boundaries for face/photo/video liveness. It does not store raw photos, raw videos, biometric templates or face templates."
+  };
+}
+
 function enrichOperationalCertificatePhaseData(params: {
   phaseData: JsonObject;
   identitySnapshot: HbceJokerC2BiologicalIdentitySnapshot | null;
@@ -801,7 +1238,19 @@ function enrichOperationalCertificatePhaseData(params: {
     ...(params.identitySnapshot
       ? {
           identity_snapshot: params.identitySnapshot,
-          biological_identity_snapshot: params.identitySnapshot
+          biological_identity_snapshot: params.identitySnapshot,
+          ...(params.identitySnapshot.physical_descriptor_profile
+            ? {
+                physical_descriptor_profile:
+                  params.identitySnapshot.physical_descriptor_profile
+              }
+            : {}),
+          ...(params.identitySnapshot.biometric_liveness_snapshot
+            ? {
+                biometric_liveness_snapshot:
+                  params.identitySnapshot.biometric_liveness_snapshot
+              }
+            : {})
         }
       : {}),
     joker_c2_custody: jokerC2Custody,
@@ -837,6 +1286,10 @@ function enrichPhaseData<TPhaseData extends JsonObject>(
         })
       : commonPhaseData;
 
+  if (input.phase_code === "LIVENESS_SUBMITTED") {
+    enrichedPhaseData = enrichLivenessPhaseData(enrichedPhaseData);
+  }
+
   const previousIdentitySnapshot = extractIdentitySnapshotFromCertificate(
     input.previous_certificate
   );
@@ -851,7 +1304,19 @@ function enrichPhaseData<TPhaseData extends JsonObject>(
     enrichedPhaseData = {
       ...enrichedPhaseData,
       identity_snapshot: identitySnapshot,
-      biological_identity_snapshot: identitySnapshot
+      biological_identity_snapshot: identitySnapshot,
+      ...(identitySnapshot.physical_descriptor_profile
+        ? {
+            physical_descriptor_profile:
+              identitySnapshot.physical_descriptor_profile
+          }
+        : {}),
+      ...(identitySnapshot.biometric_liveness_snapshot
+        ? {
+            biometric_liveness_snapshot:
+              identitySnapshot.biometric_liveness_snapshot
+          }
+        : {})
     };
   }
 
@@ -1564,6 +2029,8 @@ export async function validateJokerC2OperationalCertificate(
     "certificate_scope"
   ]);
   const identitySnapshot = extractIdentitySnapshotFromCertificate(certificate);
+  const biometricLivenessSnapshot =
+    identitySnapshot?.biometric_liveness_snapshot ?? null;
 
   if (!certificateId || !iprId || !subjectId || !cardSerial) {
     return {
@@ -1621,10 +2088,38 @@ export async function validateJokerC2OperationalCertificate(
     };
   }
 
+  if (!hasBiometricLivenessSnapshotContent(biometricLivenessSnapshot)) {
+    return {
+      decision: "ACCESS_DENIED",
+      reason:
+        "ACCESS_DENIED: operational certificate does not contain the required photo/video liveness snapshot for JOKER-C2 identity-bound access.",
+      certificate_status: certificate.certificate_status,
+      certificate_scope: certificate.certificate_scope,
+      payload_sha256: certificate.hash_integrity.payload_sha256,
+      previous_payload_sha256:
+        certificate.hash_integrity.previous_payload_sha256,
+      checked_at: checkedAt
+    };
+  }
+
+  if (!biometricLivenessSnapshot?.biometric_verification_consent) {
+    return {
+      decision: "ACCESS_DENIED",
+      reason:
+        "ACCESS_DENIED: operational certificate does not confirm biometric/liveness verification consent.",
+      certificate_status: certificate.certificate_status,
+      certificate_scope: certificate.certificate_scope,
+      payload_sha256: certificate.hash_integrity.payload_sha256,
+      previous_payload_sha256:
+        certificate.hash_integrity.previous_payload_sha256,
+      checked_at: checkedAt
+    };
+  }
+
   return {
     decision: "ACCESS_GRANTED",
     reason:
-      "ACCESS_GRANTED: HBCE operational certificate is active, identity-bound and valid for JOKER-C2 governed access.",
+      "ACCESS_GRANTED: HBCE operational certificate is active, identity-bound, liveness-bound and valid for JOKER-C2 governed access.",
     certificate_status: certificate.certificate_status,
     certificate_scope: certificate.certificate_scope,
     payload_sha256: certificate.hash_integrity.payload_sha256,
