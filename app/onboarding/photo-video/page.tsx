@@ -17,13 +17,16 @@ import { OnboardingStepper } from "@/components/OnboardingStepper";
 import { StatusBadge } from "@/components/StatusBadge";
 
 import type { AcceptedIprCertificateUpload } from "@/components/IprCertificateUploader";
-import type { HbceGeneratedCertificate, JsonObject } from "@/lib/types";
+import type {
+  HbceGeneratedCertificate,
+  HbceIprCertificate,
+  HbceJokerC2BiologicalIdentitySnapshot,
+  HbceJokerC2BiometricLivenessSnapshot,
+  HbcePhysicalDescriptorProfile,
+  JsonObject
+} from "@/lib/types";
 
-type FaceMatchStatus =
-  | "PENDING"
-  | "MATCHED"
-  | "FAILED"
-  | "MANUAL_REVIEW";
+type FaceMatchStatus = "PENDING" | "MATCHED" | "FAILED" | "MANUAL_REVIEW";
 
 type LivenessChallenge =
   | "HEAD_TURN_LEFT_RIGHT"
@@ -151,7 +154,157 @@ function parseOptionalNumber(value: string): number | null {
   return Number.isFinite(parsed) ? parsed : null;
 }
 
-function buildPhysicalDescriptorProfile(form: PhotoVideoFormState): JsonObject {
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function isJsonObject(value: unknown): value is JsonObject {
+  return isRecord(value);
+}
+
+function getJsonObjectField(
+  fields: JsonObject | null,
+  key: string
+): JsonObject | null {
+  if (!fields) {
+    return null;
+  }
+
+  const value = fields[key];
+
+  return isJsonObject(value) ? value : null;
+}
+
+function getStringField(fields: JsonObject | null, key: string): string | null {
+  if (!fields) {
+    return null;
+  }
+
+  const value = fields[key];
+
+  return typeof value === "string" && value.trim().length > 0
+    ? value.trim()
+    : null;
+}
+
+function getBooleanField(fields: JsonObject | null, key: string): boolean {
+  if (!fields) {
+    return false;
+  }
+
+  return fields[key] === true;
+}
+
+function getStringFromSources(
+  sources: readonly (JsonObject | null)[],
+  keys: readonly string[]
+): string | null {
+  for (const source of sources) {
+    for (const key of keys) {
+      const value = getStringField(source, key);
+
+      if (value) {
+        return value;
+      }
+    }
+  }
+
+  return null;
+}
+
+function getBooleanFromSources(
+  sources: readonly (JsonObject | null)[],
+  keys: readonly string[]
+): boolean {
+  for (const source of sources) {
+    for (const key of keys) {
+      if (getBooleanField(source, key)) {
+        return true;
+      }
+    }
+  }
+
+  return false;
+}
+
+function getFirstNestedObjectFromSources(
+  sources: readonly (JsonObject | null)[],
+  keys: readonly string[]
+): JsonObject | null {
+  for (const source of sources) {
+    if (!source) {
+      continue;
+    }
+
+    for (const key of keys) {
+      const nested = getJsonObjectField(source, key);
+
+      if (nested) {
+        return nested;
+      }
+    }
+  }
+
+  return null;
+}
+
+function getIdentitySourcesFromCertificate(
+  certificate: HbceIprCertificate | null | undefined
+): JsonObject[] {
+  if (!certificate) {
+    return [];
+  }
+
+  const phaseData = certificate.payload.phase_data;
+  const privateFields = getJsonObjectField(phaseData, "private_fields");
+  const certificateFields = getJsonObjectField(phaseData, "certificate_fields");
+  const fiscalFields = getJsonObjectField(phaseData, "fiscal_fields");
+  const documentFields = getJsonObjectField(phaseData, "document_fields");
+  const identityFields = getJsonObjectField(phaseData, "identity_fields");
+  const complianceFields = getJsonObjectField(phaseData, "compliance_fields");
+
+  const explicitBiologicalSnapshot = getFirstNestedObjectFromSources(
+    [
+      phaseData,
+      privateFields,
+      certificateFields,
+      fiscalFields,
+      documentFields,
+      identityFields,
+      complianceFields
+    ],
+    ["biological_identity_snapshot"]
+  );
+
+  const explicitIdentitySnapshot = getFirstNestedObjectFromSources(
+    [
+      phaseData,
+      privateFields,
+      certificateFields,
+      fiscalFields,
+      documentFields,
+      identityFields,
+      complianceFields
+    ],
+    ["identity_snapshot"]
+  );
+
+  return [
+    explicitBiologicalSnapshot,
+    explicitIdentitySnapshot,
+    privateFields,
+    certificateFields,
+    fiscalFields,
+    documentFields,
+    identityFields,
+    complianceFields,
+    phaseData
+  ].filter(isJsonObject);
+}
+
+function buildPhysicalDescriptorProfile(
+  form: PhotoVideoFormState
+): HbcePhysicalDescriptorProfile {
   return {
     height_cm: parseOptionalNumber(form.height_cm),
     weight_kg: parseOptionalNumber(form.weight_kg),
@@ -171,7 +324,7 @@ function buildBiometricLivenessSnapshot(params: {
   form: PhotoVideoFormState;
   issuedAt: string;
   livenessDeclarationSha256: string;
-}): JsonObject {
+}): HbceJokerC2BiometricLivenessSnapshot {
   const livenessVerified =
     params.form.face_match_status === "MATCHED" &&
     params.form.liveness_status === "approved";
@@ -197,9 +350,121 @@ function buildBiometricLivenessSnapshot(params: {
     manual_review_required: !livenessVerified,
     raw_photo_in_certificate: false,
     raw_video_in_certificate: false,
+    raw_media_in_public_registry: false,
     biometric_template_generated: false,
     face_template_generated: false,
     custody_mode: "JOKER_C2_CONTROLLED_CUSTODY"
+  };
+}
+
+function buildDisplayNameFromSources(sources: JsonObject[]): string | null {
+  const explicitDisplayName = getStringFromSources(sources, [
+    "display_name",
+    "full_name",
+    "legal_name",
+    "subject_name",
+    "name"
+  ]);
+
+  if (explicitDisplayName) {
+    return explicitDisplayName;
+  }
+
+  const firstName = getStringFromSources(sources, ["first_name", "given_name"]);
+  const lastName = getStringFromSources(sources, [
+    "last_name",
+    "family_name",
+    "surname"
+  ]);
+
+  const composedName = [firstName, lastName].filter(Boolean).join(" ").trim();
+
+  return composedName.length > 0 ? composedName : null;
+}
+
+function buildBiologicalIdentitySnapshot(params: {
+  previousCertificate: HbceIprCertificate;
+  physicalDescriptorProfile: HbcePhysicalDescriptorProfile;
+  biometricLivenessSnapshot: HbceJokerC2BiometricLivenessSnapshot;
+}): HbceJokerC2BiologicalIdentitySnapshot {
+  const sources = getIdentitySourcesFromCertificate(params.previousCertificate);
+
+  return {
+    display_name: buildDisplayNameFromSources(sources),
+    first_name: getStringFromSources(sources, ["first_name", "given_name"]),
+    last_name: getStringFromSources(sources, [
+      "last_name",
+      "family_name",
+      "surname"
+    ]),
+    birth_date: getStringFromSources(sources, [
+      "birth_date",
+      "date_of_birth",
+      "dob"
+    ]),
+    birth_place: getStringFromSources(sources, [
+      "birth_place",
+      "place_of_birth"
+    ]),
+    nationality: getStringFromSources(sources, ["nationality", "citizenship"]),
+    country: getStringFromSources(sources, [
+      "country",
+      "country_code",
+      "residence_country",
+      "fiscal_country"
+    ]),
+    email: getStringFromSources(sources, ["email", "email_address"]),
+    phone_number: getStringFromSources(sources, [
+      "phone_number",
+      "phone",
+      "mobile_phone"
+    ]),
+    fiscal_or_tax_identifier_ref: getStringFromSources(sources, [
+      "fiscal_or_tax_identifier_ref",
+      "fiscal_code_ref",
+      "tax_identifier_ref",
+      "national_tax_identifier_ref",
+      "tax_id_value_hash",
+      "fiscal_identifier_hash",
+      "tax_id_document_front_sha256",
+      "tax_id_document_back_sha256",
+      "tax_id_document_sha256"
+    ]),
+    document_ref:
+      params.biometricLivenessSnapshot.document_face_reference ??
+      getStringFromSources(sources, [
+        "document_ref",
+        "document_hash",
+        "identity_document_hash",
+        "document_identifier_ref",
+        "document_number_hash",
+        "document_front_sha256",
+        "document_back_sha256",
+        "document_passport_page_sha256",
+        "document_metadata_hash"
+      ]),
+    phone_verified: getBooleanFromSources(sources, [
+      "phone_verified",
+      "is_phone_verified"
+    ]),
+    email_verified: getBooleanFromSources(sources, [
+      "email_verified",
+      "is_email_verified"
+    ]),
+    document_verified:
+      getBooleanFromSources(sources, [
+        "document_verified",
+        "identity_document_verified",
+        "official_document_verified",
+        "is_document_verified"
+      ]) || Boolean(params.biometricLivenessSnapshot.document_face_reference),
+    liveness_verified: params.biometricLivenessSnapshot.liveness_verified,
+    compliance_review_status:
+      params.biometricLivenessSnapshot.manual_review_required
+        ? "MANUAL_REVIEW_REQUIRED"
+        : "LIVENESS_APPROVED",
+    physical_descriptor_profile: params.physicalDescriptorProfile,
+    biometric_liveness_snapshot: params.biometricLivenessSnapshot
   };
 }
 
@@ -237,6 +502,37 @@ export default function OnboardingPhotoVideoPage() {
 
   const canGenerateCertificate =
     previousUpload !== null && hasRequiredLivenessFields(form);
+
+  const previousIdentityPreview = useMemo(() => {
+    if (!previousUpload) {
+      return null;
+    }
+
+    const sources = getIdentitySourcesFromCertificate(previousUpload.certificate);
+
+    return {
+      display_name: buildDisplayNameFromSources(sources),
+      document_ref: getStringFromSources(sources, [
+        "document_ref",
+        "document_hash",
+        "identity_document_hash",
+        "document_identifier_ref",
+        "document_number_hash",
+        "document_front_sha256",
+        "document_back_sha256",
+        "document_passport_page_sha256",
+        "document_metadata_hash"
+      ]),
+      fiscal_or_tax_identifier_ref: getStringFromSources(sources, [
+        "fiscal_or_tax_identifier_ref",
+        "fiscal_code_ref",
+        "tax_identifier_ref",
+        "national_tax_identifier_ref",
+        "tax_id_value_hash",
+        "fiscal_identifier_hash"
+      ])
+    };
+  }, [previousUpload]);
 
   const photoVideoStateItems = useMemo(
     () =>
@@ -338,10 +634,54 @@ export default function OnboardingPhotoVideoPage() {
 
       const physicalDescriptorProfile = buildPhysicalDescriptorProfile(form);
 
+      const biologicalIdentitySnapshot = buildBiologicalIdentitySnapshot({
+        previousCertificate: previousUpload.certificate,
+        physicalDescriptorProfile,
+        biometricLivenessSnapshot
+      });
+
+      const livenessEvidenceHash = await sha256Canonical({
+        kind: "HBCE_IPR_PHASE_4_LIVENESS_EVIDENCE",
+        phase: "LIVENESS_SUBMITTED",
+        identity_snapshot: biologicalIdentitySnapshot,
+        physical_descriptor_profile: physicalDescriptorProfile,
+        biometric_liveness_snapshot: biometricLivenessSnapshot,
+        previous_payload_sha256: previousUpload.payloadSha256,
+        issued_at: issuedAt
+      });
+
       const phaseData: JsonObject = {
+        certificate_role: "STEP_4_PHOTO_VIDEO_LIVENESS_EVIDENCE",
+        certificate_visibility: "PRIVATE_PORTABLE_CERTIFICATE",
+        public_registry_mode: "HASH_ONLY",
+        phase_scope: "PHOTO_VIDEO_LIVENESS",
+
+        identity_snapshot: biologicalIdentitySnapshot,
+        biological_identity_snapshot: biologicalIdentitySnapshot,
+        physical_descriptor_profile: physicalDescriptorProfile,
+        biometric_liveness_snapshot: biometricLivenessSnapshot,
+
+        private_fields: {
+          identity_snapshot: biologicalIdentitySnapshot,
+          biological_identity_snapshot: biologicalIdentitySnapshot,
+          physical_descriptor_profile: physicalDescriptorProfile,
+          biometric_liveness_snapshot: biometricLivenessSnapshot,
+          joker_c2_custody: {
+            custodian: "AI_JOKER_C2",
+            custody_mode: "JOKER_C2_CONTROLLED_CUSTODY",
+            raw_photo_in_certificate: false,
+            raw_video_in_certificate: false,
+            raw_media_in_public_registry: false,
+            raw_biometric_templates_in_certificate: false,
+            raw_face_templates_in_certificate: false,
+            certificate_contains: "hashes_references_states_only"
+          }
+        },
+
         selfie_sha256: form.selfie_sha256.trim(),
         video_sha256: form.video_sha256.trim(),
         liveness_declaration_sha256: livenessDeclarationSha256,
+        liveness_evidence_hash: livenessEvidenceHash,
         liveness_timestamp: issuedAt,
         document_face_reference: form.document_face_reference.trim(),
         selfie_reference: form.selfie_reference.trim(),
@@ -357,24 +697,87 @@ export default function OnboardingPhotoVideoPage() {
         face_match_status: form.face_match_status,
         face_match_method: form.face_match_method.trim(),
         liveness_challenge: form.liveness_challenge,
-        liveness_verified:
-          form.face_match_status === "MATCHED" &&
-          form.liveness_status === "approved",
+        liveness_verified: biometricLivenessSnapshot.liveness_verified,
         biometric_verification_consent:
           form.biometric_verification_consent,
+        descriptor_accuracy_declaration:
+          form.descriptor_accuracy_declaration,
         manual_review_required:
-          form.face_match_status !== "MATCHED" ||
-          form.liveness_status !== "approved",
-        physical_descriptor_profile: physicalDescriptorProfile,
-        biometric_liveness_snapshot: biometricLivenessSnapshot,
-        joker_c2_custody_reference: {
-          custodian: "AI_JOKER_C2",
-          custody_mode: "JOKER_C2_CONTROLLED_CUSTODY",
-          raw_photo_in_certificate: false,
-          raw_video_in_certificate: false,
-          raw_media_in_public_registry: false,
-          certificate_contains: "hashes_references_states_only"
-        }
+          biometricLivenessSnapshot.manual_review_required,
+
+        raw_photo_in_certificate: false,
+        raw_video_in_certificate: false,
+        raw_media_in_public_registry: false,
+        biometric_template_generated: false,
+        face_template_generated: false,
+
+        fiscal_identity_collected: true,
+        fiscal_identity_verified: false,
+        official_document_uploaded: true,
+        official_document_verified: true,
+        liveness_submitted: true,
+        privacy_compliance_accepted: false,
+        ipr_status: "NOT_YET_ISSUED",
+        ipr_card_status: "NOT_ISSUED",
+        joker_c2_access: "DENIED",
+
+        verification_state: {
+          email_verified: false,
+          phone_verified: false,
+          fiscal_identity_collected: true,
+          fiscal_identity_verified: false,
+          official_document_uploaded: true,
+          official_document_verified: true,
+          liveness_submitted: true,
+          liveness_verified: biometricLivenessSnapshot.liveness_verified,
+          biometric_verification_consent:
+            form.biometric_verification_consent,
+          privacy_compliance_accepted: false,
+          hbce_review_status: "NOT_STARTED",
+          ipr_approved: false,
+          ipr_card_issued: false,
+          operational_certificate_issued: false,
+          joker_c2_access: "DENIED"
+        },
+
+        joker_c2_custody: {
+          custody_statement:
+            "AI JOKER-C2 is the controlled operational custodian for minimized identity, document-reference, photo-reference and liveness-reference data inside HBCE governed runtime workflows.",
+          full_data_custodian: "AI_JOKER_C2",
+          custody_subject: biologicalIdentitySnapshot.display_name,
+          custody_ipr_id: null,
+          custody_certificate_id: null,
+          custody_fields_present: {
+            identity_snapshot: true,
+            physical_descriptors: true,
+            biometric_liveness_media: true,
+            face_match_verification: Boolean(form.face_match_status),
+            document_face_comparison: true
+          },
+          raw_documents_in_fragment: false,
+          raw_document_images_in_fragment: false,
+          raw_video_liveness_in_fragment: false,
+          raw_biometric_templates_in_fragment: false,
+          raw_face_templates_in_fragment: false,
+          fragment_policy: "MINIMIZED_HANDOFF_ONLY"
+        },
+
+        previous_payload_sha256: previousUpload.payloadSha256,
+        next_required_phase: "PRIVACY_COMPLIANCE",
+        issued_at: issuedAt,
+        issued_at_utc: issuedAt,
+
+        certificate_boundary:
+          "This file records photo, face and liveness evidence references for the HBCE IPR onboarding chain. It does not approve the IPR, does not issue an IPR Card, does not activate the operational certificate and does not grant JOKER-C2 access.",
+
+        privacy_boundary:
+          "This private portable HBCE-IPR certificate contains minimized liveness references, hashes, states and custody declarations only. It must not contain raw photos, raw videos, biometric templates or face templates.",
+
+        biometric_boundary:
+          "Photo, face and liveness data are represented through protected references, hash values and review states. Raw biometric media and templates remain outside portable certificates and public routes.",
+
+        trust_boundary:
+          "Certificate 04 prepares the onboarding package for privacy and compliance only. HBCE review, IPR approval, IPR Card issuance and JOKER-C2 access remain denied until later fail-closed phases."
       };
 
       const generated = await generateHbceIprCertificate({
@@ -472,6 +875,26 @@ export default function OnboardingPhotoVideoPage() {
                 </div>
               ))}
             </div>
+
+            {previousIdentityPreview ? (
+              <>
+                <div className="hbce-divider" />
+
+                <p className="hbce-mono">
+                  previous_subject:{" "}
+                  {previousIdentityPreview.display_name ?? "unavailable"}
+                </p>
+                <p className="hbce-mono">
+                  previous_document_ref:{" "}
+                  {previousIdentityPreview.document_ref ?? "unavailable"}
+                </p>
+                <p className="hbce-mono">
+                  previous_fiscal_ref:{" "}
+                  {previousIdentityPreview.fiscal_or_tax_identifier_ref ??
+                    "unavailable"}
+                </p>
+              </>
+            ) : null}
 
             {generatedCertificate ? (
               <>
