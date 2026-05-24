@@ -597,12 +597,24 @@ async function buildPhase2FiscalIdentityData(
       fiscalIdentitySnapshot.fiscal_or_tax_identifier_ref,
     tax_id_value_hash: fiscalIdentitySnapshot.tax_id_value_hash,
     tax_id_metadata_hash: fiscalIdentitySnapshot.tax_id_metadata_hash,
-    tax_id_document_front_sha256:
-      fiscalIdentitySnapshot.tax_id_document_front_sha256 ?? undefined,
-    tax_id_document_back_sha256:
-      fiscalIdentitySnapshot.tax_id_document_back_sha256 ?? undefined,
-    tax_id_document_sha256:
-      fiscalIdentitySnapshot.tax_id_document_sha256 ?? undefined,
+    ...(fiscalIdentitySnapshot.tax_id_document_front_sha256
+      ? {
+          tax_id_document_front_sha256:
+            fiscalIdentitySnapshot.tax_id_document_front_sha256
+        }
+      : {}),
+    ...(fiscalIdentitySnapshot.tax_id_document_back_sha256
+      ? {
+          tax_id_document_back_sha256:
+            fiscalIdentitySnapshot.tax_id_document_back_sha256
+        }
+      : {}),
+    ...(fiscalIdentitySnapshot.tax_id_document_sha256
+      ? {
+          tax_id_document_sha256:
+            fiscalIdentitySnapshot.tax_id_document_sha256
+        }
+      : {}),
     fiscal_identity_collected: true,
     fiscal_identity_verified: false,
     identity_snapshot: identitySnapshot,
