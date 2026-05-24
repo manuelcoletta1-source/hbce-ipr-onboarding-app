@@ -43,6 +43,29 @@ export const HBCE_IPR_POLICY: HbceIprPolicy = {
 
 const HBCE_TIMEZONE = "Europe/Rome" as const;
 
+const HBCE_FACE_MATCH_STATUSES = [
+  "NOT_STARTED",
+  "PENDING",
+  "MATCHED",
+  "FAILED",
+  "MANUAL_REVIEW"
+] as const;
+
+const HBCE_LIVENESS_CHALLENGES = [
+  "HEAD_TURN_LEFT_RIGHT",
+  "HEAD_TURN_RIGHT_LEFT",
+  "RANDOM_PROMPT",
+  "MANUAL_OPERATOR_PROMPT",
+  "MANUAL"
+] as const;
+
+const HBCE_LIVENESS_REVIEW_STATUSES = [
+  "submitted",
+  "manual_review",
+  "approved",
+  "rejected"
+] as const;
+
 export type HbcePreviousCertificateValidationInput = {
   certificate: unknown;
   expected_previous_phase: HbceIprCertificatePhaseCode | null;
@@ -578,6 +601,13 @@ function buildBiometricLivenessSnapshotFromSource(
   const livenessSource =
     getNestedJsonObject(source, "biometric_liveness_snapshot") ?? source;
 
+  const faceMatchStatus = getAllowedString(
+    livenessSource,
+    ["face_match_status"],
+    HBCE_FACE_MATCH_STATUSES,
+    "NOT_STARTED"
+  );
+
   const snapshot: HbceJokerC2BiometricLivenessSnapshot = {
     document_face_reference: getStringFromObject(livenessSource, [
       "document_face_reference"
@@ -604,25 +634,14 @@ function buildBiometricLivenessSnapshotFromSource(
     liveness_declaration_sha256: getStringFromObject(livenessSource, [
       "liveness_declaration_sha256"
     ]),
-    face_match_status: getAllowedString(
-      livenessSource,
-      ["face_match_status"],
-      ["NOT_STARTED", "PENDING", "MATCHED", "FAILED", "MANUAL_REVIEW"],
-      "NOT_STARTED"
-    ),
+    face_match_status: faceMatchStatus,
     face_match_method: getStringFromObject(livenessSource, [
       "face_match_method"
     ]),
     liveness_challenge: getAllowedString(
       livenessSource,
       ["liveness_challenge"],
-      [
-        "HEAD_TURN_LEFT_RIGHT",
-        "HEAD_TURN_RIGHT_LEFT",
-        "RANDOM_PROMPT",
-        "MANUAL_OPERATOR_PROMPT",
-        "MANUAL"
-      ],
+      HBCE_LIVENESS_CHALLENGES,
       "MANUAL"
     ),
     liveness_verified: getBooleanFromObject(livenessSource, [
@@ -634,19 +653,19 @@ function buildBiometricLivenessSnapshotFromSource(
     photo_verification_status: getAllowedString(
       livenessSource,
       ["photo_verification_status"],
-      ["submitted", "manual_review", "approved", "rejected"],
+      HBCE_LIVENESS_REVIEW_STATUSES,
       "manual_review"
     ),
     video_verification_status: getAllowedString(
       livenessSource,
       ["video_verification_status"],
-      ["submitted", "manual_review", "approved", "rejected"],
+      HBCE_LIVENESS_REVIEW_STATUSES,
       "manual_review"
     ),
     liveness_status: getAllowedString(
       livenessSource,
       ["liveness_status"],
-      ["submitted", "manual_review", "approved", "rejected"],
+      HBCE_LIVENESS_REVIEW_STATUSES,
       "manual_review"
     ),
     biometric_verification_consent: getBooleanFromObject(livenessSource, [
@@ -654,12 +673,7 @@ function buildBiometricLivenessSnapshotFromSource(
     ]),
     manual_review_required:
       getBooleanFromObject(livenessSource, ["manual_review_required"]) ||
-      getAllowedString(
-        livenessSource,
-        ["face_match_status"],
-        ["NOT_STARTED", "PENDING", "MATCHED", "FAILED", "MANUAL_REVIEW"],
-        "NOT_STARTED"
-      ) !== "MATCHED",
+      faceMatchStatus !== "MATCHED",
     raw_photo_in_certificate: false,
     raw_video_in_certificate: false,
     raw_media_in_public_registry: false,
