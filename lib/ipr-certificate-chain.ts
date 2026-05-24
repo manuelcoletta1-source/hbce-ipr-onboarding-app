@@ -13,6 +13,10 @@ import type {
   HbceIprPolicy,
   HbceIssuer,
   HbceJokerC2AccessGateResult,
+  HbceJokerC2BiologicalIdentitySnapshot,
+  HbceJokerC2ComplianceCustody,
+  HbceJokerC2CustodyFieldPresence,
+  HbceJokerC2OperationalCertificatePrivateFields,
   HashReference,
   IsoDateTime,
   JsonObject,
@@ -318,6 +322,402 @@ function getVerificationStateForSubjectCreated(
   return buildInitialVerificationState();
 }
 
+function toJsonObject(value: unknown): JsonObject | null {
+  const canonicalValue = canonicalize(value);
+
+  return isPlainRecord(canonicalValue) ? canonicalValue : null;
+}
+
+function getNestedJsonObject(
+  source: JsonObject | null,
+  key: string
+): JsonObject | null {
+  if (!source) {
+    return null;
+  }
+
+  return toJsonObject(source[key]);
+}
+
+function getStringFromObject(
+  source: JsonObject | null,
+  keys: readonly string[]
+): string | null {
+  if (!source) {
+    return null;
+  }
+
+  for (const key of keys) {
+    const value = source[key];
+
+    if (typeof value === "string" && value.trim().length > 0) {
+      return value.trim();
+    }
+  }
+
+  return null;
+}
+
+function getBooleanFromObject(
+  source: JsonObject | null,
+  keys: readonly string[]
+): boolean {
+  if (!source) {
+    return false;
+  }
+
+  for (const key of keys) {
+    if (source[key] === true) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
+function getRequiredStringFromObject(
+  source: JsonObject,
+  key: string
+): string {
+  const value = source[key];
+
+  if (typeof value !== "string" || value.trim().length === 0) {
+    throw new Error(
+      `HBCE IPR certificate generation failed: missing required field "${key}".`
+    );
+  }
+
+  return value.trim();
+}
+
+function buildDisplayNameFromSource(source: JsonObject | null): string | null {
+  const explicitName = getStringFromObject(source, [
+    "display_name",
+    "full_name",
+    "legal_name",
+    "subject_name",
+    "name"
+  ]);
+
+  if (explicitName) {
+    return explicitName;
+  }
+
+  const firstName = getStringFromObject(source, ["first_name", "given_name"]);
+  const lastName = getStringFromObject(source, [
+    "last_name",
+    "family_name",
+    "surname"
+  ]);
+
+  const displayName = [firstName, lastName].filter(Boolean).join(" ").trim();
+
+  return displayName.length > 0 ? displayName : null;
+}
+
+function buildIdentitySnapshotFromSource(
+  source: JsonObject | null
+): HbceJokerC2BiologicalIdentitySnapshot {
+  return {
+    display_name: buildDisplayNameFromSource(source),
+    first_name: getStringFromObject(source, ["first_name", "given_name"]),
+    last_name: getStringFromObject(source, [
+      "last_name",
+      "family_name",
+      "surname"
+    ]),
+    birth_date: getStringFromObject(source, [
+      "birth_date",
+      "date_of_birth",
+      "dob"
+    ]),
+    birth_place: getStringFromObject(source, [
+      "birth_place",
+      "place_of_birth"
+    ]),
+    nationality: getStringFromObject(source, ["nationality", "citizenship"]),
+    country: getStringFromObject(source, [
+      "country",
+      "country_code",
+      "residence_country",
+      "fiscal_country"
+    ]),
+    email: getStringFromObject(source, ["email", "email_address"]),
+    phone_number: getStringFromObject(source, [
+      "phone_number",
+      "phone",
+      "mobile_phone"
+    ]),
+    fiscal_or_tax_identifier_ref: getStringFromObject(source, [
+      "fiscal_or_tax_identifier_ref",
+      "fiscal_code_ref",
+      "tax_identifier_ref",
+      "national_tax_identifier_ref",
+      "tax_id_value_hash",
+      "fiscal_identifier_hash",
+      "tax_id_document_front_sha256",
+      "tax_id_document_back_sha256",
+      "tax_id_document_sha256"
+    ]),
+    document_ref: getStringFromObject(source, [
+      "document_ref",
+      "document_hash",
+      "identity_document_hash",
+      "document_identifier_ref",
+      "document_number_hash",
+      "document_front_sha256",
+      "document_back_sha256",
+      "document_passport_page_sha256",
+      "document_metadata_hash"
+    ]),
+    phone_verified: getBooleanFromObject(source, [
+      "phone_verified",
+      "is_phone_verified"
+    ]),
+    email_verified: getBooleanFromObject(source, [
+      "email_verified",
+      "is_email_verified"
+    ]),
+    document_verified: getBooleanFromObject(source, [
+      "document_verified",
+      "identity_document_verified",
+      "official_document_verified",
+      "is_document_verified"
+    ]),
+    liveness_verified: getBooleanFromObject(source, [
+      "liveness_verified",
+      "selfie_verified",
+      "video_verified",
+      "is_liveness_verified"
+    ]),
+    compliance_review_status:
+      getStringFromObject(source, [
+        "compliance_review_status",
+        "kyc_status",
+        "review_status",
+        "hbce_review_status"
+      ]) ??
+      (getBooleanFromObject(source, [
+        "privacy_compliance_accepted",
+        "gdpr_min_acknowledgement",
+        "hash_only_acknowledgement",
+        "identity_verification_consent_hash"
+      ])
+        ? "COMPLIANCE_ACCEPTED"
+        : null)
+  };
+}
+
+function hasIdentitySnapshotContent(
+  snapshot: HbceJokerC2BiologicalIdentitySnapshot | null
+): boolean {
+  if (!snapshot) {
+    return false;
+  }
+
+  return (
+    snapshot.display_name !== null ||
+    snapshot.first_name !== null ||
+    snapshot.last_name !== null ||
+    snapshot.birth_date !== null ||
+    snapshot.birth_place !== null ||
+    snapshot.nationality !== null ||
+    snapshot.country !== null ||
+    snapshot.email !== null ||
+    snapshot.phone_number !== null ||
+    snapshot.fiscal_or_tax_identifier_ref !== null ||
+    snapshot.document_ref !== null ||
+    snapshot.phone_verified ||
+    snapshot.email_verified ||
+    snapshot.document_verified ||
+    snapshot.liveness_verified ||
+    snapshot.compliance_review_status !== null
+  );
+}
+
+function mergeIdentitySnapshots(
+  primary: HbceJokerC2BiologicalIdentitySnapshot | null,
+  fallback: HbceJokerC2BiologicalIdentitySnapshot | null
+): HbceJokerC2BiologicalIdentitySnapshot | null {
+  if (!hasIdentitySnapshotContent(primary) && !hasIdentitySnapshotContent(fallback)) {
+    return null;
+  }
+
+  return {
+    display_name: primary?.display_name ?? fallback?.display_name ?? null,
+    first_name: primary?.first_name ?? fallback?.first_name ?? null,
+    last_name: primary?.last_name ?? fallback?.last_name ?? null,
+    birth_date: primary?.birth_date ?? fallback?.birth_date ?? null,
+    birth_place: primary?.birth_place ?? fallback?.birth_place ?? null,
+    nationality: primary?.nationality ?? fallback?.nationality ?? null,
+    country: primary?.country ?? fallback?.country ?? null,
+    email: primary?.email ?? fallback?.email ?? null,
+    phone_number: primary?.phone_number ?? fallback?.phone_number ?? null,
+    fiscal_or_tax_identifier_ref:
+      primary?.fiscal_or_tax_identifier_ref ??
+      fallback?.fiscal_or_tax_identifier_ref ??
+      null,
+    document_ref: primary?.document_ref ?? fallback?.document_ref ?? null,
+    phone_verified: Boolean(primary?.phone_verified || fallback?.phone_verified),
+    email_verified: Boolean(primary?.email_verified || fallback?.email_verified),
+    document_verified: Boolean(
+      primary?.document_verified || fallback?.document_verified
+    ),
+    liveness_verified: Boolean(
+      primary?.liveness_verified || fallback?.liveness_verified
+    ),
+    compliance_review_status:
+      primary?.compliance_review_status ??
+      fallback?.compliance_review_status ??
+      null
+  };
+}
+
+function extractIdentitySnapshotFromPhaseData(
+  phaseData: JsonObject | null
+): HbceJokerC2BiologicalIdentitySnapshot | null {
+  if (!phaseData) {
+    return null;
+  }
+
+  const privateFields = getNestedJsonObject(phaseData, "private_fields");
+  const clientPrivateData = getNestedJsonObject(phaseData, "client_private_data");
+  const certificateFields = getNestedJsonObject(phaseData, "certificate_fields");
+  const explicitIdentitySnapshot = getNestedJsonObject(
+    phaseData,
+    "identity_snapshot"
+  );
+  const explicitBiologicalSnapshot = getNestedJsonObject(
+    phaseData,
+    "biological_identity_snapshot"
+  );
+  const privateIdentitySnapshot = getNestedJsonObject(
+    privateFields,
+    "identity_snapshot"
+  );
+  const privateBiologicalSnapshot = getNestedJsonObject(
+    privateFields,
+    "biological_identity_snapshot"
+  );
+
+  const candidates = [
+    phaseData,
+    clientPrivateData,
+    privateFields,
+    certificateFields,
+    explicitIdentitySnapshot,
+    explicitBiologicalSnapshot,
+    privateIdentitySnapshot,
+    privateBiologicalSnapshot
+  ];
+
+  let snapshot: HbceJokerC2BiologicalIdentitySnapshot | null = null;
+
+  for (const candidate of candidates) {
+    if (!candidate) {
+      continue;
+    }
+
+    snapshot = mergeIdentitySnapshots(
+      buildIdentitySnapshotFromSource(candidate),
+      snapshot
+    );
+  }
+
+  return snapshot;
+}
+
+function extractIdentitySnapshotFromCertificate(
+  certificate: HbceIprCertificate | null | undefined
+): HbceJokerC2BiologicalIdentitySnapshot | null {
+  if (!certificate) {
+    return null;
+  }
+
+  return extractIdentitySnapshotFromPhaseData(certificate.payload.phase_data);
+}
+
+function buildCustodyFieldPresence(
+  identitySnapshot: HbceJokerC2BiologicalIdentitySnapshot | null
+): HbceJokerC2CustodyFieldPresence {
+  return {
+    identity_name: Boolean(
+      identitySnapshot?.display_name ||
+        identitySnapshot?.first_name ||
+        identitySnapshot?.last_name
+    ),
+    birth_data: Boolean(
+      identitySnapshot?.birth_date || identitySnapshot?.birth_place
+    ),
+    contact_data: Boolean(
+      identitySnapshot?.email || identitySnapshot?.phone_number
+    ),
+    fiscal_or_tax_identifier_reference: Boolean(
+      identitySnapshot?.fiscal_or_tax_identifier_ref
+    ),
+    document_reference: Boolean(identitySnapshot?.document_ref),
+    phone_verification: Boolean(identitySnapshot?.phone_verified),
+    email_verification: Boolean(identitySnapshot?.email_verified),
+    document_verification: Boolean(identitySnapshot?.document_verified),
+    liveness_verification: Boolean(identitySnapshot?.liveness_verified),
+    compliance_review: Boolean(identitySnapshot?.compliance_review_status)
+  };
+}
+
+function buildJokerC2ComplianceCustody(params: {
+  identitySnapshot: HbceJokerC2BiologicalIdentitySnapshot | null;
+  iprId: string | null;
+  certificateId: string | null;
+}): HbceJokerC2ComplianceCustody {
+  return {
+    custody_statement:
+      "AI JOKER-C2 is the controlled operational custodian for compliance data, bureaucratic procedure data, document references and identity-bound runtime continuity. The portable certificate exposes minimized identity and hash references only.",
+    full_data_custodian: "AI_JOKER_C2",
+    custody_subject: params.identitySnapshot?.display_name ?? null,
+    custody_ipr_id: params.iprId,
+    custody_certificate_id: params.certificateId,
+    custody_fields_present: buildCustodyFieldPresence(params.identitySnapshot),
+    raw_documents_in_fragment: false,
+    raw_document_images_in_fragment: false,
+    raw_video_liveness_in_fragment: false,
+    fragment_policy: "MINIMIZED_HANDOFF_ONLY"
+  };
+}
+
+function buildOperationalCertificatePrivateFields(
+  phaseData: JsonObject,
+  identitySnapshot: HbceJokerC2BiologicalIdentitySnapshot | null
+): HbceJokerC2OperationalCertificatePrivateFields {
+  const certificateId = getRequiredStringFromObject(
+    phaseData,
+    "certificate_id"
+  );
+  const iprId = getRequiredStringFromObject(phaseData, "ipr_id");
+
+  return {
+    certificate_id: certificateId,
+    ipr_id: iprId,
+    subject_id: getRequiredStringFromObject(phaseData, "subject_id"),
+    card_serial: getRequiredStringFromObject(phaseData, "card_serial"),
+    certificate_status: "ACTIVE",
+    certificate_scope: "JOKER_C2_ACCESS",
+    issuer: "HERMETICUM B.C.E. S.r.l.",
+    issued_at: getRequiredStringFromObject(phaseData, "issued_at"),
+    valid_until: getRequiredStringFromObject(phaseData, "valid_until"),
+    ...(identitySnapshot
+      ? {
+          identity_snapshot: identitySnapshot,
+          biological_identity_snapshot: identitySnapshot,
+          joker_c2_custody: buildJokerC2ComplianceCustody({
+            identitySnapshot,
+            iprId,
+            certificateId
+          })
+        }
+      : {})
+  };
+}
+
 function enrichSubjectCreatedPhaseData(params: {
   phaseData: JsonObject;
   issuedAt: IsoDateTime;
@@ -368,6 +768,48 @@ function enrichSubjectCreatedPhaseData(params: {
   return output;
 }
 
+function enrichOperationalCertificatePhaseData(params: {
+  phaseData: JsonObject;
+  identitySnapshot: HbceJokerC2BiologicalIdentitySnapshot | null;
+}): JsonObject {
+  const privateFields = buildOperationalCertificatePrivateFields(
+    params.phaseData,
+    params.identitySnapshot
+  );
+
+  const certificateId = privateFields.certificate_id;
+  const iprId = privateFields.ipr_id;
+
+  const jokerC2Custody =
+    privateFields.joker_c2_custody ??
+    buildJokerC2ComplianceCustody({
+      identitySnapshot: params.identitySnapshot,
+      iprId,
+      certificateId
+    });
+
+  return {
+    ...params.phaseData,
+    certificate_role: "FINAL_OPERATIONAL_CERTIFICATE",
+    certificate_visibility: "PRIVATE_PORTABLE_CERTIFICATE",
+    public_registry_mode: "HASH_ONLY",
+    joker_c2_access: "ACCESS_GRANTED",
+    joker_c2_runtime_binding: "IPR_VERIFIED_BIOLOGICAL_SUBJECT",
+    custody_mode: "JOKER_C2_CONTROLLED_CUSTODY",
+    certificate_fields: privateFields,
+    private_fields: privateFields,
+    ...(params.identitySnapshot
+      ? {
+          identity_snapshot: params.identitySnapshot,
+          biological_identity_snapshot: params.identitySnapshot
+        }
+      : {}),
+    joker_c2_custody: jokerC2Custody,
+    operational_boundary:
+      "This operational certificate unlocks JOKER-C2 access evaluation only for an IPR-verified identity-bound governed runtime session. It does not replace public authority identity documents, regulated trust services or future server-side revocation checks."
+  };
+}
+
 function enrichPhaseData<TPhaseData extends JsonObject>(
   input: HbceCertificateGenerationInput<TPhaseData>
 ): TPhaseData {
@@ -386,15 +828,41 @@ function enrichPhaseData<TPhaseData extends JsonObject>(
     next_required_phase: input.next_required_phase
   };
 
-  if (input.phase_code === "SUBJECT_CREATED") {
-    return enrichSubjectCreatedPhaseData({
-      phaseData: commonPhaseData,
-      issuedAt: input.issued_at,
-      nextRequiredPhase: input.next_required_phase
-    }) as TPhaseData;
+  let enrichedPhaseData: JsonObject =
+    input.phase_code === "SUBJECT_CREATED"
+      ? enrichSubjectCreatedPhaseData({
+          phaseData: commonPhaseData,
+          issuedAt: input.issued_at,
+          nextRequiredPhase: input.next_required_phase
+        })
+      : commonPhaseData;
+
+  const previousIdentitySnapshot = extractIdentitySnapshotFromCertificate(
+    input.previous_certificate
+  );
+  const currentIdentitySnapshot =
+    extractIdentitySnapshotFromPhaseData(enrichedPhaseData);
+  const identitySnapshot = mergeIdentitySnapshots(
+    currentIdentitySnapshot,
+    previousIdentitySnapshot
+  );
+
+  if (identitySnapshot) {
+    enrichedPhaseData = {
+      ...enrichedPhaseData,
+      identity_snapshot: identitySnapshot,
+      biological_identity_snapshot: identitySnapshot
+    };
   }
 
-  return commonPhaseData as TPhaseData;
+  if (input.phase_code === "IPR_VERIFIED") {
+    enrichedPhaseData = enrichOperationalCertificatePhaseData({
+      phaseData: enrichedPhaseData,
+      identitySnapshot
+    });
+  }
+
+  return canonicalize(enrichedPhaseData) as TPhaseData;
 }
 
 function buildPayload<TPhaseData extends JsonObject>(
@@ -971,6 +1439,21 @@ export function downloadHbceIprCertificate(
   URL.revokeObjectURL(url);
 }
 
+function getOperationalCertificateString(
+  certificate: HbceIprCertificate,
+  keys: readonly string[]
+): string | null {
+  const phaseData = certificate.payload.phase_data;
+  const privateFields = getNestedJsonObject(phaseData, "private_fields");
+  const certificateFields = getNestedJsonObject(phaseData, "certificate_fields");
+
+  return (
+    getStringFromObject(phaseData, keys) ??
+    getStringFromObject(privateFields, keys) ??
+    getStringFromObject(certificateFields, keys)
+  );
+}
+
 export async function validateJokerC2OperationalCertificate(
   certificate: unknown
 ): Promise<HbceJokerC2AccessGateResult> {
@@ -1066,10 +1549,82 @@ export async function validateJokerC2OperationalCertificate(
     };
   }
 
+  const certificateId = getOperationalCertificateString(certificate, [
+    "certificate_id"
+  ]);
+  const iprId = getOperationalCertificateString(certificate, ["ipr_id"]);
+  const subjectId = getOperationalCertificateString(certificate, ["subject_id"]);
+  const cardSerial = getOperationalCertificateString(certificate, [
+    "card_serial"
+  ]);
+  const certificateStatus = getOperationalCertificateString(certificate, [
+    "certificate_status"
+  ]);
+  const certificateScope = getOperationalCertificateString(certificate, [
+    "certificate_scope"
+  ]);
+  const identitySnapshot = extractIdentitySnapshotFromCertificate(certificate);
+
+  if (!certificateId || !iprId || !subjectId || !cardSerial) {
+    return {
+      decision: "ACCESS_DENIED",
+      reason:
+        "ACCESS_DENIED: operational certificate is missing certificate_id, ipr_id, subject_id or card_serial.",
+      certificate_status: certificate.certificate_status,
+      certificate_scope: certificate.certificate_scope,
+      payload_sha256: certificate.hash_integrity.payload_sha256,
+      previous_payload_sha256:
+        certificate.hash_integrity.previous_payload_sha256,
+      checked_at: checkedAt
+    };
+  }
+
+  if (certificateStatus !== "ACTIVE") {
+    return {
+      decision: "ACCESS_DENIED",
+      reason:
+        "ACCESS_DENIED: operational certificate payload does not confirm ACTIVE status.",
+      certificate_status: certificate.certificate_status,
+      certificate_scope: certificate.certificate_scope,
+      payload_sha256: certificate.hash_integrity.payload_sha256,
+      previous_payload_sha256:
+        certificate.hash_integrity.previous_payload_sha256,
+      checked_at: checkedAt
+    };
+  }
+
+  if (certificateScope !== "JOKER_C2_ACCESS") {
+    return {
+      decision: "ACCESS_DENIED",
+      reason:
+        "ACCESS_DENIED: operational certificate payload does not confirm JOKER_C2_ACCESS scope.",
+      certificate_status: certificate.certificate_status,
+      certificate_scope: certificate.certificate_scope,
+      payload_sha256: certificate.hash_integrity.payload_sha256,
+      previous_payload_sha256:
+        certificate.hash_integrity.previous_payload_sha256,
+      checked_at: checkedAt
+    };
+  }
+
+  if (!hasIdentitySnapshotContent(identitySnapshot)) {
+    return {
+      decision: "ACCESS_DENIED",
+      reason:
+        "ACCESS_DENIED: operational certificate does not contain the required IPR biological identity snapshot for JOKER-C2 identity-bound access.",
+      certificate_status: certificate.certificate_status,
+      certificate_scope: certificate.certificate_scope,
+      payload_sha256: certificate.hash_integrity.payload_sha256,
+      previous_payload_sha256:
+        certificate.hash_integrity.previous_payload_sha256,
+      checked_at: checkedAt
+    };
+  }
+
   return {
     decision: "ACCESS_GRANTED",
     reason:
-      "ACCESS_GRANTED: HBCE operational certificate is active and valid for JOKER-C2 governed access.",
+      "ACCESS_GRANTED: HBCE operational certificate is active, identity-bound and valid for JOKER-C2 governed access.",
     certificate_status: certificate.certificate_status,
     certificate_scope: certificate.certificate_scope,
     payload_sha256: certificate.hash_integrity.payload_sha256,
