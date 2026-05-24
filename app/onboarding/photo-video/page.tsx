@@ -1019,7 +1019,7 @@ export default function OnboardingPhotoVideoPage() {
           ) : null}
 
           {generatedCertificate ? (
-            <BoundaryNotice title="Certificate 04 generated" tone="success">
+            <BoundaryNotice title="Certificate 04 generated" tone="warning">
               The HBCE liveness certificate has been generated, downloaded and
               stored for the next Privacy & Compliance phase in this browser
               session.
