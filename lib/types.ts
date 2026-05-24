@@ -264,6 +264,81 @@ export type HbceInitialVerificationState = JsonObject & {
 };
 
 /**
+ * HBCE physical descriptor and liveness verification types.
+ *
+ * These types do not store raw biometric media. They describe the minimized
+ * operational layer used by the onboarding certificate chain.
+ */
+export type HbceFaceMatchStatus =
+  | "NOT_STARTED"
+  | "PENDING"
+  | "MATCHED"
+  | "FAILED"
+  | "MANUAL_REVIEW";
+
+export type HbceLivenessChallenge =
+  | "HEAD_TURN_LEFT_RIGHT"
+  | "HEAD_TURN_RIGHT_LEFT"
+  | "RANDOM_PROMPT"
+  | "MANUAL_OPERATOR_PROMPT"
+  | "MANUAL";
+
+export type HbceLivenessReviewStatus =
+  | "submitted"
+  | "manual_review"
+  | "approved"
+  | "rejected";
+
+export type HbcePhysicalDescriptorProfile = JsonObject & {
+  height_cm: number | null;
+  weight_kg: number | null;
+  body_build: string | null;
+  eye_color: string | null;
+  hair_color: string | null;
+  hair_type: string | null;
+  visible_scars: string | null;
+  tattoos: string | null;
+  piercings: string | null;
+  distinctive_marks: string | null;
+  descriptor_accuracy_declaration: boolean;
+};
+
+export type HbceJokerC2BiometricLivenessSnapshot = JsonObject & {
+  document_face_reference: StorageReference | null;
+  selfie_reference: StorageReference | null;
+  liveness_video_reference: StorageReference | null;
+  document_face_sha256: HashReference | null;
+  selfie_sha256: HashReference | null;
+  video_sha256: HashReference | null;
+  liveness_declaration_sha256: HashReference | null;
+  face_match_status: HbceFaceMatchStatus;
+  face_match_method: string | null;
+  liveness_challenge: HbceLivenessChallenge;
+  liveness_verified: boolean;
+  liveness_timestamp: IsoDateTime | null;
+  photo_verification_status: HbceLivenessReviewStatus | null;
+  video_verification_status: HbceLivenessReviewStatus | null;
+  liveness_status: HbceLivenessReviewStatus | null;
+  biometric_verification_consent: boolean;
+  manual_review_required: boolean;
+  raw_photo_in_certificate: false;
+  raw_video_in_certificate: false;
+  raw_media_in_public_registry?: false;
+  biometric_template_generated: false;
+  face_template_generated: false;
+  custody_mode: "JOKER_C2_CONTROLLED_CUSTODY";
+};
+
+export type HbceJokerC2CustodyReference = JsonObject & {
+  custodian: "AI_JOKER_C2";
+  custody_mode: "JOKER_C2_CONTROLLED_CUSTODY";
+  raw_photo_in_certificate: false;
+  raw_video_in_certificate: false;
+  raw_media_in_public_registry: false;
+  certificate_contains: "hashes_references_states_only";
+};
+
+/**
  * JOKER-C2 identity handoff types.
  *
  * These types define the controlled identity bridge between the HBCE IPR
@@ -287,6 +362,12 @@ export type HbceJokerC2SourceApp = "HBCE_IPR_ONBOARDING_APP";
 
 export type HbceJokerC2SourceRoute = "/access/joker-c2";
 
+export type HbceJokerC2IssuerHandoff = JsonObject & {
+  hallmark: string | null;
+  legal_name: "HERMETICUM B.C.E. S.r.l.";
+  jurisdiction: HbceJurisdiction | null;
+};
+
 export type HbceJokerC2BiologicalIdentitySnapshot = JsonObject & {
   display_name: string | null;
   first_name: string | null;
@@ -304,6 +385,8 @@ export type HbceJokerC2BiologicalIdentitySnapshot = JsonObject & {
   document_verified: boolean;
   liveness_verified: boolean;
   compliance_review_status: string | null;
+  physical_descriptor_profile?: HbcePhysicalDescriptorProfile;
+  biometric_liveness_snapshot?: HbceJokerC2BiometricLivenessSnapshot;
 };
 
 export type HbceJokerC2CustodyFieldPresence = JsonObject & {
@@ -317,6 +400,10 @@ export type HbceJokerC2CustodyFieldPresence = JsonObject & {
   document_verification: boolean;
   liveness_verification: boolean;
   compliance_review: boolean;
+  physical_descriptors?: boolean;
+  biometric_liveness_media?: boolean;
+  face_match_verification?: boolean;
+  document_face_comparison?: boolean;
 };
 
 export type HbceJokerC2ComplianceCustody = JsonObject & {
@@ -329,6 +416,8 @@ export type HbceJokerC2ComplianceCustody = JsonObject & {
   raw_documents_in_fragment: false;
   raw_document_images_in_fragment: false;
   raw_video_liveness_in_fragment: false;
+  raw_biometric_templates_in_fragment?: false;
+  raw_face_templates_in_fragment?: false;
   fragment_policy: HbceJokerC2FragmentPolicy;
 };
 
@@ -387,7 +476,7 @@ export type HbceJokerC2IdentityHandoff = JsonObject & {
   handoff_id: string;
   issued_at: IsoDateTime;
   expires_at: IsoDateTime;
-  issuer: HbceIssuer;
+  issuer: HbceJokerC2IssuerHandoff;
   gateway: HbceJokerC2GatewayHandoff;
   access: HbceJokerC2AccessHandoffDecision;
   certificate: HbceJokerC2CertificateHandoffReference;
@@ -410,6 +499,8 @@ export type HbceJokerC2OperationalCertificatePrivateFields = JsonObject & {
   valid_until: IsoDateTime;
   identity_snapshot?: HbceJokerC2BiologicalIdentitySnapshot;
   biological_identity_snapshot?: HbceJokerC2BiologicalIdentitySnapshot;
+  physical_descriptor_profile?: HbcePhysicalDescriptorProfile;
+  biometric_liveness_snapshot?: HbceJokerC2BiometricLivenessSnapshot;
   joker_c2_custody?: HbceJokerC2ComplianceCustody;
 };
 
@@ -491,12 +582,36 @@ export type HbcePhase3OfficialDocumentData = JsonObject & {
 
 /**
  * Phase 4 payload.
+ *
+ * This phase stores protected references, SHA-256 hashes, verification states
+ * and custody boundaries for face/photo/video liveness. It must not contain raw
+ * photo files, raw video files, face templates or biometric templates.
  */
 export type HbcePhase4LivenessData = JsonObject & {
   selfie_sha256: HashReference;
   video_sha256: HashReference;
   liveness_declaration_sha256: HashReference;
   liveness_timestamp: IsoDateTime;
+  document_face_reference?: StorageReference;
+  selfie_reference?: StorageReference;
+  liveness_video_reference?: StorageReference;
+  document_face_sha256?: HashReference;
+  photo_reference?: StorageReference;
+  video_reference?: StorageReference;
+  photo_hash?: HashReference;
+  video_hash?: HashReference;
+  photo_verification_status?: HbceLivenessReviewStatus;
+  video_verification_status?: HbceLivenessReviewStatus;
+  liveness_status?: HbceLivenessReviewStatus;
+  face_match_status?: HbceFaceMatchStatus;
+  face_match_method?: string;
+  liveness_challenge?: HbceLivenessChallenge;
+  liveness_verified?: boolean;
+  biometric_verification_consent?: boolean;
+  manual_review_required?: boolean;
+  physical_descriptor_profile?: HbcePhysicalDescriptorProfile;
+  biometric_liveness_snapshot?: HbceJokerC2BiometricLivenessSnapshot;
+  joker_c2_custody_reference?: HbceJokerC2CustodyReference;
   issued_at?: IsoDateTime;
   issued_at_utc?: IsoDateTime;
   issued_at_local?: IsoDateTime;
@@ -516,6 +631,9 @@ export type HbcePhase5PrivacyComplianceData = JsonObject & {
   hash_only_acknowledgement: true;
   no_state_identity_claim_acknowledgement: true;
   internal_operational_identity_acknowledgement: true;
+  biometric_liveness_consent_hash?: HashReference;
+  photo_video_liveness_consent_hash?: HashReference;
+  joker_c2_custody_acknowledgement?: true;
   issued_at?: IsoDateTime;
   issued_at_utc?: IsoDateTime;
   issued_at_local?: IsoDateTime;
@@ -595,8 +713,11 @@ export type HbcePhase9OperationalCertificateData = JsonObject & {
   previous_payload_sha256?: HashReference | null;
   next_required_phase?: HbceIprNextPhaseCode;
   private_fields?: HbceJokerC2OperationalCertificatePrivateFields;
+  certificate_fields?: HbceJokerC2OperationalCertificatePrivateFields;
   identity_snapshot?: HbceJokerC2BiologicalIdentitySnapshot;
   biological_identity_snapshot?: HbceJokerC2BiologicalIdentitySnapshot;
+  physical_descriptor_profile?: HbcePhysicalDescriptorProfile;
+  biometric_liveness_snapshot?: HbceJokerC2BiometricLivenessSnapshot;
   joker_c2_custody?: HbceJokerC2ComplianceCustody;
 };
 
@@ -638,8 +759,10 @@ export type HbceEvidenceUploadKind =
   | "PASSPORT_DATA_PAGE"
   | "OFFICIAL_DOCUMENT_FRONT"
   | "OFFICIAL_DOCUMENT_BACK"
+  | "DOCUMENT_FACE_IMAGE"
   | "SELFIE"
-  | "VIDEO_VERIFICATION";
+  | "VIDEO_VERIFICATION"
+  | "LIVENESS_VIDEO";
 
 export type HbceEvidenceUpload = {
   kind: HbceEvidenceUploadKind;
@@ -700,7 +823,10 @@ export type HbceFailClosedReason =
   | "EXPIRED"
   | "UNDER_REVIEW"
   | "NOT_OPERATIONAL_CERTIFICATE"
-  | "INVALID_CERTIFICATE_SCOPE";
+  | "INVALID_CERTIFICATE_SCOPE"
+  | "MISSING_IDENTITY_SNAPSHOT"
+  | "MISSING_LIVENESS_SNAPSHOT"
+  | "INVALID_BIOMETRIC_LIVENESS_SCOPE";
 
 export type HbceCertificateValidationDecision = "VALID" | "FAIL_CLOSED";
 
@@ -967,7 +1093,20 @@ export type PhotoVideoVerificationRecord = {
   videoReference: StorageReference;
   photoHash: HashReference;
   videoHash: HashReference;
+  documentFaceReference?: StorageReference;
+  documentFaceHash?: HashReference;
+  selfieReference?: StorageReference;
+  selfieHash?: HashReference;
+  livenessVideoReference?: StorageReference;
+  livenessVideoHash?: HashReference;
   livenessDeclarationHash?: HashReference;
+  faceMatchStatus?: HbceFaceMatchStatus;
+  faceMatchMethod?: string;
+  livenessChallenge?: HbceLivenessChallenge;
+  livenessVerified?: boolean;
+  biometricVerificationConsent?: boolean;
+  physicalDescriptorProfile?: HbcePhysicalDescriptorProfile;
+  biometricLivenessSnapshot?: HbceJokerC2BiometricLivenessSnapshot;
   photoVerificationStatus: VerificationStatus;
   videoVerificationStatus: VerificationStatus;
   livenessStatus: VerificationStatus;
@@ -1036,6 +1175,9 @@ export type OperationalCertificateRecord = {
   previousPayloadSha256?: HashReference;
   payloadSha256?: HashReference;
   revocationState: RevocationState;
+  identitySnapshot?: HbceJokerC2BiologicalIdentitySnapshot;
+  physicalDescriptorProfile?: HbcePhysicalDescriptorProfile;
+  biometricLivenessSnapshot?: HbceJokerC2BiometricLivenessSnapshot;
   createdAt: IsoDateTime;
   updatedAt: IsoDateTime;
 };
