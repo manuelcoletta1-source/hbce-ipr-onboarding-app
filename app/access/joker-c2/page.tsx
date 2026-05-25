@@ -870,7 +870,7 @@ function buildJokerC2IdentityHandoff(
       source_route: "/access/joker-c2",
       target_runtime: "AI_JOKER_C2",
       target_url: JOKER_C2_GATEWAY_URL,
-      transport: "URL_QUERY_BASE64URL_JSON",
+      transport: "URL_FRAGMENT_BASE64URL_JSON",
       custody_mode: "JOKER_C2_CONTROLLED_CUSTODY"
     },
     access: {
@@ -932,7 +932,7 @@ function buildJokerC2IdentityHandoff(
       statement:
         "This client-side handoff enables the MVP identity-bound JOKER-C2 test. It does not replace future server-side token issuance, revocation checks, encrypted custody storage or regulated trust-service integrations.",
       production_upgrade:
-        "Replace URL query handoff with a server-issued, signed, short-lived, one-time access token bound to the operational certificate and validated by JOKER-C2 before runtime initialization."
+        "Replace browser handoff transport with a server-issued, signed, short-lived, one-time access token bound to the operational certificate and validated by JOKER-C2 before runtime initialization."
     }
   };
 }
