@@ -845,39 +845,131 @@ function buildJokerC2IdentityHandoff(
   const handoffIssuedAt = nowIso();
   const certificateStatus = getDisplayedCertificateStatus(upload, privateFields);
   const certificateScope = getDisplayedCertificateScope(upload, privateFields);
-  const certificateId = getStringField(privateFields, "certificate_id");
-  const iprId = getStringField(privateFields, "ipr_id");
+  const certificateFields = getCertificateFields(upload);
+  const phaseData = getPhaseData(upload);
+
+  const certificateId =
+    getStringField(privateFields, "certificate_id") ??
+    getStringField(certificateFields, "certificate_id") ??
+    getStringField(phaseData, "certificate_id") ??
+    upload.payloadSha256;
+
+  const iprId =
+    getStringField(privateFields, "ipr_id") ??
+    getStringField(certificateFields, "ipr_id") ??
+    getStringField(phaseData, "ipr_id") ??
+    getRecordString(upload.certificate.subject, "ipr") ??
+    getRecordString(upload.certificate.subject, "ipr_id") ??
+    getRecordString(upload.certificate.subject, "subject_ref") ??
+    null;
+
   const subjectId =
     getStringField(privateFields, "subject_id") ??
+    getStringField(certificateFields, "subject_id") ??
+    getStringField(phaseData, "subject_id") ??
     getRecordString(upload.certificate.subject, "subject_id") ??
-    getRecordString(upload.certificate.subject, "id");
-  const cardSerial = getStringField(privateFields, "card_serial");
-  const issuedAt = getStringField(privateFields, "issued_at");
-  const validUntil = getStringField(privateFields, "valid_until");
+    getRecordString(upload.certificate.subject, "id") ??
+    getRecordString(upload.certificate.subject, "subject_ref") ??
+    null;
+
+  const resolvedIprId =
+    iprId ?? subjectId ?? `IPR-HANDOFF-${upload.payloadSha256}`;
+
+  const resolvedSubjectId =
+    subjectId ?? iprId ?? `SUBJECT-HANDOFF-${upload.payloadSha256}`;
+
+  const cardSerial =
+    getStringField(privateFields, "card_serial") ??
+    getStringField(certificateFields, "card_serial") ??
+    getStringField(phaseData, "card_serial");
+
+  const issuedAt =
+    getStringField(privateFields, "issued_at") ??
+    getStringField(certificateFields, "issued_at") ??
+    getStringField(phaseData, "issued_at");
+
+  const validUntil =
+    getStringField(privateFields, "valid_until") ??
+    getStringField(certificateFields, "valid_until") ??
+    getStringField(phaseData, "valid_until");
+
   const biologicalIdentity = buildBiologicalIdentitySnapshot(
     upload,
     privateFields
   );
 
-  return {
+  const biologicalSubjectName =
+    biologicalIdentity.display_name ??
+    [biologicalIdentity.first_name, biologicalIdentity.last_name]
+      .filter(Boolean)
+      .join(" ")
+      .trim() ??
+    "VERIFIED_BIOLOGICAL_SUBJECT";
+
+  const handoff = {
+    handoff_type: "HBCE_IPR_HANDOFF",
+    type: "HBCE_IPR_HANDOFF",
+    source: "HBCE_IPR_ONBOARDING_APP",
+    authority: "HBCE_OPERATIONAL_CERTIFICATE",
     handoff_version: "HBCE-JOKER-C2-IPR-HANDOFF-v1",
     handoff_id: buildSafeHandoffId(),
     issued_at: handoffIssuedAt,
     expires_at: addMinutesToIso(handoffIssuedAt, HANDOFF_VALIDITY_MINUTES),
     issuer: upload.certificate.issuer,
+
+    ipr: resolvedIprId,
+    ipr_id: resolvedIprId,
+    human_ipr: resolvedIprId,
+    subject_ipr: resolvedIprId,
+    biological_ipr: resolvedIprId,
+    subject_id: resolvedSubjectId,
+    certificate_id: certificateId,
+    certificate_hash: upload.payloadSha256,
+    payload_sha256: upload.payloadSha256,
+    previous_payload_sha256: upload.previousPayloadSha256,
+
+    subject: {
+      entity: biologicalSubjectName,
+      name: biologicalSubjectName,
+      display_name: biologicalIdentity.display_name,
+      ipr: resolvedIprId,
+      ipr_id: resolvedIprId,
+      subject_id: resolvedSubjectId,
+      kind: "BIOLOGICAL_SUBJECT",
+      status: "IPR_VERIFIED",
+      runtime_scope: "JOKER_C2_ACCESS"
+    },
+
+    verified_subject: {
+      entity: biologicalSubjectName,
+      name: biologicalSubjectName,
+      display_name: biologicalIdentity.display_name,
+      ipr: resolvedIprId,
+      ipr_id: resolvedIprId,
+      subject_id: resolvedSubjectId,
+      kind: "BIOLOGICAL_SUBJECT",
+      status: "IPR_VERIFIED",
+      runtime_scope: "JOKER_C2_ACCESS"
+    },
+
     gateway: {
       source_app: "HBCE_IPR_ONBOARDING_APP",
       source_route: "/access/joker-c2",
       target_runtime: "AI_JOKER_C2",
       target_url: JOKER_C2_GATEWAY_URL,
-      transport: "URL_FRAGMENT_BASE64URL_JSON",
+      transport: "URL_QUERY_BASE64URL_JSON",
       custody_mode: "JOKER_C2_CONTROLLED_CUSTODY"
     },
+
     access: {
       decision: "ACCESS_GRANTED",
       checked_at: accessResult.checked_at,
-      reason: accessResult.reason
+      reason: accessResult.reason,
+      scope: "JOKER_C2_ACCESS",
+      identity_binding: "IPR_VERIFIED_BIOLOGICAL_SUBJECT",
+      runtime_authorization: "GOVERNED_ACCESS_GRANTED"
     },
+
     certificate: {
       file_name: upload.fileName,
       proto: upload.certificate.proto,
@@ -894,19 +986,24 @@ function buildJokerC2IdentityHandoff(
           : null,
       certificate_scope:
         certificateScope === "JOKER_C2_ACCESS" ? certificateScope : null,
-      ipr_id: iprId,
-      subject_id: subjectId,
+      ipr_id: resolvedIprId,
+      subject_id: resolvedSubjectId,
       card_serial: cardSerial,
       issued_at: issuedAt,
-      valid_until: validUntil
+      valid_until: validUntil,
+      certificate_hash: upload.payloadSha256,
+      payload_sha256: upload.payloadSha256,
+      previous_payload_sha256: upload.previousPayloadSha256
     },
+
     biological_identity: biologicalIdentity,
+
     compliance_custody: {
       custody_statement:
         "AI JOKER-C2 is the controlled operational custodian for compliance data, bureaucratic procedure data, document references, face/photo/video liveness references and identity-bound runtime continuity. This handoff transmits a minimized operational identity snapshot, hashes, states and custody references only.",
       full_data_custodian: "AI_JOKER_C2",
       custody_subject: biologicalIdentity.display_name,
-      custody_ipr_id: iprId,
+      custody_ipr_id: resolvedIprId,
       custody_certificate_id: certificateId,
       custody_fields_present: buildCustodyFieldPresence(biologicalIdentity),
       raw_documents_in_fragment: false,
@@ -916,11 +1013,13 @@ function buildJokerC2IdentityHandoff(
       raw_face_templates_in_fragment: false,
       fragment_policy: "MINIMIZED_HANDOFF_ONLY"
     },
+
     integrity: {
       payload_sha256: upload.payloadSha256,
       previous_payload_sha256: upload.previousPayloadSha256,
       handoff_payload_canonicalization: "JSON_STRINGIFY_BASE64URL_CLIENT_MVP"
     },
+
     runtime_claims: {
       no_simple_email_access: true,
       no_simple_subscription_access: true,
@@ -928,6 +1027,7 @@ function buildJokerC2IdentityHandoff(
       joker_c2_identity_bound_session: true,
       governed_runtime_required: true
     },
+
     boundary: {
       statement:
         "This client-side handoff enables the MVP identity-bound JOKER-C2 test. It does not replace future server-side token issuance, revocation checks, encrypted custody storage or regulated trust-service integrations.",
@@ -935,6 +1035,8 @@ function buildJokerC2IdentityHandoff(
         "Replace browser handoff transport with a server-issued, signed, short-lived, one-time access token bound to the operational certificate and validated by JOKER-C2 before runtime initialization."
     }
   };
+
+  return handoff as HbceJokerC2IdentityHandoff;
 }
 
 export default function JokerC2AccessPage() {
@@ -1060,14 +1162,39 @@ export default function JokerC2AccessPage() {
     privateFields
   );
 
-  const certificateId = getStringField(privateFields, "certificate_id");
-  const iprId = getStringField(privateFields, "ipr_id");
+  const certificateFields = getCertificateFields(acceptedUpload);
+  const phaseData = getPhaseData(acceptedUpload);
+
+  const certificateId =
+    getStringField(privateFields, "certificate_id") ??
+    getStringField(certificateFields, "certificate_id") ??
+    getStringField(phaseData, "certificate_id");
+
+  const iprId =
+    getStringField(privateFields, "ipr_id") ??
+    getStringField(certificateFields, "ipr_id") ??
+    getStringField(phaseData, "ipr_id") ??
+    getRecordString(acceptedUpload?.certificate.subject, "ipr") ??
+    getRecordString(acceptedUpload?.certificate.subject, "ipr_id") ??
+    getRecordString(acceptedUpload?.certificate.subject, "subject_ref");
+
   const subjectId =
     getStringField(privateFields, "subject_id") ??
+    getStringField(certificateFields, "subject_id") ??
+    getStringField(phaseData, "subject_id") ??
     getRecordString(acceptedUpload?.certificate.subject, "subject_id") ??
-    getRecordString(acceptedUpload?.certificate.subject, "id");
-  const cardSerial = getStringField(privateFields, "card_serial");
-  const validUntil = getStringField(privateFields, "valid_until");
+    getRecordString(acceptedUpload?.certificate.subject, "id") ??
+    getRecordString(acceptedUpload?.certificate.subject, "subject_ref");
+
+  const cardSerial =
+    getStringField(privateFields, "card_serial") ??
+    getStringField(certificateFields, "card_serial") ??
+    getStringField(phaseData, "card_serial");
+
+  const validUntil =
+    getStringField(privateFields, "valid_until") ??
+    getStringField(certificateFields, "valid_until") ??
+    getStringField(phaseData, "valid_until");
 
   const biologicalIdentity = useMemo(
     () => buildBiologicalIdentitySnapshot(acceptedUpload, privateFields),
