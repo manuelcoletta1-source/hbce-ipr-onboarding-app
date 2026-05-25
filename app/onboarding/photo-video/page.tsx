@@ -1,32 +1,42 @@
 "use client";
 
-import Link from "next/link";
-import { FormEvent, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 
-import { ROUTES, SECURITY_BOUNDARY_TEXT } from "@/lib/constants";
+import IprCertificateUploader from "@/components/IprCertificateUploader";
+
 import {
   downloadHbceIprCertificate,
   generateHbceIprCertificate,
   nowIso,
-  sha256Canonical
+  sha256Canonical,
+  sha256File,
+  validatePreviousHbceIprCertificate
 } from "@/lib/ipr-certificate-chain";
 
-import { BoundaryNotice } from "@/components/BoundaryNotice";
-import IprCertificateUploader from "@/components/IprCertificateUploader";
-import { OnboardingStepper } from "@/components/OnboardingStepper";
-import { StatusBadge } from "@/components/StatusBadge";
+import {
+  getContinuationRouteFromCertificate,
+  getPhaseDefinitionByNumber
+} from "@/lib/ipr-phase-map";
 
 import type { AcceptedIprCertificateUpload } from "@/components/IprCertificateUploader";
+
 import type {
   HbceGeneratedCertificate,
   HbceIprCertificate,
-  HbceJokerC2BiologicalIdentitySnapshot,
+  HbceIprNextPhaseCode,
   HbceJokerC2BiometricLivenessSnapshot,
-  HbcePhysicalDescriptorProfile,
+  HashReference,
   JsonObject
 } from "@/lib/types";
 
-type FaceMatchStatus = "PENDING" | "MATCHED" | "FAILED" | "MANUAL_REVIEW";
+type ActiveLivenessUpload = {
+  certificate: HbceIprCertificate;
+  fileName: string;
+  payloadSha256: string;
+  previousPayloadSha256: string | null;
+  source: "session" | "upload";
+};
 
 type LivenessChallenge =
   | "HEAD_TURN_LEFT_RIGHT"
@@ -34,320 +44,208 @@ type LivenessChallenge =
   | "RANDOM_PROMPT"
   | "MANUAL_OPERATOR_PROMPT";
 
-type LivenessReviewStatus =
-  | "submitted"
-  | "manual_review"
-  | "approved"
-  | "rejected";
+type LocalFileEvidence = JsonObject & {
+  original_file_name: string;
+  mime_type: string;
+  size_bytes: number;
+  last_modified: number;
+  sha256: HashReference;
+  protected_reference: string;
+};
 
-type PhotoVideoFormState = {
-  document_face_reference: string;
+type Phase4LivenessPrivateFields = JsonObject & {
+  face_photo_uploaded: true;
+  liveness_video_uploaded: true;
+  spoken_name_declaration_confirmed: true;
+  head_turn_declaration_confirmed: true;
+  biometric_verification_consent: true;
+  liveness_challenge: LivenessChallenge;
+  liveness_instruction: string;
+  declared_spoken_name: string;
+  document_face_reference: string | null;
   selfie_reference: string;
   liveness_video_reference: string;
-  document_face_sha256: string;
+  document_face_sha256: string | null;
   selfie_sha256: string;
   video_sha256: string;
-  photo_verification_status: LivenessReviewStatus;
-  video_verification_status: LivenessReviewStatus;
-  liveness_status: LivenessReviewStatus;
-  face_match_status: FaceMatchStatus;
-  face_match_method: string;
-  liveness_challenge: LivenessChallenge;
-  height_cm: string;
-  weight_kg: string;
-  body_build: string;
-  eye_color: string;
-  hair_color: string;
-  hair_type: string;
-  visible_scars: string;
-  tattoos: string;
-  piercings: string;
-  distinctive_marks: string;
-  biometric_verification_consent: boolean;
-  descriptor_accuracy_declaration: boolean;
+  liveness_declaration_sha256: string;
+  face_photo_evidence: LocalFileEvidence;
+  liveness_video_evidence: LocalFileEvidence;
+  biometric_liveness_snapshot: HbceJokerC2BiometricLivenessSnapshot;
+  raw_photo_in_certificate: false;
+  raw_video_in_certificate: false;
+  raw_media_in_public_registry: false;
+  biometric_template_generated: false;
+  face_template_generated: false;
+  custody_mode: "JOKER_C2_CONTROLLED_CUSTODY";
+  submitted_at: string;
 };
 
-const NEXT_PHASE_STORAGE_KEY =
-  "HBCE_IPR_CERTIFICATE_FOR_NEXT_PHASE:PRIVACY_COMPLIANCE";
-
-const INITIAL_FORM_STATE: PhotoVideoFormState = {
-  document_face_reference: "",
-  selfie_reference: "",
-  liveness_video_reference: "",
-  document_face_sha256: "",
-  selfie_sha256: "",
-  video_sha256: "",
-  photo_verification_status: "submitted",
-  video_verification_status: "submitted",
-  liveness_status: "manual_review",
-  face_match_status: "MANUAL_REVIEW",
-  face_match_method: "DOCUMENT_FACE_SELFIE_VIDEO_COMPARISON",
-  liveness_challenge: "HEAD_TURN_LEFT_RIGHT",
-  height_cm: "",
-  weight_kg: "",
-  body_build: "",
-  eye_color: "",
-  hair_color: "",
-  hair_type: "",
-  visible_scars: "",
-  tattoos: "",
-  piercings: "",
-  distinctive_marks: "",
-  biometric_verification_consent: false,
-  descriptor_accuracy_declaration: false
+type Phase4LivenessHashFields = JsonObject & {
+  face_photo_sha256: string;
+  liveness_video_sha256: string;
+  liveness_declaration_sha256: string;
+  liveness_package_hash: string;
 };
 
-const PHOTO_VIDEO_BOUNDARIES = [
-  "Real photos must not be committed to this repository.",
-  "Real videos must not be committed to this repository.",
-  "Biometric templates must not be stored in public routes.",
-  "Face templates must not be generated or exposed by this MVP page.",
-  "Liveness recordings must remain in protected processing environments.",
-  "The MVP stores references, hashes, states and custody declarations only.",
-  "Photo/video verification prepares review only.",
-  "Photo/video verification does not issue IPR Verified status.",
-  "Photo/video verification does not issue an IPR Card.",
-  "Photo/video verification does not activate the operational certificate.",
-  "JOKER-C2 access remains denied by default."
-] as const;
+const phase = getPhaseDefinitionByNumber(4);
 
-const PHOTO_VIDEO_EVIDENCE_ITEMS = [
-  "Protected document-face reference",
-  "Protected selfie reference",
-  "Protected liveness-video reference",
-  "Document-face SHA-256 reference",
-  "Selfie SHA-256 reference",
-  "Video SHA-256 reference",
-  "Face match status",
-  "Head-turn liveness challenge",
-  "Physical descriptor profile",
-  "Biometric/liveness consent",
-  "Manual review requirement"
-] as const;
+const SESSION_CERTIFICATE_PREFIX = "HBCE_IPR_CERTIFICATE_FOR_NEXT_PHASE";
 
-const PHOTO_VIDEO_REVIEW_RULES = [
-  "The subject must already have completed fiscal identity evidence.",
-  "The subject must already have submitted official identity document evidence.",
-  "The document-face reference must point to protected storage in production.",
-  "The selfie reference must point to protected storage in production.",
-  "The video reference must point to protected storage in production.",
-  "Raw photos and raw videos must not be exposed through public routes.",
-  "The liveness state must remain pending or under manual review until operator validation.",
-  "The onboarding case can move to privacy and compliance, but cannot self-approve."
-] as const;
+const EXPECTED_PREVIOUS_PHASE = "OFFICIAL_DOCUMENT_SUBMITTED" as const;
+const EXPECTED_NEXT_PHASE = "LIVENESS_CHECK" as const;
 
-function trimOrNull(value: string): string | null {
-  const trimmed = value.trim();
+const LIVENESS_CHALLENGES: readonly LivenessChallenge[] = [
+  "HEAD_TURN_LEFT_RIGHT",
+  "HEAD_TURN_RIGHT_LEFT",
+  "RANDOM_PROMPT",
+  "MANUAL_OPERATOR_PROMPT"
+];
 
-  return trimmed.length > 0 ? trimmed : null;
+const LIVENESS_INSTRUCTIONS: Record<LivenessChallenge, string> = {
+  HEAD_TURN_LEFT_RIGHT:
+    "Record your face, say your full name aloud, then turn your head to the left and to the right.",
+  HEAD_TURN_RIGHT_LEFT:
+    "Record your face, say your full name aloud, then turn your head to the right and to the left.",
+  RANDOM_PROMPT:
+    "Record your face, say your full name aloud, then follow the random liveness prompt displayed by the operator.",
+  MANUAL_OPERATOR_PROMPT:
+    "Record your face, say your full name aloud, then follow the manual HBCE operator liveness instruction."
+};
+
+function getSessionCertificateKey(nextPhase: HbceIprNextPhaseCode): string {
+  return `${SESSION_CERTIFICATE_PREFIX}:${nextPhase}`;
 }
 
-function parseOptionalNumber(value: string): number | null {
-  const trimmed = value.trim();
-
-  if (!trimmed) {
+function readStoredCertificateForPhase(
+  nextPhase: HbceIprNextPhaseCode
+): unknown | null {
+  if (typeof window === "undefined") {
     return null;
   }
 
-  const parsed = Number(trimmed);
+  const raw = window.sessionStorage.getItem(getSessionCertificateKey(nextPhase));
 
-  return Number.isFinite(parsed) ? parsed : null;
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
-}
-
-function isJsonObject(value: unknown): value is JsonObject {
-  return isRecord(value);
-}
-
-function getJsonObjectField(
-  fields: JsonObject | null,
-  key: string
-): JsonObject | null {
-  if (!fields) {
+  if (!raw) {
     return null;
   }
 
-  const value = fields[key];
-
-  return isJsonObject(value) ? value : null;
-}
-
-function getStringField(fields: JsonObject | null, key: string): string | null {
-  if (!fields) {
+  try {
+    return JSON.parse(raw) as unknown;
+  } catch {
+    window.sessionStorage.removeItem(getSessionCertificateKey(nextPhase));
     return null;
   }
-
-  const value = fields[key];
-
-  return typeof value === "string" && value.trim().length > 0
-    ? value.trim()
-    : null;
 }
 
-function getBooleanField(fields: JsonObject | null, key: string): boolean {
-  if (!fields) {
-    return false;
+function clearStoredCertificateForPhase(nextPhase: HbceIprNextPhaseCode): void {
+  if (typeof window === "undefined") {
+    return;
   }
 
-  return fields[key] === true;
+  window.sessionStorage.removeItem(getSessionCertificateKey(nextPhase));
 }
 
-function getStringFromSources(
-  sources: readonly (JsonObject | null)[],
-  keys: readonly string[]
-): string | null {
-  for (const source of sources) {
-    for (const key of keys) {
-      const value = getStringField(source, key);
-
-      if (value) {
-        return value;
-      }
-    }
+function storeCertificateForNextPhase(certificate: HbceIprCertificate): void {
+  if (typeof window === "undefined") {
+    return;
   }
 
-  return null;
-}
+  const nextPhase = certificate.next.next_phase;
 
-function getBooleanFromSources(
-  sources: readonly (JsonObject | null)[],
-  keys: readonly string[]
-): boolean {
-  for (const source of sources) {
-    for (const key of keys) {
-      if (getBooleanField(source, key)) {
-        return true;
-      }
-    }
+  if (nextPhase === "COMPLETED" || nextPhase === "JOKER_C2_ACCESS") {
+    return;
   }
 
-  return false;
-}
-
-function getFirstNestedObjectFromSources(
-  sources: readonly (JsonObject | null)[],
-  keys: readonly string[]
-): JsonObject | null {
-  for (const source of sources) {
-    if (!source) {
-      continue;
-    }
-
-    for (const key of keys) {
-      const nested = getJsonObjectField(source, key);
-
-      if (nested) {
-        return nested;
-      }
-    }
-  }
-
-  return null;
-}
-
-function getIdentitySourcesFromCertificate(
-  certificate: HbceIprCertificate | null | undefined
-): JsonObject[] {
-  if (!certificate) {
-    return [];
-  }
-
-  const phaseData = certificate.payload.phase_data;
-  const privateFields = getJsonObjectField(phaseData, "private_fields");
-  const certificateFields = getJsonObjectField(phaseData, "certificate_fields");
-  const fiscalFields = getJsonObjectField(phaseData, "fiscal_fields");
-  const documentFields = getJsonObjectField(phaseData, "document_fields");
-  const identityFields = getJsonObjectField(phaseData, "identity_fields");
-  const complianceFields = getJsonObjectField(phaseData, "compliance_fields");
-
-  const explicitBiologicalSnapshot = getFirstNestedObjectFromSources(
-    [
-      phaseData,
-      privateFields,
-      certificateFields,
-      fiscalFields,
-      documentFields,
-      identityFields,
-      complianceFields
-    ],
-    ["biological_identity_snapshot"]
+  window.sessionStorage.setItem(
+    getSessionCertificateKey(nextPhase),
+    JSON.stringify(certificate)
   );
-
-  const explicitIdentitySnapshot = getFirstNestedObjectFromSources(
-    [
-      phaseData,
-      privateFields,
-      certificateFields,
-      fiscalFields,
-      documentFields,
-      identityFields,
-      complianceFields
-    ],
-    ["identity_snapshot"]
-  );
-
-  return [
-    explicitBiologicalSnapshot,
-    explicitIdentitySnapshot,
-    privateFields,
-    certificateFields,
-    fiscalFields,
-    documentFields,
-    identityFields,
-    complianceFields,
-    phaseData
-  ].filter(isJsonObject);
 }
 
-function buildPhysicalDescriptorProfile(
-  form: PhotoVideoFormState
-): HbcePhysicalDescriptorProfile {
+function buildActiveUploadFromAcceptedUpload(
+  upload: AcceptedIprCertificateUpload
+): ActiveLivenessUpload {
   return {
-    height_cm: parseOptionalNumber(form.height_cm),
-    weight_kg: parseOptionalNumber(form.weight_kg),
-    body_build: trimOrNull(form.body_build),
-    eye_color: trimOrNull(form.eye_color),
-    hair_color: trimOrNull(form.hair_color),
-    hair_type: trimOrNull(form.hair_type),
-    visible_scars: trimOrNull(form.visible_scars),
-    tattoos: trimOrNull(form.tattoos),
-    piercings: trimOrNull(form.piercings),
-    distinctive_marks: trimOrNull(form.distinctive_marks),
-    descriptor_accuracy_declaration: form.descriptor_accuracy_declaration
+    certificate: upload.certificate,
+    fileName: upload.fileName,
+    payloadSha256: upload.payloadSha256,
+    previousPayloadSha256: upload.previousPayloadSha256,
+    source: "upload"
   };
 }
 
-function buildBiometricLivenessSnapshot(params: {
-  form: PhotoVideoFormState;
-  issuedAt: string;
-  livenessDeclarationSha256: string;
-}): HbceJokerC2BiometricLivenessSnapshot {
-  const livenessVerified =
-    params.form.face_match_status === "MATCHED" &&
-    params.form.liveness_status === "approved";
+function buildActiveUploadFromSession(
+  certificate: HbceIprCertificate
+): ActiveLivenessUpload {
+  return {
+    certificate,
+    fileName: "hbce-ipr-03-official-document.hbce.json",
+    payloadSha256: certificate.hash_integrity.payload_sha256,
+    previousPayloadSha256: certificate.hash_integrity.previous_payload_sha256,
+    source: "session"
+  };
+}
+
+function normalizeDeclaredName(value: string): string {
+  return value.trim().replace(/\s+/g, " ");
+}
+
+function createProtectedReference(prefix: string, hash: string): string {
+  return `${prefix}-${hash.slice(0, 24).toUpperCase()}`;
+}
+
+async function buildLocalFileEvidence(
+  file: File,
+  prefix: string
+): Promise<LocalFileEvidence> {
+  const sha256 = await sha256File(file);
 
   return {
-    document_face_reference: params.form.document_face_reference.trim(),
-    selfie_reference: params.form.selfie_reference.trim(),
-    liveness_video_reference: params.form.liveness_video_reference.trim(),
-    document_face_sha256: params.form.document_face_sha256.trim(),
-    selfie_sha256: params.form.selfie_sha256.trim(),
-    video_sha256: params.form.video_sha256.trim(),
+    original_file_name: file.name,
+    mime_type: file.type || "application/octet-stream",
+    size_bytes: file.size,
+    last_modified: file.lastModified,
+    sha256,
+    protected_reference: createProtectedReference(prefix, sha256)
+  };
+}
+
+function getSelectedFileLabel(file: File | null): string {
+  if (!file) {
+    return "No file selected";
+  }
+
+  return `${file.name} · ${Math.round(file.size / 1024)} KB`;
+}
+
+function buildLivenessSnapshot(params: {
+  facePhotoEvidence: LocalFileEvidence;
+  videoEvidence: LocalFileEvidence;
+  livenessChallenge: LivenessChallenge;
+  livenessDeclarationSha256: string;
+  biometricConsent: boolean;
+  submittedAt: string;
+}): HbceJokerC2BiometricLivenessSnapshot {
+  return {
+    document_face_reference: null,
+    selfie_reference: params.facePhotoEvidence.protected_reference,
+    liveness_video_reference: params.videoEvidence.protected_reference,
+    document_face_sha256: null,
+    selfie_sha256: params.facePhotoEvidence.sha256,
+    video_sha256: params.videoEvidence.sha256,
     liveness_declaration_sha256: params.livenessDeclarationSha256,
-    face_match_status: params.form.face_match_status,
-    face_match_method: params.form.face_match_method.trim(),
-    liveness_challenge: params.form.liveness_challenge,
-    liveness_verified: livenessVerified,
-    liveness_timestamp: params.issuedAt,
-    photo_verification_status: params.form.photo_verification_status,
-    video_verification_status: params.form.video_verification_status,
-    liveness_status: params.form.liveness_status,
-    biometric_verification_consent:
-      params.form.biometric_verification_consent,
-    manual_review_required: !livenessVerified,
+    face_match_status: "MANUAL_REVIEW",
+    face_match_method:
+      "HBCE_MANUAL_REVIEW_REQUIRED_AFTER_SELFIE_AND_VIDEO_LIVENESS_UPLOAD",
+    liveness_challenge: params.livenessChallenge,
+    liveness_verified: false,
+    liveness_timestamp: params.submittedAt,
+    photo_verification_status: "submitted",
+    video_verification_status: "submitted",
+    liveness_status: "manual_review",
+    biometric_verification_consent: params.biometricConsent,
+    manual_review_required: true,
     raw_photo_in_certificate: false,
     raw_video_in_certificate: false,
     raw_media_in_public_registry: false,
@@ -357,297 +255,243 @@ function buildBiometricLivenessSnapshot(params: {
   };
 }
 
-function buildDisplayNameFromSources(sources: JsonObject[]): string | null {
-  const explicitDisplayName = getStringFromSources(sources, [
-    "display_name",
-    "full_name",
-    "legal_name",
-    "subject_name",
-    "name"
-  ]);
-
-  if (explicitDisplayName) {
-    return explicitDisplayName;
-  }
-
-  const firstName = getStringFromSources(sources, ["first_name", "given_name"]);
-  const lastName = getStringFromSources(sources, [
-    "last_name",
-    "family_name",
-    "surname"
-  ]);
-
-  const composedName = [firstName, lastName].filter(Boolean).join(" ").trim();
-
-  return composedName.length > 0 ? composedName : null;
-}
-
-function buildBiologicalIdentitySnapshot(params: {
-  previousCertificate: HbceIprCertificate;
-  physicalDescriptorProfile: HbcePhysicalDescriptorProfile;
-  biometricLivenessSnapshot: HbceJokerC2BiometricLivenessSnapshot;
-}): HbceJokerC2BiologicalIdentitySnapshot {
-  const sources = getIdentitySourcesFromCertificate(params.previousCertificate);
+async function buildPhase4HashFields(params: {
+  privateFields: Phase4LivenessPrivateFields;
+  previousPayloadSha256: string;
+}): Promise<Phase4LivenessHashFields> {
+  const livenessPackageHash = await sha256Canonical({
+    kind: "HBCE_IPR_PHASE_4_PHOTO_VIDEO_LIVENESS_PACKAGE",
+    phase: "LIVENESS_SUBMITTED",
+    previous_payload_sha256: params.previousPayloadSha256,
+    private_fields: params.privateFields,
+    submitted_at: params.privateFields.submitted_at
+  });
 
   return {
-    display_name: buildDisplayNameFromSources(sources),
-    first_name: getStringFromSources(sources, ["first_name", "given_name"]),
-    last_name: getStringFromSources(sources, [
-      "last_name",
-      "family_name",
-      "surname"
-    ]),
-    birth_date: getStringFromSources(sources, [
-      "birth_date",
-      "date_of_birth",
-      "dob"
-    ]),
-    birth_place: getStringFromSources(sources, [
-      "birth_place",
-      "place_of_birth"
-    ]),
-    nationality: getStringFromSources(sources, ["nationality", "citizenship"]),
-    country: getStringFromSources(sources, [
-      "country",
-      "country_code",
-      "residence_country",
-      "fiscal_country"
-    ]),
-    email: getStringFromSources(sources, ["email", "email_address"]),
-    phone_number: getStringFromSources(sources, [
-      "phone_number",
-      "phone",
-      "mobile_phone"
-    ]),
-    fiscal_or_tax_identifier_ref: getStringFromSources(sources, [
-      "fiscal_or_tax_identifier_ref",
-      "fiscal_code_ref",
-      "tax_identifier_ref",
-      "national_tax_identifier_ref",
-      "tax_id_value_hash",
-      "fiscal_identifier_hash",
-      "tax_id_document_front_sha256",
-      "tax_id_document_back_sha256",
-      "tax_id_document_sha256"
-    ]),
-    document_ref:
-      params.biometricLivenessSnapshot.document_face_reference ??
-      getStringFromSources(sources, [
-        "document_ref",
-        "document_hash",
-        "identity_document_hash",
-        "document_identifier_ref",
-        "document_number_hash",
-        "document_front_sha256",
-        "document_back_sha256",
-        "document_passport_page_sha256",
-        "document_metadata_hash"
-      ]),
-    phone_verified: getBooleanFromSources(sources, [
-      "phone_verified",
-      "is_phone_verified"
-    ]),
-    email_verified: getBooleanFromSources(sources, [
-      "email_verified",
-      "is_email_verified"
-    ]),
-    document_verified:
-      getBooleanFromSources(sources, [
-        "document_verified",
-        "identity_document_verified",
-        "official_document_verified",
-        "is_document_verified"
-      ]) || Boolean(params.biometricLivenessSnapshot.document_face_reference),
-    liveness_verified: params.biometricLivenessSnapshot.liveness_verified,
-    compliance_review_status:
-      params.biometricLivenessSnapshot.manual_review_required
-        ? "MANUAL_REVIEW_REQUIRED"
-        : "LIVENESS_APPROVED",
-    physical_descriptor_profile: params.physicalDescriptorProfile,
-    biometric_liveness_snapshot: params.biometricLivenessSnapshot
+    face_photo_sha256: params.privateFields.selfie_sha256,
+    liveness_video_sha256: params.privateFields.video_sha256,
+    liveness_declaration_sha256:
+      params.privateFields.liveness_declaration_sha256,
+    liveness_package_hash: livenessPackageHash
   };
 }
 
-function storeGeneratedCertificateForNextPhase(
-  generated: HbceGeneratedCertificate
-): void {
-  window.sessionStorage.setItem(
-    NEXT_PHASE_STORAGE_KEY,
-    JSON.stringify(generated.certificate)
-  );
-}
+export default function PhotoVideoLivenessPage() {
+  const router = useRouter();
 
-function hasRequiredLivenessFields(form: PhotoVideoFormState): boolean {
-  return (
-    form.document_face_reference.trim().length > 0 &&
-    form.selfie_reference.trim().length > 0 &&
-    form.liveness_video_reference.trim().length > 0 &&
-    form.document_face_sha256.trim().length > 0 &&
-    form.selfie_sha256.trim().length > 0 &&
-    form.video_sha256.trim().length > 0 &&
-    form.face_match_method.trim().length > 0 &&
-    form.biometric_verification_consent &&
-    form.descriptor_accuracy_declaration
-  );
-}
-
-export default function OnboardingPhotoVideoPage() {
   const [previousUpload, setPreviousUpload] =
-    useState<AcceptedIprCertificateUpload | null>(null);
-  const [form, setForm] = useState<PhotoVideoFormState>(INITIAL_FORM_STATE);
-  const [generatedCertificate, setGeneratedCertificate] =
-    useState<HbceGeneratedCertificate | null>(null);
+    useState<ActiveLivenessUpload | null>(null);
+  const [facePhotoFile, setFacePhotoFile] = useState<File | null>(null);
+  const [livenessVideoFile, setLivenessVideoFile] = useState<File | null>(null);
+  const [declaredSpokenName, setDeclaredSpokenName] = useState("");
+  const [livenessChallenge, setLivenessChallenge] =
+    useState<LivenessChallenge>("HEAD_TURN_LEFT_RIGHT");
+  const [spokenNameConfirmed, setSpokenNameConfirmed] = useState(false);
+  const [headTurnConfirmed, setHeadTurnConfirmed] = useState(false);
+  const [biometricConsent, setBiometricConsent] = useState(false);
+  const [error, setError] = useState("");
   const [isGenerating, setIsGenerating] = useState(false);
-  const [generationError, setGenerationError] = useState<string | null>(null);
+  const [generatedCertificate, setGeneratedCertificate] =
+    useState<HbceGeneratedCertificate<JsonObject> | null>(null);
 
-  const canGenerateCertificate =
-    previousUpload !== null && hasRequiredLivenessFields(form);
+  useEffect(() => {
+    let cancelled = false;
 
-  const previousIdentityPreview = useMemo(() => {
-    if (!previousUpload) {
-      return null;
+    async function restoreDocumentCertificateFromSession() {
+      if (previousUpload) {
+        return;
+      }
+
+      const stored = readStoredCertificateForPhase(EXPECTED_NEXT_PHASE);
+
+      if (!stored) {
+        return;
+      }
+
+      const validation = await validatePreviousHbceIprCertificate({
+        certificate: stored,
+        expected_previous_phase: EXPECTED_PREVIOUS_PHASE,
+        expected_next_phase: EXPECTED_NEXT_PHASE
+      });
+
+      if (cancelled) {
+        return;
+      }
+
+      if (!validation.valid) {
+        clearStoredCertificateForPhase(EXPECTED_NEXT_PHASE);
+        setPreviousUpload(null);
+        setError(
+          "The stored official document certificate was rejected. Upload Certificate 03 manually."
+        );
+        return;
+      }
+
+      setPreviousUpload(
+        buildActiveUploadFromSession(stored as HbceIprCertificate)
+      );
+      setError("");
     }
 
-    const sources = getIdentitySourcesFromCertificate(previousUpload.certificate);
+    void restoreDocumentCertificateFromSession();
 
-    return {
-      display_name: buildDisplayNameFromSources(sources),
-      document_ref: getStringFromSources(sources, [
-        "document_ref",
-        "document_hash",
-        "identity_document_hash",
-        "document_identifier_ref",
-        "document_number_hash",
-        "document_front_sha256",
-        "document_back_sha256",
-        "document_passport_page_sha256",
-        "document_metadata_hash"
-      ]),
-      fiscal_or_tax_identifier_ref: getStringFromSources(sources, [
-        "fiscal_or_tax_identifier_ref",
-        "fiscal_code_ref",
-        "tax_identifier_ref",
-        "national_tax_identifier_ref",
-        "tax_id_value_hash",
-        "fiscal_identifier_hash"
-      ])
+    return () => {
+      cancelled = true;
     };
   }, [previousUpload]);
 
-  const photoVideoStateItems = useMemo(
-    () =>
-      [
-        {
-          label: "Previous official document certificate",
-          status: previousUpload ? "approved" : "pending"
-        },
-        {
-          label: "Document face evidence",
-          status: form.document_face_sha256.trim() ? "submitted" : "pending"
-        },
-        {
-          label: "Selfie evidence",
-          status: form.selfie_sha256.trim() ? "submitted" : "pending"
-        },
-        {
-          label: "Video evidence",
-          status: form.video_sha256.trim() ? "submitted" : "pending"
-        },
-        {
-          label: "Liveness state",
-          status:
-            form.liveness_status === "approved" ? "approved" : "manual_review"
-        },
-        {
-          label: "IPR Verified",
-          status: "denied"
-        },
-        {
-          label: "JOKER-C2 access",
-          status: "denied"
-        }
-      ] as const,
-    [
-      previousUpload,
-      form.document_face_sha256,
-      form.selfie_sha256,
-      form.video_sha256,
-      form.liveness_status
-    ]
+  const currentInstruction = useMemo(
+    () => LIVENESS_INSTRUCTIONS[livenessChallenge],
+    [livenessChallenge]
   );
 
-  function updateFormField<K extends keyof PhotoVideoFormState>(
-    key: K,
-    value: PhotoVideoFormState[K]
-  ): void {
-    setForm((current) => ({
-      ...current,
-      [key]: value
-    }));
+  function clearPreviousUpload() {
+    clearStoredCertificateForPhase(EXPECTED_NEXT_PHASE);
+    setPreviousUpload(null);
+    setGeneratedCertificate(null);
+    setError("");
   }
 
-  async function handleGenerateCertificate(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
+  async function generateLivenessCertificate() {
+    setError("");
+    setGeneratedCertificate(null);
 
     if (!previousUpload) {
-      setGenerationError(
-        "Upload the previous HBCE official document certificate before generating the liveness certificate."
+      setError("Upload Certificate 03 before generating Certificate 04.");
+      return;
+    }
+
+    if (!facePhotoFile) {
+      setError("Upload a clear front face photo before continuing.");
+      return;
+    }
+
+    if (!livenessVideoFile) {
+      setError(
+        "Upload a liveness video showing your face, your spoken name and the head turn."
       );
       return;
     }
 
-    if (!hasRequiredLivenessFields(form)) {
-      setGenerationError(
-        "Complete the protected references, hashes, face match method, biometric consent and descriptor declaration before generating the certificate."
+    const normalizedDeclaredName = normalizeDeclaredName(declaredSpokenName);
+
+    if (!normalizedDeclaredName) {
+      setError(
+        "Insert the full name that is spoken aloud inside the liveness video."
+      );
+      return;
+    }
+
+    if (!spokenNameConfirmed) {
+      setError(
+        "Confirm that the liveness video includes the subject saying the declared full name aloud."
+      );
+      return;
+    }
+
+    if (!headTurnConfirmed) {
+      setError(
+        "Confirm that the liveness video includes the required head movement."
+      );
+      return;
+    }
+
+    if (!biometricConsent) {
+      setError(
+        "Confirm biometric/liveness consent before generating Certificate 04."
       );
       return;
     }
 
     setIsGenerating(true);
-    setGenerationError(null);
 
     try {
-      const issuedAt = nowIso();
+      const validation = await validatePreviousHbceIprCertificate({
+        certificate: previousUpload.certificate,
+        expected_previous_phase: EXPECTED_PREVIOUS_PHASE,
+        expected_next_phase: EXPECTED_NEXT_PHASE
+      });
+
+      if (!validation.valid) {
+        setPreviousUpload(null);
+        clearStoredCertificateForPhase(EXPECTED_NEXT_PHASE);
+        setError(
+          validation.message ||
+            "The official document certificate failed validation."
+        );
+        return;
+      }
+
+      const submittedAt = nowIso();
+      const previousPayloadSha256 =
+        previousUpload.certificate.hash_integrity.payload_sha256;
+
+      const facePhotoEvidence = await buildLocalFileEvidence(
+        facePhotoFile,
+        "HBCE-FACE-PHOTO"
+      );
+      const videoEvidence = await buildLocalFileEvidence(
+        livenessVideoFile,
+        "HBCE-LIVENESS-VIDEO"
+      );
 
       const livenessDeclarationSha256 = await sha256Canonical({
-        kind: "HBCE_LIVENESS_DECLARATION",
-        document_face_reference: form.document_face_reference.trim(),
-        selfie_reference: form.selfie_reference.trim(),
-        liveness_video_reference: form.liveness_video_reference.trim(),
-        document_face_sha256: form.document_face_sha256.trim(),
-        selfie_sha256: form.selfie_sha256.trim(),
-        video_sha256: form.video_sha256.trim(),
-        face_match_status: form.face_match_status,
-        face_match_method: form.face_match_method.trim(),
-        liveness_challenge: form.liveness_challenge,
-        biometric_verification_consent: form.biometric_verification_consent,
-        descriptor_accuracy_declaration:
-          form.descriptor_accuracy_declaration,
-        issued_at: issuedAt
-      });
-
-      const biometricLivenessSnapshot = buildBiometricLivenessSnapshot({
-        form,
-        issuedAt,
-        livenessDeclarationSha256
-      });
-
-      const physicalDescriptorProfile = buildPhysicalDescriptorProfile(form);
-
-      const biologicalIdentitySnapshot = buildBiologicalIdentitySnapshot({
-        previousCertificate: previousUpload.certificate,
-        physicalDescriptorProfile,
-        biometricLivenessSnapshot
-      });
-
-      const livenessEvidenceHash = await sha256Canonical({
-        kind: "HBCE_IPR_PHASE_4_LIVENESS_EVIDENCE",
+        kind: "HBCE_IPR_PHASE_4_LIVENESS_DECLARATION",
         phase: "LIVENESS_SUBMITTED",
-        identity_snapshot: biologicalIdentitySnapshot,
-        physical_descriptor_profile: physicalDescriptorProfile,
+        declared_spoken_name: normalizedDeclaredName,
+        liveness_challenge: livenessChallenge,
+        liveness_instruction: currentInstruction,
+        spoken_name_declaration_confirmed: spokenNameConfirmed,
+        head_turn_declaration_confirmed: headTurnConfirmed,
+        biometric_verification_consent: biometricConsent,
+        face_photo_sha256: facePhotoEvidence.sha256,
+        video_sha256: videoEvidence.sha256,
+        previous_payload_sha256: previousPayloadSha256,
+        submitted_at: submittedAt
+      });
+
+      const biometricLivenessSnapshot = buildLivenessSnapshot({
+        facePhotoEvidence,
+        videoEvidence,
+        livenessChallenge,
+        livenessDeclarationSha256,
+        biometricConsent,
+        submittedAt
+      });
+
+      const privateFields: Phase4LivenessPrivateFields = {
+        face_photo_uploaded: true,
+        liveness_video_uploaded: true,
+        spoken_name_declaration_confirmed: true,
+        head_turn_declaration_confirmed: true,
+        biometric_verification_consent: true,
+        liveness_challenge: livenessChallenge,
+        liveness_instruction: currentInstruction,
+        declared_spoken_name: normalizedDeclaredName,
+        document_face_reference: biometricLivenessSnapshot.document_face_reference,
+        selfie_reference: biometricLivenessSnapshot.selfie_reference,
+        liveness_video_reference:
+          biometricLivenessSnapshot.liveness_video_reference,
+        document_face_sha256: biometricLivenessSnapshot.document_face_sha256,
+        selfie_sha256: biometricLivenessSnapshot.selfie_sha256,
+        video_sha256: biometricLivenessSnapshot.video_sha256,
+        liveness_declaration_sha256:
+          biometricLivenessSnapshot.liveness_declaration_sha256,
+        face_photo_evidence: facePhotoEvidence,
+        liveness_video_evidence: videoEvidence,
         biometric_liveness_snapshot: biometricLivenessSnapshot,
-        previous_payload_sha256: previousUpload.payloadSha256,
-        issued_at: issuedAt
+        raw_photo_in_certificate: false,
+        raw_video_in_certificate: false,
+        raw_media_in_public_registry: false,
+        biometric_template_generated: false,
+        face_template_generated: false,
+        custody_mode: "JOKER_C2_CONTROLLED_CUSTODY",
+        submitted_at: submittedAt
+      };
+
+      const hashFields = await buildPhase4HashFields({
+        privateFields,
+        previousPayloadSha256
       });
 
       const phaseData: JsonObject = {
@@ -656,66 +500,58 @@ export default function OnboardingPhotoVideoPage() {
         public_registry_mode: "HASH_ONLY",
         phase_scope: "PHOTO_VIDEO_LIVENESS",
 
-        identity_snapshot: biologicalIdentitySnapshot,
-        biological_identity_snapshot: biologicalIdentitySnapshot,
-        physical_descriptor_profile: physicalDescriptorProfile,
+        private_fields: privateFields,
+        liveness_fields: privateFields,
+        liveness_private_data: privateFields,
+        liveness_private_data_included: true,
+
         biometric_liveness_snapshot: biometricLivenessSnapshot,
 
-        private_fields: {
-          identity_snapshot: biologicalIdentitySnapshot,
-          biological_identity_snapshot: biologicalIdentitySnapshot,
-          physical_descriptor_profile: physicalDescriptorProfile,
-          biometric_liveness_snapshot: biometricLivenessSnapshot,
-          joker_c2_custody: {
-            custodian: "AI_JOKER_C2",
-            custody_mode: "JOKER_C2_CONTROLLED_CUSTODY",
-            raw_photo_in_certificate: false,
-            raw_video_in_certificate: false,
-            raw_media_in_public_registry: false,
-            raw_biometric_templates_in_certificate: false,
-            raw_face_templates_in_certificate: false,
-            certificate_contains: "hashes_references_states_only"
-          }
-        },
+        hash_fields: hashFields,
 
-        selfie_sha256: form.selfie_sha256.trim(),
-        video_sha256: form.video_sha256.trim(),
-        liveness_declaration_sha256: livenessDeclarationSha256,
-        liveness_evidence_hash: livenessEvidenceHash,
-        liveness_timestamp: issuedAt,
-        document_face_reference: form.document_face_reference.trim(),
-        selfie_reference: form.selfie_reference.trim(),
-        liveness_video_reference: form.liveness_video_reference.trim(),
-        document_face_sha256: form.document_face_sha256.trim(),
-        photo_reference: form.selfie_reference.trim(),
-        video_reference: form.liveness_video_reference.trim(),
-        photo_hash: form.selfie_sha256.trim(),
-        video_hash: form.video_sha256.trim(),
-        photo_verification_status: form.photo_verification_status,
-        video_verification_status: form.video_verification_status,
-        liveness_status: form.liveness_status,
-        face_match_status: form.face_match_status,
-        face_match_method: form.face_match_method.trim(),
-        liveness_challenge: form.liveness_challenge,
-        liveness_verified: biometricLivenessSnapshot.liveness_verified,
-        biometric_verification_consent:
-          form.biometric_verification_consent,
-        descriptor_accuracy_declaration:
-          form.descriptor_accuracy_declaration,
-        manual_review_required:
-          biometricLivenessSnapshot.manual_review_required,
+        face_photo_uploaded: true,
+        liveness_video_uploaded: true,
+        spoken_name_declaration_confirmed: true,
+        head_turn_declaration_confirmed: true,
+        biometric_verification_consent: true,
+
+        declared_spoken_name: normalizedDeclaredName,
+        liveness_challenge: livenessChallenge,
+        liveness_instruction: currentInstruction,
+
+        selfie_reference: biometricLivenessSnapshot.selfie_reference,
+        liveness_video_reference:
+          biometricLivenessSnapshot.liveness_video_reference,
+        selfie_sha256: biometricLivenessSnapshot.selfie_sha256,
+        video_sha256: biometricLivenessSnapshot.video_sha256,
+        liveness_declaration_sha256:
+          biometricLivenessSnapshot.liveness_declaration_sha256,
+
+        face_photo_sha256: hashFields.face_photo_sha256,
+        liveness_video_sha256: hashFields.liveness_video_sha256,
+        liveness_package_hash: hashFields.liveness_package_hash,
+
+        face_match_status: "MANUAL_REVIEW",
+        face_match_method:
+          "HBCE_MANUAL_REVIEW_REQUIRED_AFTER_SELFIE_AND_VIDEO_LIVENESS_UPLOAD",
+        liveness_submitted: true,
+        liveness_verified: false,
+        liveness_timestamp: submittedAt,
+        photo_verification_status: "submitted",
+        video_verification_status: "submitted",
+        liveness_status: "manual_review",
 
         raw_photo_in_certificate: false,
         raw_video_in_certificate: false,
         raw_media_in_public_registry: false,
         biometric_template_generated: false,
         face_template_generated: false,
+        custody_mode: "JOKER_C2_CONTROLLED_CUSTODY",
 
         fiscal_identity_collected: true,
         fiscal_identity_verified: false,
         official_document_uploaded: true,
-        official_document_verified: true,
-        liveness_submitted: true,
+        official_document_verified: false,
         privacy_compliance_accepted: false,
         ipr_status: "NOT_YET_ISSUED",
         ipr_card_status: "NOT_ISSUED",
@@ -727,11 +563,10 @@ export default function OnboardingPhotoVideoPage() {
           fiscal_identity_collected: true,
           fiscal_identity_verified: false,
           official_document_uploaded: true,
-          official_document_verified: true,
+          official_document_verified: false,
           liveness_submitted: true,
-          liveness_verified: biometricLivenessSnapshot.liveness_verified,
-          biometric_verification_consent:
-            form.biometric_verification_consent,
+          liveness_verified: false,
+          biometric_verification_consent: true,
           privacy_compliance_accepted: false,
           hbce_review_status: "NOT_STARTED",
           ipr_approved: false,
@@ -740,66 +575,62 @@ export default function OnboardingPhotoVideoPage() {
           joker_c2_access: "DENIED"
         },
 
-        joker_c2_custody: {
-          custody_statement:
-            "AI JOKER-C2 is the controlled operational custodian for minimized identity, document-reference, photo-reference and liveness-reference data inside HBCE governed runtime workflows.",
-          full_data_custodian: "AI_JOKER_C2",
-          custody_subject: biologicalIdentitySnapshot.display_name,
-          custody_ipr_id: null,
-          custody_certificate_id: null,
-          custody_fields_present: {
-            identity_snapshot: true,
-            physical_descriptors: true,
-            biometric_liveness_media: true,
-            face_match_verification: Boolean(form.face_match_status),
-            document_face_comparison: true
-          },
-          raw_documents_in_fragment: false,
-          raw_document_images_in_fragment: false,
-          raw_video_liveness_in_fragment: false,
-          raw_biometric_templates_in_fragment: false,
-          raw_face_templates_in_fragment: false,
-          fragment_policy: "MINIMIZED_HANDOFF_ONLY"
+        previous_payload_sha256: previousPayloadSha256,
+        next_required_phase: "PRIVACY_COMPLIANCE",
+        submitted_at: submittedAt,
+        issued_at: submittedAt,
+        issued_at_utc: submittedAt,
+
+        joker_c2_custody_reference: {
+          custodian: "AI_JOKER_C2",
+          custody_mode: "JOKER_C2_CONTROLLED_CUSTODY",
+          raw_photo_in_certificate: false,
+          raw_video_in_certificate: false,
+          raw_media_in_public_registry: false,
+          certificate_contains: "hashes_references_states_only"
         },
 
-        previous_payload_sha256: previousUpload.payloadSha256,
-        next_required_phase: "PRIVACY_COMPLIANCE",
-        issued_at: issuedAt,
-        issued_at_utc: issuedAt,
-
         certificate_boundary:
-          "This file records photo, face and liveness evidence references for the HBCE IPR onboarding chain. It does not approve the IPR, does not issue an IPR Card, does not activate the operational certificate and does not grant JOKER-C2 access.",
+          "This file records photo/video liveness submission for the HBCE IPR onboarding chain. It does not approve the IPR, it does not verify the subject by itself, it does not issue the IPR Card and it does not grant JOKER-C2 access.",
 
         privacy_boundary:
-          "This private portable HBCE-IPR certificate contains minimized liveness references, hashes, states and custody declarations only. It must not contain raw photos, raw videos, biometric templates or face templates.",
+          "This is a private portable HBCE-IPR certificate downloaded by the subject. It contains file references, hashes, declarations and verification states only. It must not contain raw photos, raw videos, biometric templates or face templates.",
 
         biometric_boundary:
-          "Photo, face and liveness data are represented through protected references, hash values and review states. Raw biometric media and templates remain outside portable certificates and public routes.",
+          "The photo/video liveness certificate stores protected references, SHA-256 hashes, liveness declarations and review states. Raw biometric media remain outside the certificate and outside the public registry.",
 
         trust_boundary:
-          "Certificate 04 prepares the onboarding package for privacy and compliance only. HBCE review, IPR approval, IPR Card issuance and JOKER-C2 access remain denied until later fail-closed phases."
+          "Certificate 04 records liveness submission only. HBCE manual or backend review is required before IPR approval, IPR Card issuance, operational certificate activation and JOKER-C2 access."
       };
 
       const generated = await generateHbceIprCertificate({
-        phase_number: 4,
-        phase_code: "LIVENESS_SUBMITTED",
-        phase_status: "PENDING_REVIEW",
-        next_required_phase: "PRIVACY_COMPLIANCE",
+        phase_number: phase.phase_number,
+        phase_code: phase.phase_code,
+        phase_status: "ACTIVE",
+        next_required_phase: phase.next_required_phase,
         subject: previousUpload.certificate.subject,
         previous_certificate: previousUpload.certificate,
-        previous_payload_sha256: previousUpload.payloadSha256,
+        previous_payload_sha256: previousPayloadSha256,
         phase_data: phaseData,
-        issued_at: issuedAt
+        issued_at: submittedAt
       });
 
-      storeGeneratedCertificateForNextPhase(generated);
-      downloadHbceIprCertificate(generated.certificate, generated.file_name);
       setGeneratedCertificate(generated);
-    } catch (error) {
-      setGenerationError(
-        error instanceof Error
-          ? error.message
-          : "The HBCE liveness certificate could not be generated."
+      storeCertificateForNextPhase(generated.certificate);
+      downloadHbceIprCertificate(generated.certificate, generated.file_name);
+
+      const nextRoute = getContinuationRouteFromCertificate(
+        generated.certificate
+      );
+
+      window.setTimeout(() => {
+        router.push(nextRoute);
+      }, 250);
+    } catch (generationError) {
+      setError(
+        generationError instanceof Error
+          ? generationError.message
+          : "HBCE photo/video liveness certificate generation failed."
       );
     } finally {
       setIsGenerating(false);
@@ -808,718 +639,295 @@ export default function OnboardingPhotoVideoPage() {
 
   return (
     <div className="hbce-container">
-      <section className="hbce-hero">
-        <p className="hbce-kicker">Step 04 · Photo / Video Liveness</p>
+      <main className="hbce-main">
+        <section className="hbce-hero">
+          <p className="hbce-kicker">HBCE IPR Onboarding · Phase 04</p>
 
-        <h1 className="hbce-title">
-          Prepare face, photo, video and liveness verification.
-        </h1>
+          <h1>{phase.title}</h1>
 
-        <p className="hbce-lead">
-          This phase binds the official document face evidence, live selfie,
-          dynamic liveness video and physical descriptor profile to the HBCE IPR
-          onboarding chain. The MVP records protected references, hashes,
-          verification states and custody boundaries only.
-        </p>
-      </section>
+          <p>
+            Upload a clear face photo and a liveness video. In the video, the
+            subject must show the face, say the declared full name aloud and
+            turn the head according to the selected challenge.
+          </p>
+        </section>
 
-      <section className="hbce-section">
-        <div className="hbce-grid hbce-grid--2">
-          <div className="hbce-card">
-            <p className="hbce-kicker">Previous phase certificate</p>
-            <h2>Upload Certificate 03 before liveness generation.</h2>
-
-            <p>
-              The photo/video liveness certificate must be chained to the
-              previous official identity document certificate. Without that
-              previous hash, this phase remains closed.
+        {previousUpload ? (
+          <section className="hbce-card hbce-card--soft">
+            <p className="hbce-kicker">
+              {previousUpload.source === "session"
+                ? "Official document certificate loaded from session"
+                : "Official document certificate accepted"}
             </p>
 
-            <IprCertificateUploader
-              expectedPreviousPhase="OFFICIAL_DOCUMENT_SUBMITTED"
-              expectedNextPhase="LIVENESS_CHECK"
-              title="Upload HBCE Official Document Certificate"
-              description="Upload hbce-ipr-03-official-document.hbce.json. The liveness phase can be generated only after the official document phase has been accepted."
-              onCertificateAccepted={(upload) => {
-                setPreviousUpload(upload);
-                setGeneratedCertificate(null);
-                setGenerationError(null);
-              }}
-              onValidation={(validation) => {
-                if (!validation.valid) {
-                  setPreviousUpload(null);
+            <h2>Certificate 03 ready for photo/video liveness.</h2>
+
+            <p>
+              The required official document certificate is available. You can
+              now submit face photo and liveness video evidence for Certificate
+              04.
+            </p>
+
+            <p className="hbce-mono">file_name: {previousUpload.fileName}</p>
+
+            <p className="hbce-mono">
+              current_phase: {previousUpload.certificate.phase.code}
+            </p>
+
+            <p className="hbce-mono">
+              unlocks_phase: {previousUpload.certificate.next.next_phase}
+            </p>
+
+            <p className="hbce-mono">
+              payload_sha256: {previousUpload.payloadSha256}
+            </p>
+
+            {previousUpload.previousPayloadSha256 ? (
+              <p className="hbce-mono">
+                previous_payload_sha256: {previousUpload.previousPayloadSha256}
+              </p>
+            ) : null}
+
+            <div className="hbce-actions">
+              <button
+                className="hbce-btn hbce-btn--ghost"
+                type="button"
+                onClick={clearPreviousUpload}
+              >
+                Use another Certificate 03
+              </button>
+            </div>
+          </section>
+        ) : (
+          <IprCertificateUploader
+            expectedPreviousPhase={EXPECTED_PREVIOUS_PHASE}
+            expectedNextPhase={EXPECTED_NEXT_PHASE}
+            title="Upload Official Document Certificate"
+            description="Upload hbce-ipr-03-official-document.hbce.json. The app verifies Certificate 03 before enabling photo/video liveness submission."
+            onCertificateAccepted={(upload) => {
+              setPreviousUpload(buildActiveUploadFromAcceptedUpload(upload));
+              setError("");
+            }}
+            onValidation={(validation) => {
+              if (!validation.valid) {
+                setPreviousUpload(null);
+              }
+            }}
+          />
+        )}
+
+        <section className="hbce-card">
+          <div className="hbce-stack">
+            <div>
+              <p className="hbce-kicker">Face photo</p>
+              <h2>Upload a clear front face photo.</h2>
+              <p className="hbce-muted">
+                The certificate stores only the SHA-256 hash and a protected
+                local reference. The raw photo is not written inside the HBCE-IPR
+                certificate.
+              </p>
+            </div>
+
+            <label className="hbce-field">
+              <span>Face photo file</span>
+              <input
+                type="file"
+                accept="image/*"
+                onChange={(event) => {
+                  setFacePhotoFile(event.target.files?.[0] ?? null);
                   setGeneratedCertificate(null);
-                }
-              }}
-            />
+                  setError("");
+                }}
+              />
+              <small>{getSelectedFileLabel(facePhotoFile)}</small>
+            </label>
           </div>
+        </section>
 
-          <div className="hbce-card hbce-card--soft">
-            <p className="hbce-kicker">Verification state</p>
-            <h2>Photo/video verification prepares review, not access.</h2>
+        <section className="hbce-card">
+          <div className="hbce-stack">
+            <div>
+              <p className="hbce-kicker">Liveness video</p>
+              <h2>Upload a video saying the name and turning the head.</h2>
+              <p className="hbce-muted">
+                The video must show the subject&apos;s face, contain the spoken
+                full name and include the selected head-turn challenge. The raw
+                video is not written inside the HBCE-IPR certificate.
+              </p>
+            </div>
+
+            <label className="hbce-field">
+              <span>Declared spoken full name</span>
+              <input
+                type="text"
+                value={declaredSpokenName}
+                placeholder="Full name spoken aloud in the video"
+                onChange={(event) => {
+                  setDeclaredSpokenName(event.target.value);
+                  setGeneratedCertificate(null);
+                  setError("");
+                }}
+              />
+              <small>
+                This text must match the name spoken aloud inside the uploaded
+                liveness video.
+              </small>
+            </label>
+
+            <label className="hbce-field">
+              <span>Liveness challenge</span>
+              <select
+                value={livenessChallenge}
+                onChange={(event) => {
+                  setLivenessChallenge(event.target.value as LivenessChallenge);
+                  setGeneratedCertificate(null);
+                  setError("");
+                }}
+              >
+                {LIVENESS_CHALLENGES.map((challenge) => (
+                  <option key={challenge} value={challenge}>
+                    {challenge}
+                  </option>
+                ))}
+              </select>
+              <small>{currentInstruction}</small>
+            </label>
+
+            <label className="hbce-field">
+              <span>Liveness video file</span>
+              <input
+                type="file"
+                accept="video/*"
+                onChange={(event) => {
+                  setLivenessVideoFile(event.target.files?.[0] ?? null);
+                  setGeneratedCertificate(null);
+                  setError("");
+                }}
+              />
+              <small>{getSelectedFileLabel(livenessVideoFile)}</small>
+            </label>
+
+            <label className="hbce-check">
+              <input
+                type="checkbox"
+                checked={spokenNameConfirmed}
+                onChange={(event) => {
+                  setSpokenNameConfirmed(event.target.checked);
+                  setGeneratedCertificate(null);
+                  setError("");
+                }}
+              />
+              <span>
+                I confirm that the uploaded liveness video includes the subject
+                saying the declared full name aloud.
+              </span>
+            </label>
+
+            <label className="hbce-check">
+              <input
+                type="checkbox"
+                checked={headTurnConfirmed}
+                onChange={(event) => {
+                  setHeadTurnConfirmed(event.target.checked);
+                  setGeneratedCertificate(null);
+                  setError("");
+                }}
+              />
+              <span>
+                I confirm that the uploaded liveness video includes the required
+                head movement challenge.
+              </span>
+            </label>
+
+            <label className="hbce-check">
+              <input
+                type="checkbox"
+                checked={biometricConsent}
+                onChange={(event) => {
+                  setBiometricConsent(event.target.checked);
+                  setGeneratedCertificate(null);
+                  setError("");
+                }}
+              />
+              <span>
+                I accept biometric/liveness verification references for HBCE IPR
+                onboarding. Raw photos, raw videos and biometric templates are
+                not stored inside the portable certificate.
+              </span>
+            </label>
+          </div>
+        </section>
+
+        <section className="hbce-card hbce-card--soft">
+          <p className="hbce-kicker">Certificate content boundary</p>
+          <h2>Only hashes and references enter Certificate 04.</h2>
+
+          <p>
+            The app computes local SHA-256 hashes for the face photo and the
+            liveness video. Certificate 04 stores protected references, hashes,
+            liveness declarations and review states only.
+          </p>
+
+          <p className="hbce-mono">raw_photo_in_certificate: false</p>
+          <p className="hbce-mono">raw_video_in_certificate: false</p>
+          <p className="hbce-mono">biometric_template_generated: false</p>
+          <p className="hbce-mono">face_template_generated: false</p>
+          <p className="hbce-mono">
+            custody_mode: JOKER_C2_CONTROLLED_CUSTODY
+          </p>
+        </section>
+
+        {error ? (
+          <section className="hbce-card hbce-card--danger">
+            <strong>FAIL_CLOSED</strong>
+            <p>{error}</p>
+          </section>
+        ) : null}
+
+        {generatedCertificate ? (
+          <section className="hbce-card hbce-card--success">
+            <p className="hbce-kicker">Certificate generated</p>
+            <h2>{generatedCertificate.file_name}</h2>
 
             <p>
-              Face and liveness verification are evidence preparation layers.
-              They do not directly issue IPR Verified status, issue the IPR
-              Card, activate the operational certificate or grant access to
-              JOKER-C2.
+              The private photo/video liveness certificate has been generated
+              and downloaded. Use this file in Phase 05 — Privacy & Compliance.
             </p>
 
-            <div className="hbce-card-preview__meta">
-              {photoVideoStateItems.map((item) => (
-                <div className="hbce-meta" key={item.label}>
-                  <span className="hbce-meta__label">{item.label}</span>
-                  <span className="hbce-meta__value">
-                    <StatusBadge status={item.status} />
-                  </span>
-                </div>
-              ))}
-            </div>
+            <p className="hbce-mono">
+              phase: {generatedCertificate.certificate.phase.code}
+            </p>
 
-            {previousIdentityPreview ? (
-              <>
-                <div className="hbce-divider" />
+            <p className="hbce-mono">
+              status: {generatedCertificate.certificate.phase.status}
+            </p>
 
-                <p className="hbce-mono">
-                  previous_subject:{" "}
-                  {previousIdentityPreview.display_name ?? "unavailable"}
-                </p>
-                <p className="hbce-mono">
-                  previous_document_ref:{" "}
-                  {previousIdentityPreview.document_ref ?? "unavailable"}
-                </p>
-                <p className="hbce-mono">
-                  previous_fiscal_ref:{" "}
-                  {previousIdentityPreview.fiscal_or_tax_identifier_ref ??
-                    "unavailable"}
-                </p>
-              </>
+            <p className="hbce-mono">
+              payload_sha256: {generatedCertificate.payload_sha256}
+            </p>
+
+            {generatedCertificate.previous_payload_sha256 ? (
+              <p className="hbce-mono">
+                previous_payload_sha256:{" "}
+                {generatedCertificate.previous_payload_sha256}
+              </p>
             ) : null}
+          </section>
+        ) : null}
 
-            {generatedCertificate ? (
-              <>
-                <div className="hbce-divider" />
-
-                <p className="hbce-mono">
-                  file_name: {generatedCertificate.file_name}
-                </p>
-                <p className="hbce-mono">
-                  payload_sha256: {generatedCertificate.payload_sha256}
-                </p>
-                <p className="hbce-mono">
-                  previous_payload_sha256:{" "}
-                  {generatedCertificate.previous_payload_sha256}
-                </p>
-              </>
-            ) : null}
-          </div>
-        </div>
-      </section>
-
-      <section className="hbce-section">
-        <form className="hbce-card" onSubmit={handleGenerateCertificate}>
-          <p className="hbce-kicker">Biometric & liveness evidence</p>
-          <h2>Prepare protected face and liveness metadata.</h2>
-
-          <p>
-            In production, these references must point to protected storage,
-            authorized verification providers and lawful identity verification
-            workflows. This MVP does not process raw photos, raw videos, face
-            templates or biometric templates inside the public route.
-          </p>
-
-          <div className="hbce-grid hbce-grid--3">
-            <div className="hbce-field">
-              <label className="hbce-label" htmlFor="document_face_reference">
-                Protected document-face reference
-              </label>
-              <input
-                autoComplete="off"
-                className="hbce-input hbce-mono"
-                id="document_face_reference"
-                name="document_face_reference"
-                onChange={(event) =>
-                  updateFormField(
-                    "document_face_reference",
-                    event.target.value
-                  )
-                }
-                placeholder="protected_document_face_reference_demo"
-                type="text"
-                value={form.document_face_reference}
-              />
-            </div>
-
-            <div className="hbce-field">
-              <label className="hbce-label" htmlFor="selfie_reference">
-                Protected selfie reference
-              </label>
-              <input
-                autoComplete="off"
-                className="hbce-input hbce-mono"
-                id="selfie_reference"
-                name="selfie_reference"
-                onChange={(event) =>
-                  updateFormField("selfie_reference", event.target.value)
-                }
-                placeholder="protected_selfie_reference_demo"
-                type="text"
-                value={form.selfie_reference}
-              />
-            </div>
-
-            <div className="hbce-field">
-              <label className="hbce-label" htmlFor="liveness_video_reference">
-                Protected liveness-video reference
-              </label>
-              <input
-                autoComplete="off"
-                className="hbce-input hbce-mono"
-                id="liveness_video_reference"
-                name="liveness_video_reference"
-                onChange={(event) =>
-                  updateFormField(
-                    "liveness_video_reference",
-                    event.target.value
-                  )
-                }
-                placeholder="protected_liveness_video_reference_demo"
-                type="text"
-                value={form.liveness_video_reference}
-              />
-            </div>
-          </div>
-
-          <div className="hbce-grid hbce-grid--3">
-            <div className="hbce-field">
-              <label className="hbce-label" htmlFor="document_face_sha256">
-                Document-face SHA-256
-              </label>
-              <input
-                autoComplete="off"
-                className="hbce-input hbce-mono"
-                id="document_face_sha256"
-                name="document_face_sha256"
-                onChange={(event) =>
-                  updateFormField("document_face_sha256", event.target.value)
-                }
-                placeholder="sha256_document_face_hash"
-                type="text"
-                value={form.document_face_sha256}
-              />
-            </div>
-
-            <div className="hbce-field">
-              <label className="hbce-label" htmlFor="selfie_sha256">
-                Selfie SHA-256
-              </label>
-              <input
-                autoComplete="off"
-                className="hbce-input hbce-mono"
-                id="selfie_sha256"
-                name="selfie_sha256"
-                onChange={(event) =>
-                  updateFormField("selfie_sha256", event.target.value)
-                }
-                placeholder="sha256_selfie_hash"
-                type="text"
-                value={form.selfie_sha256}
-              />
-            </div>
-
-            <div className="hbce-field">
-              <label className="hbce-label" htmlFor="video_sha256">
-                Liveness video SHA-256
-              </label>
-              <input
-                autoComplete="off"
-                className="hbce-input hbce-mono"
-                id="video_sha256"
-                name="video_sha256"
-                onChange={(event) =>
-                  updateFormField("video_sha256", event.target.value)
-                }
-                placeholder="sha256_video_hash"
-                type="text"
-                value={form.video_sha256}
-              />
-            </div>
-          </div>
-
-          <div className="hbce-grid hbce-grid--3">
-            <div className="hbce-field">
-              <label className="hbce-label" htmlFor="face_match_status">
-                Face match status
-              </label>
-              <select
-                className="hbce-select"
-                id="face_match_status"
-                name="face_match_status"
-                onChange={(event) =>
-                  updateFormField(
-                    "face_match_status",
-                    event.target.value as FaceMatchStatus
-                  )
-                }
-                value={form.face_match_status}
-              >
-                <option value="MANUAL_REVIEW">Manual review</option>
-                <option value="PENDING">Pending</option>
-                <option value="MATCHED">Matched</option>
-                <option value="FAILED">Failed</option>
-              </select>
-            </div>
-
-            <div className="hbce-field">
-              <label className="hbce-label" htmlFor="face_match_method">
-                Face match method
-              </label>
-              <input
-                autoComplete="off"
-                className="hbce-input hbce-mono"
-                id="face_match_method"
-                name="face_match_method"
-                onChange={(event) =>
-                  updateFormField("face_match_method", event.target.value)
-                }
-                placeholder="DOCUMENT_FACE_SELFIE_VIDEO_COMPARISON"
-                type="text"
-                value={form.face_match_method}
-              />
-            </div>
-
-            <div className="hbce-field">
-              <label className="hbce-label" htmlFor="liveness_challenge">
-                Liveness challenge
-              </label>
-              <select
-                className="hbce-select"
-                id="liveness_challenge"
-                name="liveness_challenge"
-                onChange={(event) =>
-                  updateFormField(
-                    "liveness_challenge",
-                    event.target.value as LivenessChallenge
-                  )
-                }
-                value={form.liveness_challenge}
-              >
-                <option value="HEAD_TURN_LEFT_RIGHT">
-                  Head turn left / right
-                </option>
-                <option value="HEAD_TURN_RIGHT_LEFT">
-                  Head turn right / left
-                </option>
-                <option value="RANDOM_PROMPT">Random prompt</option>
-                <option value="MANUAL_OPERATOR_PROMPT">
-                  Manual operator prompt
-                </option>
-              </select>
-            </div>
-          </div>
-
-          <div className="hbce-grid hbce-grid--3">
-            <div className="hbce-field">
-              <label className="hbce-label" htmlFor="photo_verification_status">
-                Photo verification status
-              </label>
-              <select
-                className="hbce-select"
-                id="photo_verification_status"
-                name="photo_verification_status"
-                onChange={(event) =>
-                  updateFormField(
-                    "photo_verification_status",
-                    event.target.value as LivenessReviewStatus
-                  )
-                }
-                value={form.photo_verification_status}
-              >
-                <option value="submitted">Submitted</option>
-                <option value="manual_review">Manual review</option>
-                <option value="approved">Approved</option>
-                <option value="rejected">Rejected</option>
-              </select>
-            </div>
-
-            <div className="hbce-field">
-              <label className="hbce-label" htmlFor="video_verification_status">
-                Video verification status
-              </label>
-              <select
-                className="hbce-select"
-                id="video_verification_status"
-                name="video_verification_status"
-                onChange={(event) =>
-                  updateFormField(
-                    "video_verification_status",
-                    event.target.value as LivenessReviewStatus
-                  )
-                }
-                value={form.video_verification_status}
-              >
-                <option value="submitted">Submitted</option>
-                <option value="manual_review">Manual review</option>
-                <option value="approved">Approved</option>
-                <option value="rejected">Rejected</option>
-              </select>
-            </div>
-
-            <div className="hbce-field">
-              <label className="hbce-label" htmlFor="liveness_status">
-                Liveness review status
-              </label>
-              <select
-                className="hbce-select"
-                id="liveness_status"
-                name="liveness_status"
-                onChange={(event) =>
-                  updateFormField(
-                    "liveness_status",
-                    event.target.value as LivenessReviewStatus
-                  )
-                }
-                value={form.liveness_status}
-              >
-                <option value="manual_review">Manual review</option>
-                <option value="submitted">Submitted</option>
-                <option value="approved">Approved</option>
-                <option value="rejected">Rejected</option>
-              </select>
-            </div>
-          </div>
-
-          <div className="hbce-divider" />
-
-          <p className="hbce-kicker">Physical descriptor profile</p>
-          <h2>Attach declared physical descriptors.</h2>
-
-          <p>
-            These fields describe the biological subject for operational
-            identity continuity. They are not face templates, fingerprints,
-            iris templates or raw biometric media.
-          </p>
-
-          <div className="hbce-grid hbce-grid--3">
-            <div className="hbce-field">
-              <label className="hbce-label" htmlFor="height_cm">
-                Height in centimeters
-              </label>
-              <input
-                autoComplete="off"
-                className="hbce-input"
-                id="height_cm"
-                inputMode="numeric"
-                name="height_cm"
-                onChange={(event) =>
-                  updateFormField("height_cm", event.target.value)
-                }
-                placeholder="170"
-                type="text"
-                value={form.height_cm}
-              />
-            </div>
-
-            <div className="hbce-field">
-              <label className="hbce-label" htmlFor="weight_kg">
-                Weight in kilograms
-              </label>
-              <input
-                autoComplete="off"
-                className="hbce-input"
-                id="weight_kg"
-                inputMode="numeric"
-                name="weight_kg"
-                onChange={(event) =>
-                  updateFormField("weight_kg", event.target.value)
-                }
-                placeholder="70"
-                type="text"
-                value={form.weight_kg}
-              />
-            </div>
-
-            <div className="hbce-field">
-              <label className="hbce-label" htmlFor="body_build">
-                Body build
-              </label>
-              <input
-                autoComplete="off"
-                className="hbce-input"
-                id="body_build"
-                name="body_build"
-                onChange={(event) =>
-                  updateFormField("body_build", event.target.value)
-                }
-                placeholder="medium"
-                type="text"
-                value={form.body_build}
-              />
-            </div>
-          </div>
-
-          <div className="hbce-grid hbce-grid--3">
-            <div className="hbce-field">
-              <label className="hbce-label" htmlFor="eye_color">
-                Eye color
-              </label>
-              <input
-                autoComplete="off"
-                className="hbce-input"
-                id="eye_color"
-                name="eye_color"
-                onChange={(event) =>
-                  updateFormField("eye_color", event.target.value)
-                }
-                placeholder="brown"
-                type="text"
-                value={form.eye_color}
-              />
-            </div>
-
-            <div className="hbce-field">
-              <label className="hbce-label" htmlFor="hair_color">
-                Hair color
-              </label>
-              <input
-                autoComplete="off"
-                className="hbce-input"
-                id="hair_color"
-                name="hair_color"
-                onChange={(event) =>
-                  updateFormField("hair_color", event.target.value)
-                }
-                placeholder="black"
-                type="text"
-                value={form.hair_color}
-              />
-            </div>
-
-            <div className="hbce-field">
-              <label className="hbce-label" htmlFor="hair_type">
-                Hair type
-              </label>
-              <input
-                autoComplete="off"
-                className="hbce-input"
-                id="hair_type"
-                name="hair_type"
-                onChange={(event) =>
-                  updateFormField("hair_type", event.target.value)
-                }
-                placeholder="short"
-                type="text"
-                value={form.hair_type}
-              />
-            </div>
-          </div>
-
-          <div className="hbce-grid hbce-grid--2">
-            <div className="hbce-field">
-              <label className="hbce-label" htmlFor="visible_scars">
-                Visible scars
-              </label>
-              <textarea
-                className="hbce-textarea"
-                id="visible_scars"
-                name="visible_scars"
-                onChange={(event) =>
-                  updateFormField("visible_scars", event.target.value)
-                }
-                placeholder="No visible scars declared"
-                rows={3}
-                value={form.visible_scars}
-              />
-            </div>
-
-            <div className="hbce-field">
-              <label className="hbce-label" htmlFor="distinctive_marks">
-                Distinctive marks
-              </label>
-              <textarea
-                className="hbce-textarea"
-                id="distinctive_marks"
-                name="distinctive_marks"
-                onChange={(event) =>
-                  updateFormField("distinctive_marks", event.target.value)
-                }
-                placeholder="No distinctive marks declared"
-                rows={3}
-                value={form.distinctive_marks}
-              />
-            </div>
-          </div>
-
-          <div className="hbce-grid hbce-grid--2">
-            <div className="hbce-field">
-              <label className="hbce-label" htmlFor="tattoos">
-                Tattoos
-              </label>
-              <textarea
-                className="hbce-textarea"
-                id="tattoos"
-                name="tattoos"
-                onChange={(event) =>
-                  updateFormField("tattoos", event.target.value)
-                }
-                placeholder="No tattoos declared"
-                rows={3}
-                value={form.tattoos}
-              />
-            </div>
-
-            <div className="hbce-field">
-              <label className="hbce-label" htmlFor="piercings">
-                Piercings
-              </label>
-              <textarea
-                className="hbce-textarea"
-                id="piercings"
-                name="piercings"
-                onChange={(event) =>
-                  updateFormField("piercings", event.target.value)
-                }
-                placeholder="No piercings declared"
-                rows={3}
-                value={form.piercings}
-              />
-            </div>
-          </div>
-
-          <div className="hbce-divider" />
-
-          <div className="hbce-card hbce-card--soft">
-            <p className="hbce-kicker">Consent and declaration</p>
-
-            <label className="hbce-checkbox">
-              <input
-                checked={form.biometric_verification_consent}
-                name="biometric_verification_consent"
-                onChange={(event) =>
-                  updateFormField(
-                    "biometric_verification_consent",
-                    event.target.checked
-                  )
-                }
-                type="checkbox"
-              />
-              <span>
-                I confirm that photo, face and liveness references are used for
-                HBCE IPR onboarding, anti-impersonation control, review
-                preparation and governed JOKER-C2 access only.
-              </span>
-            </label>
-
-            <label className="hbce-checkbox">
-              <input
-                checked={form.descriptor_accuracy_declaration}
-                name="descriptor_accuracy_declaration"
-                onChange={(event) =>
-                  updateFormField(
-                    "descriptor_accuracy_declaration",
-                    event.target.checked
-                  )
-                }
-                type="checkbox"
-              />
-              <span>
-                I declare that the physical descriptor profile is accurate to
-                the best of my knowledge.
-              </span>
-            </label>
-          </div>
-
-          <BoundaryNotice title="Manual review required" tone="warning">
-            Photo/video metadata can prepare the onboarding case for privacy and
-            HBCE review, but it cannot self-approve the subject, issue IPR
-            Verified status, issue an IPR Card or unlock JOKER-C2 access.
-          </BoundaryNotice>
-
-          {generationError ? (
-            <BoundaryNotice title="Certificate generation blocked" tone="danger">
-              {generationError}
-            </BoundaryNotice>
-          ) : null}
-
-          {generatedCertificate ? (
-            <BoundaryNotice title="Certificate 04 generated" tone="warning">
-              The HBCE liveness certificate has been generated, downloaded and
-              stored for the next Privacy & Compliance phase in this browser
-              session.
-            </BoundaryNotice>
-          ) : null}
-
-          <div className="hbce-actions">
-            <Link className="hbce-btn" href={ROUTES.onboardingDocuments}>
-              Back to Official ID Document
-            </Link>
-
-            <button
-              className="hbce-btn hbce-btn--primary"
-              disabled={!canGenerateCertificate || isGenerating}
-              type="submit"
-            >
-              {isGenerating
-                ? "Generating Certificate 04..."
-                : "Generate Photo / Video Liveness Certificate"}
-            </button>
-
-            <Link className="hbce-btn" href={ROUTES.onboardingPhase5}>
-              Continue to Privacy & Compliance
-            </Link>
-          </div>
-        </form>
-      </section>
-
-      <section className="hbce-section">
-        <div className="hbce-grid hbce-grid--2">
-          <div className="hbce-card hbce-card--soft">
-            <p className="hbce-kicker">Expected evidence layer</p>
-            <h2>Evidence prepared by this phase.</h2>
-
-            <ul className="hbce-list">
-              {PHOTO_VIDEO_EVIDENCE_ITEMS.map((item) => (
-                <li key={item}>{item}</li>
-              ))}
-            </ul>
-
-            <div className="hbce-divider" />
-
-            <h3>Review rules</h3>
-            <ul className="hbce-list">
-              {PHOTO_VIDEO_REVIEW_RULES.map((rule) => (
-                <li key={rule}>{rule}</li>
-              ))}
-            </ul>
-          </div>
-
-          <div className="hbce-card hbce-card--soft">
-            <p className="hbce-kicker">Security boundaries</p>
-            <h2>Raw biometric media stay outside public routes.</h2>
-
-            <ul className="hbce-list">
-              {PHOTO_VIDEO_BOUNDARIES.map((boundary) => (
-                <li key={boundary}>{boundary}</li>
-              ))}
-            </ul>
-
-            <div className="hbce-divider" />
-
-            <BoundaryNotice title="Photo / video security boundary" tone="danger">
-              {SECURITY_BOUNDARY_TEXT} Real photos, real videos, biometric
-              templates, liveness recordings and face templates must not be
-              committed to this repository or exposed in public routes.
-            </BoundaryNotice>
-          </div>
-        </div>
-      </section>
-
-      <section className="hbce-section">
-        <div className="hbce-card">
-          <h2>Current onboarding position</h2>
-          <OnboardingStepper currentStep="phase_4_liveness" />
-        </div>
-      </section>
+        <section className="hbce-actions">
+          <button
+            className="hbce-btn hbce-btn--primary"
+            type="button"
+            disabled={isGenerating}
+            onClick={generateLivenessCertificate}
+          >
+            {isGenerating
+              ? "Generating HBCE IPR Certificate 04"
+              : "Generate HBCE IPR Certificate 04"}
+          </button>
+        </section>
+      </main>
     </div>
   );
 }
