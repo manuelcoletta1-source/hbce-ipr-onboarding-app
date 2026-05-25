@@ -468,15 +468,13 @@ export default function PhotoVideoLivenessPage() {
         liveness_challenge: livenessChallenge,
         liveness_instruction: currentInstruction,
         declared_spoken_name: normalizedDeclaredName,
-        document_face_reference: biometricLivenessSnapshot.document_face_reference,
-        selfie_reference: biometricLivenessSnapshot.selfie_reference,
-        liveness_video_reference:
-          biometricLivenessSnapshot.liveness_video_reference,
-        document_face_sha256: biometricLivenessSnapshot.document_face_sha256,
-        selfie_sha256: biometricLivenessSnapshot.selfie_sha256,
-        video_sha256: biometricLivenessSnapshot.video_sha256,
-        liveness_declaration_sha256:
-          biometricLivenessSnapshot.liveness_declaration_sha256,
+        document_face_reference: null,
+        selfie_reference: facePhotoEvidence.protected_reference,
+        liveness_video_reference: videoEvidence.protected_reference,
+        document_face_sha256: null,
+        selfie_sha256: facePhotoEvidence.sha256,
+        video_sha256: videoEvidence.sha256,
+        liveness_declaration_sha256: livenessDeclarationSha256,
         face_photo_evidence: facePhotoEvidence,
         liveness_video_evidence: videoEvidence,
         biometric_liveness_snapshot: biometricLivenessSnapshot,
@@ -519,13 +517,11 @@ export default function PhotoVideoLivenessPage() {
         liveness_challenge: livenessChallenge,
         liveness_instruction: currentInstruction,
 
-        selfie_reference: biometricLivenessSnapshot.selfie_reference,
-        liveness_video_reference:
-          biometricLivenessSnapshot.liveness_video_reference,
-        selfie_sha256: biometricLivenessSnapshot.selfie_sha256,
-        video_sha256: biometricLivenessSnapshot.video_sha256,
-        liveness_declaration_sha256:
-          biometricLivenessSnapshot.liveness_declaration_sha256,
+        selfie_reference: facePhotoEvidence.protected_reference,
+        liveness_video_reference: videoEvidence.protected_reference,
+        selfie_sha256: facePhotoEvidence.sha256,
+        video_sha256: videoEvidence.sha256,
+        liveness_declaration_sha256: livenessDeclarationSha256,
 
         face_photo_sha256: hashFields.face_photo_sha256,
         liveness_video_sha256: hashFields.liveness_video_sha256,
