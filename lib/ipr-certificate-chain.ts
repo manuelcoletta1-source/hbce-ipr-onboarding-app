@@ -55,8 +55,7 @@ const HBCE_LIVENESS_CHALLENGES = [
   "HEAD_TURN_LEFT_RIGHT",
   "HEAD_TURN_RIGHT_LEFT",
   "RANDOM_PROMPT",
-  "MANUAL_OPERATOR_PROMPT",
-  "MANUAL"
+  "MANUAL_OPERATOR_PROMPT"
 ] as const;
 
 const HBCE_LIVENESS_REVIEW_STATUSES = [
@@ -642,7 +641,7 @@ function buildBiometricLivenessSnapshotFromSource(
       livenessSource,
       ["liveness_challenge"],
       HBCE_LIVENESS_CHALLENGES,
-      "MANUAL"
+      "MANUAL_OPERATOR_PROMPT"
     ),
     liveness_verified: getBooleanFromObject(livenessSource, [
       "liveness_verified"
@@ -724,7 +723,9 @@ function mergeBiometricLivenessSnapshots(
     face_match_method:
       primary?.face_match_method ?? fallback?.face_match_method ?? null,
     liveness_challenge:
-      primary?.liveness_challenge ?? fallback?.liveness_challenge ?? "MANUAL",
+      primary?.liveness_challenge ??
+      fallback?.liveness_challenge ??
+      "MANUAL_OPERATOR_PROMPT",
     liveness_verified: Boolean(
       primary?.liveness_verified || fallback?.liveness_verified
     ),
