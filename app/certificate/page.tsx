@@ -106,8 +106,7 @@ const LIVENESS_CHALLENGES = [
   "HEAD_TURN_LEFT_RIGHT",
   "HEAD_TURN_RIGHT_LEFT",
   "RANDOM_PROMPT",
-  "MANUAL_OPERATOR_PROMPT",
-  "MANUAL"
+  "MANUAL_OPERATOR_PROMPT"
 ] as const;
 
 const LIVENESS_REVIEW_STATUSES = [
@@ -565,7 +564,7 @@ function buildBiometricLivenessSnapshotFromCertificate(
         sources,
         ["liveness_challenge"],
         LIVENESS_CHALLENGES
-      ) ?? "MANUAL",
+      ) ?? "MANUAL_OPERATOR_PROMPT",
     liveness_verified: getBooleanFromSources(sources, ["liveness_verified"]),
     liveness_timestamp: getStringFromSources(sources, [
       "liveness_timestamp"
