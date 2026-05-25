@@ -487,7 +487,10 @@ function buildJokerC2GatewayUrlWithHandoff(
   handoff: HbceJokerC2IdentityHandoff
 ): string {
   const encodedHandoff = encodeBase64UrlJson(handoff);
-  const gatewayWithoutFragment = JOKER_C2_GATEWAY_URL.split("#")[0];
+  const gatewayBase =
+    JOKER_C2_GATEWAY_URL.split("#")[0] ?? JOKER_C2_GATEWAY_URL;
+  const gatewayWithoutFragment =
+    gatewayBase.trim().length > 0 ? gatewayBase : JOKER_C2_GATEWAY_URL;
   const querySeparator = gatewayWithoutFragment.includes("?") ? "&" : "?";
 
   return `${gatewayWithoutFragment}${querySeparator}${JOKER_C2_HANDOFF_QUERY_KEY}=${encodeURIComponent(
@@ -1273,9 +1276,7 @@ export default function JokerC2AccessPage() {
               session.
             </p>
 
-            <p className="hbce-mono">
-              transport: URL_QUERY_BASE64URL_JSON
-            </p>
+            <p className="hbce-mono">transport: URL_QUERY_BASE64URL_JSON</p>
             <p className="hbce-mono">
               query_key: {JOKER_C2_HANDOFF_QUERY_KEY}
             </p>
@@ -1549,9 +1550,7 @@ export default function JokerC2AccessPage() {
             </p>
             <p className="hbce-mono">
               biometric_verification_consent:{" "}
-              {String(
-                biometricLivenessSnapshot.biometric_verification_consent
-              )}
+              {String(biometricLivenessSnapshot.biometric_verification_consent)}
             </p>
             <p className="hbce-mono">
               raw_photo_in_certificate:{" "}
