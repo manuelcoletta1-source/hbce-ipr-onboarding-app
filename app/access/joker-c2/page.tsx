@@ -53,7 +53,7 @@ const FINAL_CERTIFICATE_FILE_NAME =
 
 const SESSION_CERTIFICATE_PREFIX = "HBCE_IPR_CERTIFICATE_FOR_NEXT_PHASE";
 
-const JOKER_C2_HANDOFF_FRAGMENT_KEY = "hbce_ipr_handoff";
+const JOKER_C2_HANDOFF_QUERY_KEY = "hbce_ipr_handoff_b64";
 
 const HANDOFF_VALIDITY_MINUTES = 15;
 
@@ -488,8 +488,11 @@ function buildJokerC2GatewayUrlWithHandoff(
 ): string {
   const encodedHandoff = encodeBase64UrlJson(handoff);
   const gatewayWithoutFragment = JOKER_C2_GATEWAY_URL.split("#")[0];
+  const querySeparator = gatewayWithoutFragment.includes("?") ? "&" : "?";
 
-  return `${gatewayWithoutFragment}#${JOKER_C2_HANDOFF_FRAGMENT_KEY}=${encodedHandoff}`;
+  return `${gatewayWithoutFragment}${querySeparator}${JOKER_C2_HANDOFF_QUERY_KEY}=${encodeURIComponent(
+    encodedHandoff
+  )}`;
 }
 
 function buildBiologicalDisplayName(
@@ -653,9 +656,7 @@ function buildBiometricLivenessSnapshot(
         LIVENESS_CHALLENGES
       ) ?? "MANUAL_OPERATOR_PROMPT",
     liveness_verified: getBooleanFromSources(sources, ["liveness_verified"]),
-    liveness_timestamp: getStringFromSources(sources, [
-      "liveness_timestamp"
-    ]),
+    liveness_timestamp: getStringFromSources(sources, ["liveness_timestamp"]),
     photo_verification_status: getAllowedStringFromSources(
       sources,
       ["photo_verification_status"],
@@ -866,7 +867,7 @@ function buildJokerC2IdentityHandoff(
       source_route: "/access/joker-c2",
       target_runtime: "AI_JOKER_C2",
       target_url: JOKER_C2_GATEWAY_URL,
-      transport: "URL_FRAGMENT_BASE64URL_JSON",
+      transport: "URL_QUERY_BASE64URL_JSON",
       custody_mode: "JOKER_C2_CONTROLLED_CUSTODY"
     },
     access: {
@@ -928,7 +929,7 @@ function buildJokerC2IdentityHandoff(
       statement:
         "This client-side handoff enables the MVP identity-bound JOKER-C2 test. It does not replace future server-side token issuance, revocation checks, encrypted custody storage or regulated trust-service integrations.",
       production_upgrade:
-        "Replace URL fragment handoff with a server-issued, signed, short-lived, one-time access token bound to the operational certificate and validated by JOKER-C2 before runtime initialization."
+        "Replace URL query handoff with a server-issued, signed, short-lived, one-time access token bound to the operational certificate and validated by JOKER-C2 before runtime initialization."
     }
   };
 }
@@ -1273,6 +1274,12 @@ export default function JokerC2AccessPage() {
             </p>
 
             <p className="hbce-mono">
+              transport: URL_QUERY_BASE64URL_JSON
+            </p>
+            <p className="hbce-mono">
+              query_key: {JOKER_C2_HANDOFF_QUERY_KEY}
+            </p>
+            <p className="hbce-mono">
               handoff_version: {jokerC2IdentityHandoff.handoff_version}
             </p>
             <p className="hbce-mono">
@@ -1556,9 +1563,7 @@ export default function JokerC2AccessPage() {
             </p>
             <p className="hbce-mono">
               biometric_template_generated:{" "}
-              {String(
-                biometricLivenessSnapshot.biometric_template_generated
-              )}
+              {String(biometricLivenessSnapshot.biometric_template_generated)}
             </p>
             <p className="hbce-mono">
               face_template_generated:{" "}
@@ -1622,14 +1627,15 @@ export default function JokerC2AccessPage() {
 
           <p>
             For the MVP test, this page sends a minimized IPR handoff to
-            JOKER-C2 through a browser fragment. In production, the same logic
-            must become a short-lived server-side signed token with revocation,
-            expiry, encrypted custody storage and runtime-side verification.
+            JOKER-C2 through a browser URL query parameter. In production, the
+            same logic must become a short-lived server-side signed token with
+            revocation, expiry, encrypted custody storage and runtime-side
+            verification.
           </p>
 
           <p>
             Raw photos, raw videos, document images, face templates and biometric
-            templates are not transmitted through the browser fragment. JOKER-C2
+            templates are not transmitted through the browser handoff. JOKER-C2
             receives references, hashes, verification states and custody
             declarations only.
           </p>
