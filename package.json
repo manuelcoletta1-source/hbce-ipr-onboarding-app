@@ -21,7 +21,8 @@
     "start": "next start",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
-    "check": "npm run typecheck && npm run lint && npm run build"
+    "check": "npm run typecheck && npm run test && npm run lint && npm run build",
+    "test": "vitest run --globals"
   },
   "dependencies": {
     "next": "16.2.6",
@@ -34,7 +35,8 @@
     "@types/react-dom": "19.2.3",
     "eslint": "9.39.5",
     "eslint-config-next": "16.2.6",
-    "typescript": "6.0.3"
+    "typescript": "6.0.3",
+    "vitest": "4.1.10"
   },
   "keywords": [
     "hbce",

@@ -13,7 +13,9 @@ const allowedModes: DemoOnboardingMode[] = [
   "revoked"
 ];
 
-function isDemoMode(value: string | null | undefined): value is DemoOnboardingMode {
+function isDemoMode(
+  value: string | null | undefined
+): value is DemoOnboardingMode {
   return (
     value !== null &&
     value !== undefined &&
@@ -25,12 +27,26 @@ function getRecordByMode(mode: DemoOnboardingMode) {
   return demoOnboardingRecords[mode];
 }
 
-export async function GET(request: NextRequest) {
-  const modeParam = request.nextUrl.searchParams.get("mode");
-  const mode: DemoOnboardingMode = isDemoMode(modeParam)
-    ? modeParam
-    : "approved";
+function buildModeError(
+  code: "MISSING_MODE" | "INVALID_MODE",
+  details: string
+) {
+  return NextResponse.json(
+    {
+      ok: false,
+      status: "error",
+      message: "JOKER-C2 access evaluation request rejected.",
+      data: null,
+      error: {
+        code,
+        details
+      }
+    },
+    { status: 400 }
+  );
+}
 
+function evaluateExplicitMode(mode: DemoOnboardingMode) {
   const record = getRecordByMode(mode);
   const result = evaluateJokerC2Access(record);
 
@@ -46,42 +62,38 @@ export async function GET(request: NextRequest) {
   });
 }
 
+export async function GET(request: NextRequest) {
+  const modeParam = request.nextUrl.searchParams.get("mode");
+
+  if (modeParam === null || modeParam.trim().length === 0) {
+    return buildModeError(
+      "MISSING_MODE",
+      "An explicit demo access mode is required."
+    );
+  }
+
+  if (!isDemoMode(modeParam)) {
+    return buildModeError(
+      "INVALID_MODE",
+      "The supplied demo access mode is not supported."
+    );
+  }
+
+  return evaluateExplicitMode(modeParam);
+}
+
 export async function POST(request: NextRequest) {
+  let body: unknown;
+
   try {
-    const body = (await request.json()) as { mode?: string };
-    const modeInput = body.mode;
-    const mode: DemoOnboardingMode = isDemoMode(modeInput)
-      ? modeInput
-      : "approved";
-
-    const record = getRecordByMode(mode);
-    const result = evaluateJokerC2Access(record);
-
-    return NextResponse.json({
-      ok: true,
-      status: "success",
-      message: "JOKER-C2 access decision evaluated.",
-      data: {
-        mode,
-        result
-      },
-      error: null
-    });
+    body = await request.json();
   } catch {
-    const mode: DemoOnboardingMode = "approved";
-    const record = getRecordByMode(mode);
-    const result = evaluateJokerC2Access(record);
-
     return NextResponse.json(
       {
         ok: false,
         status: "error",
-        message:
-          "Invalid request body. Default fail-closed access decision returned.",
-        data: {
-          mode,
-          result
-        },
+        message: "Invalid request body.",
+        data: null,
         error: {
           code: "INVALID_JSON",
           details: "Request body must be valid JSON."
@@ -90,4 +102,35 @@ export async function POST(request: NextRequest) {
       { status: 400 }
     );
   }
+
+  const modeInput =
+    typeof body === "object" &&
+    body !== null &&
+    !Array.isArray(body) &&
+    "mode" in body
+      ? (body as { mode?: unknown }).mode
+      : undefined;
+
+  if (
+    modeInput === undefined ||
+    (typeof modeInput === "string" &&
+      modeInput.trim().length === 0)
+  ) {
+    return buildModeError(
+      "MISSING_MODE",
+      "An explicit demo access mode is required."
+    );
+  }
+
+  if (
+    typeof modeInput !== "string" ||
+    !isDemoMode(modeInput)
+  ) {
+    return buildModeError(
+      "INVALID_MODE",
+      "The supplied demo access mode is not supported."
+    );
+  }
+
+  return evaluateExplicitMode(modeInput);
 }
