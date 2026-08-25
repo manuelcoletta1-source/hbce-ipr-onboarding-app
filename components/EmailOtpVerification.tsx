@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 
 export type EmailOtpVerificationPayload = {
   email: string;
@@ -14,7 +14,6 @@ export type EmailOtpVerificationProps = {
   emailValue: string;
   disabled?: boolean;
   onVerified: (payload: EmailOtpVerificationPayload) => void;
-  onReset?: () => void;
 };
 
 type SendCodeResponse = {
@@ -57,8 +56,7 @@ function getResponseMessage(
 export default function EmailOtpVerification({
   emailValue,
   disabled = false,
-  onVerified,
-  onReset
+  onVerified
 }: EmailOtpVerificationProps) {
   const normalizedEmail = normalizeEmail(emailValue);
 
@@ -71,20 +69,6 @@ export default function EmailOtpVerification({
 
   const isVerified =
     verifiedEmail === normalizedEmail && normalizedEmail.length > 0;
-
-  useEffect(() => {
-    if (!verifiedEmail) {
-      return;
-    }
-
-    if (verifiedEmail !== normalizedEmail) {
-      setVerifiedEmail("");
-      setCode("");
-      setMessage("");
-      setDevCode("");
-      onReset?.();
-    }
-  }, [normalizedEmail, onReset, verifiedEmail]);
 
   async function sendCode() {
     setMessage("");

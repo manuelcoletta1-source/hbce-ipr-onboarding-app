@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 
 export type PhoneOtpVerificationPayload = {
   phone_number: string;
@@ -14,7 +14,6 @@ export type PhoneOtpVerificationProps = {
   phoneValue: string;
   disabled?: boolean;
   onVerified: (payload: PhoneOtpVerificationPayload) => void;
-  onReset?: () => void;
 };
 
 type SendPhoneCodeResponse = {
@@ -61,8 +60,7 @@ function getResponseMessage(
 export default function PhoneOtpVerification({
   phoneValue,
   disabled = false,
-  onVerified,
-  onReset
+  onVerified
 }: PhoneOtpVerificationProps) {
   const normalizedPhone = normalizePhoneNumber(phoneValue);
 
@@ -75,20 +73,6 @@ export default function PhoneOtpVerification({
 
   const isVerified =
     verifiedPhone === normalizedPhone && normalizedPhone.length > 0;
-
-  useEffect(() => {
-    if (!verifiedPhone) {
-      return;
-    }
-
-    if (verifiedPhone !== normalizedPhone) {
-      setVerifiedPhone("");
-      setCode("");
-      setMessage("");
-      setDevCode("");
-      onReset?.();
-    }
-  }, [normalizedPhone, onReset, verifiedPhone]);
 
   async function sendCode() {
     setMessage("");

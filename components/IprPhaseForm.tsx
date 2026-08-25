@@ -813,28 +813,24 @@ export default function IprPhaseForm({
 
       {requiresEmailVerification ? (
         <EmailOtpVerification
+          key={`email-otp:${currentEmailValue}`}
           emailValue={currentEmailValue}
           disabled={isGenerating}
           onVerified={(payload) => {
             setEmailVerification(payload);
             setError("");
           }}
-          onReset={() => {
-            setEmailVerification(null);
-          }}
         />
       ) : null}
 
       {requiresPhoneVerification ? (
         <PhoneOtpVerification
+          key={`phone-otp:${currentPhoneValue}`}
           phoneValue={currentPhoneValue}
           disabled={isGenerating}
           onVerified={(payload) => {
             setPhoneVerification(payload);
             setError("");
-          }}
-          onReset={() => {
-            setPhoneVerification(null);
           }}
         />
       ) : null}

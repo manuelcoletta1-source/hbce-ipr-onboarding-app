@@ -161,6 +161,8 @@ export function createEmailOtpChallenge(emailInput: string): {
 }
 
 export function deleteEmailOtpChallenge(_emailInput: string): void {
+  void _emailInput;
+
   /*
    * Stateless OTP mode:
    * no server-side challenge is stored on Vercel.

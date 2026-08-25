@@ -12,8 +12,8 @@
   },
   "homepage": "https://hbce-ipr-onboarding-app.vercel.app",
   "engines": {
-    "node": ">=20.9.0 <21",
-    "npm": ">=10 <11"
+    "node": ">=24 <25",
+    "npm": ">=11 <12"
   },
   "scripts": {
     "dev": "next dev",
@@ -32,7 +32,7 @@
     "@types/node": "25.9.1",
     "@types/react": "19.2.6",
     "@types/react-dom": "19.2.3",
-    "eslint": "latest",
+    "eslint": "9.39.5",
     "eslint-config-next": "16.2.6",
     "typescript": "6.0.3"
   },
@@ -62,5 +62,6 @@
     "evt",
     "opc",
     "matrix"
-  ]
+  ],
+  "packageManager": "npm@11.17.0"
 }
