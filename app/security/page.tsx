@@ -1,6 +1,6 @@
 import Link from "next/link";
 
-import { evaluateJokerC2Access } from "@/lib/access-gate";
+import { evaluateJokerC2Access } from "@/lib/access-decision";
 import {
   ACCESS_REQUIRED_CONDITIONS,
   FAIL_CLOSED_REASONS,
@@ -13,7 +13,7 @@ import {
   deniedOnboardingRecord,
   pendingOnboardingRecord,
   revokedOnboardingRecord
-} from "@/lib/mock-data";
+} from "@/lib/mock-onboarding";
 
 import { BoundaryNotice } from "@/components/BoundaryNotice";
 import { StatusBadge } from "@/components/StatusBadge";
