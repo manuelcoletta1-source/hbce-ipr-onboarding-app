@@ -78,6 +78,22 @@ export type OnboardingCanonicalSubjectState = {
  * checks. Browser state, globalThis, local files and demo records do not
  * conform to this contract.
  */
+export type OnboardingCanonicalStateAuditContext = {
+  readonly eventId: string;
+  readonly eventType: string;
+  readonly decisionState: string;
+  readonly previousEventHash: string | null;
+  readonly eventHash: string;
+  readonly eventPayloadSha256: string;
+  readonly occurredAt: IsoDateTime;
+};
+
+export type SaveOnboardingCanonicalSubjectStateCommand = {
+  readonly state: OnboardingCanonicalSubjectState;
+  readonly expectedRevision: number;
+  readonly audit: OnboardingCanonicalStateAuditContext;
+};
+
 export interface OnboardingCanonicalSubjectStateRepository {
   getBySubjectId(
     subjectId: string
@@ -88,8 +104,7 @@ export interface OnboardingCanonicalSubjectStateRepository {
   ): Promise<OnboardingCanonicalSubjectState | null>;
 
   save(
-    state: OnboardingCanonicalSubjectState,
-    expectedRevision: number
+    command: SaveOnboardingCanonicalSubjectStateCommand
   ): Promise<OnboardingCanonicalSubjectState>;
 }
 
