@@ -71,7 +71,7 @@ export const viewport: Viewport = {
 };
 
 const navItems = [
-  { href: ROUTES.onboardingPhase1, label: "Start IPR" },
+  { href: ROUTES.onboardingStart, label: "Start IPR" },
   { href: ROUTES.onboarding, label: "Continue" },
   { href: ROUTES.iprCard, label: "IPR Card" },
   { href: ROUTES.certificate, label: "Certificate" },

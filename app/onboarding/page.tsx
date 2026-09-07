@@ -8,6 +8,8 @@ import IprCertificateUploader from "@/components/IprCertificateUploader";
 
 import { getContinuationRouteFromCertificate } from "@/lib/ipr-phase-map";
 
+import { ROUTES } from "@/lib/constants";
+
 import type { AcceptedIprCertificateUpload } from "@/components/IprCertificateUploader";
 
 const CONTINUATION_RULES = [
@@ -182,7 +184,7 @@ export default function OnboardingPage() {
         <div className="hbce-actions">
           <Link
             className="hbce-btn hbce-btn--primary"
-            href="/onboarding/phase-1"
+            href={ROUTES.onboardingStart}
           >
             Start New IPR
           </Link>

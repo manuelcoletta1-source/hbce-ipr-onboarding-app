@@ -71,7 +71,7 @@ export const ROUTES = {
   privacy: "/privacy",
   security: "/security",
 
-  onboardingStart: "/onboarding/phase-1",
+  onboardingStart: "/onboarding/start",
   onboardingIdentity: "/onboarding/phase-1",
   onboardingFiscal: "/onboarding/phase-2",
   onboardingDocuments: "/onboarding/phase-3",
