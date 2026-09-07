@@ -718,7 +718,28 @@ eligible AS (
     source_session.subject_id,
     latest_event.event_seq,
     latest_event.event_hash
-      AS previous_event_hash
+      AS previous_event_hash,
+
+    EXISTS (
+      SELECT 1
+      FROM hbce_onboarding_session_events
+        AS factor
+      WHERE factor.session_id =
+            source_session.session_id
+        AND factor.event_type =
+            'EMAIL_VERIFIED'
+    ) AS has_email_verified,
+
+    EXISTS (
+      SELECT 1
+      FROM hbce_onboarding_session_events
+        AS factor
+      WHERE factor.session_id =
+            source_session.session_id
+        AND factor.event_type =
+            'PHONE_VERIFIED'
+    ) AS has_phone_verified
+
   FROM source_session
   CROSS JOIN latest_event
   WHERE
@@ -758,12 +779,15 @@ rotated_derived AS (
     eligible.event_seq + 1
       AS next_event_seq,
     eligible.previous_event_hash,
+
     encode(
       sha256(
         convert_to(
           'HBCE_SESSION_EVENT_HASH_V1'
           || E'\n'
-          || (eligible.event_seq + 1)::text
+          || (
+            eligible.event_seq + 1
+          )::text
           || E'\n'
           || eligible.previous_event_hash
           || E'\n'
@@ -773,6 +797,7 @@ rotated_derived AS (
       ),
       'hex'
     ) AS event_hash
+
   FROM eligible
 ),
 inserted_rotated AS (
@@ -860,7 +885,159 @@ inserted_new_session_created AS (
     $4::timestamptz,
     $6::timestamptz
   FROM inserted_new_session
-  RETURNING session_id
+  RETURNING
+    session_id,
+    event_hash
+),
+email_carry_derived AS (
+  SELECT
+    session.session_id,
+    1::bigint
+      AS event_seq,
+    created.event_hash
+      AS previous_event_hash,
+
+    encode(
+      sha256(
+        convert_to(
+          'HBCE_SESSION_EVENT_HASH_V1'
+          || E'\n'
+          || '1'
+          || E'\n'
+          || created.event_hash
+          || E'\n'
+          || $13,
+          'UTF8'
+        )
+      ),
+      'hex'
+    ) AS event_hash
+
+  FROM inserted_new_session
+    AS session
+
+  JOIN inserted_new_session_created
+    AS created
+    ON created.session_id =
+       session.session_id
+
+  JOIN eligible
+    ON eligible.session_id =
+       session.rotated_from_session_id
+
+  WHERE eligible.has_email_verified
+),
+inserted_email_carry AS (
+  INSERT INTO hbce_onboarding_session_events (
+    event_id,
+    session_id,
+    event_seq,
+    event_type,
+    previous_event_hash,
+    event_hash,
+    event_payload_sha256,
+    occurred_at,
+    created_at
+  )
+  SELECT
+    $12,
+    session_id,
+    event_seq,
+    'EMAIL_VERIFIED',
+    previous_event_hash,
+    event_hash,
+    $13,
+    $4::timestamptz,
+    $6::timestamptz
+  FROM email_carry_derived
+  RETURNING
+    session_id,
+    event_hash
+),
+phone_carry_derived AS (
+  SELECT
+    session.session_id,
+
+    CASE
+      WHEN eligible.has_email_verified
+        THEN 2::bigint
+      ELSE 1::bigint
+    END AS event_seq,
+
+    COALESCE(
+      email.event_hash,
+      created.event_hash
+    ) AS previous_event_hash,
+
+    encode(
+      sha256(
+        convert_to(
+          'HBCE_SESSION_EVENT_HASH_V1'
+          || E'\n'
+          || (
+            CASE
+              WHEN eligible.has_email_verified
+                THEN 2
+              ELSE 1
+            END
+          )::text
+          || E'\n'
+          || COALESCE(
+            email.event_hash,
+            created.event_hash
+          )
+          || E'\n'
+          || $15,
+          'UTF8'
+        )
+      ),
+      'hex'
+    ) AS event_hash
+
+  FROM inserted_new_session
+    AS session
+
+  JOIN inserted_new_session_created
+    AS created
+    ON created.session_id =
+       session.session_id
+
+  JOIN eligible
+    ON eligible.session_id =
+       session.rotated_from_session_id
+
+  LEFT JOIN inserted_email_carry
+    AS email
+    ON email.session_id =
+       session.session_id
+
+  WHERE eligible.has_phone_verified
+),
+inserted_phone_carry AS (
+  INSERT INTO hbce_onboarding_session_events (
+    event_id,
+    session_id,
+    event_seq,
+    event_type,
+    previous_event_hash,
+    event_hash,
+    event_payload_sha256,
+    occurred_at,
+    created_at
+  )
+  SELECT
+    $14,
+    session_id,
+    event_seq,
+    'PHONE_VERIFIED',
+    previous_event_hash,
+    event_hash,
+    $15,
+    $4::timestamptz,
+    $6::timestamptz
+  FROM phone_carry_derived
+  RETURNING
+    session_id
 )
 SELECT
   session.session_id,
@@ -875,6 +1052,12 @@ SELECT
 FROM inserted_new_session AS session
 JOIN inserted_new_session_created AS created
   ON created.session_id =
+     session.session_id
+LEFT JOIN inserted_email_carry AS email_carry
+  ON email_carry.session_id =
+     session.session_id
+LEFT JOIN inserted_phone_carry AS phone_carry
+  ON phone_carry.session_id =
      session.session_id
 `;
 
@@ -1339,7 +1522,6 @@ export class NeonOnboardingSessionEventCommands
       return mapDatabaseError(error);
     }
   }
-
   async rotateStartedSession(
     input: RotateStartedSessionInput
   ): Promise<OnboardingSessionRecord> {
@@ -1352,12 +1534,22 @@ export class NeonOnboardingSessionEventCommands
       const newSessionCreatedEventId =
         generateOnboardingSessionEventId();
 
+      const carriedEmailEventId =
+        generateOnboardingSessionEventId();
+
+      const carriedPhoneEventId =
+        generateOnboardingSessionEventId();
+
       const rotatedPayloadSha256 =
         await createOnboardingSessionEventPayloadSha256({
-          eventId: rotatedEventId,
-          sessionId: input.sourceSessionId,
-          eventType: "SESSION_ROTATED",
-          occurredAt: input.issuedAt,
+          eventId:
+            rotatedEventId,
+          sessionId:
+            input.sourceSessionId,
+          eventType:
+            "SESSION_ROTATED",
+          occurredAt:
+            input.issuedAt,
           payload:
             input.rotatedPayload
         });
@@ -1366,9 +1558,12 @@ export class NeonOnboardingSessionEventCommands
         await createOnboardingSessionEventPayloadSha256({
           eventId:
             newSessionCreatedEventId,
-          sessionId: input.newSessionId,
-          eventType: "SESSION_CREATED",
-          occurredAt: input.issuedAt,
+          sessionId:
+            input.newSessionId,
+          eventType:
+            "SESSION_CREATED",
+          occurredAt:
+            input.issuedAt,
           payload:
             input.newSessionCreatedPayload
         });
@@ -1381,11 +1576,52 @@ export class NeonOnboardingSessionEventCommands
             newSessionCreatedPayloadSha256
         });
 
+      const carriedEmailPayloadSha256 =
+        await createOnboardingSessionEventPayloadSha256({
+          eventId:
+            carriedEmailEventId,
+          sessionId:
+            input.newSessionId,
+          eventType:
+            "EMAIL_VERIFIED",
+          occurredAt:
+            input.issuedAt,
+          payload: {
+            kind:
+              "HBCE_EMAIL_VERIFIED_RECOVERY_V1",
+            derivation:
+              "session-idle-recovery",
+            sourceSessionId:
+              input.sourceSessionId
+          }
+        });
+
+      const carriedPhonePayloadSha256 =
+        await createOnboardingSessionEventPayloadSha256({
+          eventId:
+            carriedPhoneEventId,
+          sessionId:
+            input.newSessionId,
+          eventType:
+            "PHONE_VERIFIED",
+          occurredAt:
+            input.issuedAt,
+          payload: {
+            kind:
+              "HBCE_PHONE_VERIFIED_RECOVERY_V1",
+            derivation:
+              "session-idle-recovery",
+            sourceSessionId:
+              input.sourceSessionId
+          }
+        });
+
       const results =
         await this.executor.transaction(
           [
             {
-              query: LOCK_SESSION_SQL,
+              query:
+                LOCK_SESSION_SQL,
               parameters: [
                 input.sourceSessionId
               ]
@@ -1404,18 +1640,26 @@ export class NeonOnboardingSessionEventCommands
                 rotatedPayloadSha256,
                 newSessionCreatedEventId,
                 newSessionCreatedPayloadSha256,
-                newSessionCreatedEventHash
+                newSessionCreatedEventHash,
+                carriedEmailEventId,
+                carriedEmailPayloadSha256,
+                carriedPhoneEventId,
+                carriedPhonePayloadSha256
               ]
             }
           ],
           {
-            isolationLevel: "ReadCommitted",
+            isolationLevel:
+              "ReadCommitted",
             readOnly: false
           }
         );
 
-      const lockedRows = results[0];
-      const rotatedRows = results[1];
+      const lockedRows =
+        results[0];
+
+      const rotatedRows =
+        results[1];
 
       assertLockedSession(
         lockedRows?.[0],
@@ -1436,7 +1680,9 @@ export class NeonOnboardingSessionEventCommands
 
       return session;
     } catch (error) {
-      return mapDatabaseError(error);
+      return mapDatabaseError(
+        error
+      );
     }
   }
 
