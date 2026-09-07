@@ -1,5 +1,9 @@
 "use client";
 
+import {
+  runWithOnboardingSessionRecovery
+} from "@/lib/client/onboarding-session-recovery";
+
 import { useState } from "react";
 
 export type PhoneOtpVerificationPayload = {
@@ -16,21 +20,29 @@ export type PhoneOtpVerificationProps = {
   onVerified: (payload: PhoneOtpVerificationPayload) => void;
 };
 
-type SendPhoneCodeResponse = {
-  ok: boolean;
-  message?: string;
-  reason?: string;
-  dev_code?: string;
-};
+type SendPhoneCodeResponse =
+  | {
+      ok: true;
+      message?: string;
+      challenge_token: string;
+      expires_at: number;
+      dev_echo: boolean;
+      dev_code?: string;
+    }
+  | {
+      ok: false;
+      reason?: string;
+      message?: string;
+    };
 
 type VerifyPhoneCodeResponse =
   | {
       ok: true;
-      phone_number: string;
       phone_verified: true;
       phone_verified_at: string;
       phone_verification_channel: "SMS_OTP";
       phone_verification_hash: string;
+      contact_state: "CONTACT_NOT_READY" | "CONTACT_VERIFIED";
     }
   | {
       ok: false;
@@ -57,6 +69,42 @@ function getResponseMessage(
   return fallback;
 }
 
+function isValidSendSuccess(
+  data: SendPhoneCodeResponse
+): data is Extract<SendPhoneCodeResponse, { ok: true }> {
+  return (
+    data.ok === true &&
+    typeof data.challenge_token === "string" &&
+    data.challenge_token.length > 0 &&
+    data.challenge_token === data.challenge_token.trim() &&
+    Number.isSafeInteger(data.expires_at) &&
+    data.expires_at > 0 &&
+    typeof data.dev_echo === "boolean" &&
+    (
+      data.dev_code === undefined ||
+      typeof data.dev_code === "string"
+    )
+  );
+}
+
+function isValidVerifySuccess(
+  data: VerifyPhoneCodeResponse
+): data is Extract<VerifyPhoneCodeResponse, { ok: true }> {
+  return (
+    data.ok === true &&
+    data.phone_verified === true &&
+    typeof data.phone_verified_at === "string" &&
+    data.phone_verified_at.length > 0 &&
+    data.phone_verification_channel === "SMS_OTP" &&
+    typeof data.phone_verification_hash === "string" &&
+    /^[0-9a-f]{64}$/.test(data.phone_verification_hash) &&
+    (
+      data.contact_state === "CONTACT_NOT_READY" ||
+      data.contact_state === "CONTACT_VERIFIED"
+    )
+  );
+}
+
 export default function PhoneOtpVerification({
   phoneValue,
   disabled = false,
@@ -70,45 +118,142 @@ export default function PhoneOtpVerification({
   const [isVerifying, setIsVerifying] = useState(false);
   const [message, setMessage] = useState("");
   const [devCode, setDevCode] = useState("");
+  const [challengeToken, setChallengeToken] = useState("");
+  const [challengePhone, setChallengePhone] = useState("");
+  const [challengeExpiresAt, setChallengeExpiresAt] =
+    useState<number | null>(null);
 
   const isVerified =
     verifiedPhone === normalizedPhone && normalizedPhone.length > 0;
 
+  const challengeMatchesPhone =
+    challengePhone === normalizedPhone && normalizedPhone.length > 0;
+
+  const hasUsableChallenge =
+    challengeToken.length > 0 &&
+    challengeMatchesPhone &&
+    challengeExpiresAt !== null &&
+    Number.isSafeInteger(challengeExpiresAt) &&
+    challengeExpiresAt > 0;
+
+  function clearChallengeState() {
+    setChallengeToken("");
+    setChallengePhone("");
+    setChallengeExpiresAt(null);
+  }
+
   async function sendCode() {
     setMessage("");
     setDevCode("");
+    setCode("");
+    setVerifiedPhone("");
+    clearChallengeState();
 
     if (!normalizedPhone) {
-      setMessage("Insert a phone number before requesting the verification code.");
+      setMessage(
+        "Insert a phone number before requesting the verification code."
+      );
       return;
     }
 
     setIsSending(true);
 
+    const requestCode =
+      () =>
+        fetch(
+          "/api/onboarding/phone/send-code",
+          {
+            method:
+              "POST",
+
+            credentials:
+              "same-origin",
+
+            headers: {
+              "Content-Type":
+                "application/json"
+            },
+
+            body:
+              JSON.stringify({
+                phone_number:
+                  normalizedPhone
+              })
+          }
+        );
+
     try {
-      const response = await fetch("/api/onboarding/phone/send-code", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify({
-          phone_number: normalizedPhone
-        })
-      });
+      const requestResult =
+        await runWithOnboardingSessionRecovery(
+          requestCode,
+          "retry-after-recovery"
+        );
 
-      const data = (await response.json()) as SendPhoneCodeResponse;
+      if (
+        requestResult.recoveryAttempted &&
+        !requestResult.recovered
+      ) {
+        clearChallengeState();
+        setDevCode("");
 
-      if (!response.ok || !data.ok) {
         setMessage(
-          getResponseMessage(data, "Phone verification code could not be sent.")
+          "Onboarding session could not be recovered. Restart onboarding."
+        );
+
+        return;
+      }
+
+      const data =
+        (
+          await requestResult
+            .response
+            .json()
+        ) as
+          SendPhoneCodeResponse;
+
+      if (
+        !requestResult.response.ok ||
+        !isValidSendSuccess(data)
+      ) {
+        setMessage(
+          getResponseMessage(
+            data,
+            "Phone verification code could not be sent."
+          )
         );
         return;
       }
 
-      setMessage(data.message ?? "Phone verification code sent.");
-      setDevCode(data.dev_code ?? "");
+      setChallengeToken(
+        data.challenge_token
+      );
+
+      setChallengePhone(
+        normalizedPhone
+      );
+
+      setChallengeExpiresAt(
+        data.expires_at
+      );
+
+      setDevCode(
+        data.dev_echo &&
+        typeof data.dev_code === "string"
+          ? data.dev_code
+          : ""
+      );
+
+      setMessage(
+        data.message ??
+          "Phone verification code sent."
+      );
     } catch {
-      setMessage("Phone verification code could not be sent.");
+      clearChallengeState();
+      setDevCode("");
+
+      setMessage(
+        "Phone verification code could not be sent."
+      );
     } finally {
       setIsSending(false);
     }
@@ -118,50 +263,182 @@ export default function PhoneOtpVerification({
     setMessage("");
 
     if (!normalizedPhone) {
-      setMessage("Insert a phone number before verifying the code.");
+      setMessage(
+        "Insert a phone number before verifying the code."
+      );
       return;
     }
 
-    const normalizedCode = normalizeOtpCode(code);
+    const normalizedCode =
+      normalizeOtpCode(
+        code
+      );
 
-    if (!/^\d{4,10}$/.test(normalizedCode)) {
-      setMessage("Insert the SMS verification code received by phone.");
+    if (
+      !/^\d{6}$/.test(
+        normalizedCode
+      )
+    ) {
+      setMessage(
+        "Insert the six-digit SMS verification code."
+      );
+      return;
+    }
+
+    if (!hasUsableChallenge) {
+      clearChallengeState();
+      setDevCode("");
+
+      setMessage(
+        "Request a new SMS verification code before verifying the phone."
+      );
       return;
     }
 
     setIsVerifying(true);
 
+    const verifyRequest =
+      () =>
+        fetch(
+          "/api/onboarding/phone/verify-code",
+          {
+            method:
+              "POST",
+
+            credentials:
+              "same-origin",
+
+            headers: {
+              "Content-Type":
+                "application/json"
+            },
+
+            body:
+              JSON.stringify({
+                phone_number:
+                  normalizedPhone,
+
+                code:
+                  normalizedCode,
+
+                challenge_token:
+                  challengeToken
+              })
+          }
+        );
+
     try {
-      const response = await fetch("/api/onboarding/phone/verify-code", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify({
-          phone_number: normalizedPhone,
-          code: normalizedCode
-        })
-      });
+      const requestResult =
+        await runWithOnboardingSessionRecovery(
+          verifyRequest,
+          "recover-without-retry"
+        );
 
-      const data = (await response.json()) as VerifyPhoneCodeResponse;
+      if (
+        requestResult.recoveryAttempted
+      ) {
+        clearChallengeState();
+        setCode("");
+        setDevCode("");
 
-      if (!response.ok || data.ok !== true) {
-        setMessage(getResponseMessage(data, "Phone verification failed."));
+        if (
+          requestResult.recovered
+        ) {
+          setMessage(
+            "Onboarding session recovered. Request a new SMS verification code."
+          );
+        } else {
+          setMessage(
+            "Onboarding session could not be recovered. Restart onboarding."
+          );
+        }
+
         return;
       }
 
-      setVerifiedPhone(data.phone_number);
-      setMessage("Phone verified.");
+      const data =
+        (
+          await requestResult
+            .response
+            .json()
+        ) as
+          VerifyPhoneCodeResponse;
+
+      if (
+        !requestResult.response.ok ||
+        data.ok !== true
+      ) {
+        if (
+          data.ok === false &&
+          (
+            data.reason ===
+              "INVALID_CHALLENGE" ||
+            data.reason ===
+              "CHALLENGE_EXPIRED"
+          )
+        ) {
+          clearChallengeState();
+          setDevCode("");
+        }
+
+        setMessage(
+          getResponseMessage(
+            data,
+            "Phone verification failed."
+          )
+        );
+        return;
+      }
+
+      if (
+        !isValidVerifySuccess(
+          data
+        )
+      ) {
+        clearChallengeState();
+        setDevCode("");
+
+        setMessage(
+          "Phone verification failed."
+        );
+        return;
+      }
+
+      setVerifiedPhone(
+        normalizedPhone
+      );
+
+      setCode("");
+      clearChallengeState();
+      setDevCode("");
+
+      setMessage(
+        data.contact_state ===
+          "CONTACT_VERIFIED"
+          ? "Phone verified. Contact verification completed."
+          : "Phone verified."
+      );
 
       onVerified({
-        phone_number: data.phone_number,
-        phone_verified: true,
-        phone_verified_at: data.phone_verified_at,
-        phone_verification_channel: data.phone_verification_channel,
-        phone_verification_hash: data.phone_verification_hash
+        phone_number:
+          normalizedPhone,
+
+        phone_verified:
+          true,
+
+        phone_verified_at:
+          data.phone_verified_at,
+
+        phone_verification_channel:
+          data.phone_verification_channel,
+
+        phone_verification_hash:
+          data.phone_verification_hash
       });
     } catch {
-      setMessage("Phone verification failed.");
+      setMessage(
+        "Phone verification failed."
+      );
     } finally {
       setIsVerifying(false);
     }
@@ -197,9 +474,15 @@ export default function PhoneOtpVerification({
           <input
             type="text"
             inputMode="numeric"
-            value={code}
-            placeholder="000000000"
-            disabled={disabled || isVerifying || isVerified}
+            value={challengeMatchesPhone ? code : ""}
+            placeholder="000000"
+            maxLength={6}
+            disabled={
+              disabled ||
+              isVerifying ||
+              isVerified ||
+              !hasUsableChallenge
+            }
             onChange={(event) => setCode(event.target.value)}
           />
           <small>
@@ -212,7 +495,12 @@ export default function PhoneOtpVerification({
           <button
             className="hbce-btn hbce-btn--primary"
             type="button"
-            disabled={disabled || isVerifying || isVerified}
+            disabled={
+              disabled ||
+              isVerifying ||
+              isVerified ||
+              !hasUsableChallenge
+            }
             onClick={verifyCode}
           >
             {isVerifying ? "Verifying SMS code" : "Verify phone"}
@@ -225,7 +513,9 @@ export default function PhoneOtpVerification({
           </p>
         ) : null}
 
-        {devCode ? <p className="hbce-mono">dev_code: {devCode}</p> : null}
+        {devCode && challengeMatchesPhone ? (
+          <p className="hbce-mono">dev_code: {devCode}</p>
+        ) : null}
 
         {isVerified ? (
           <div className="hbce-upload-status hbce-upload-status--valid">
