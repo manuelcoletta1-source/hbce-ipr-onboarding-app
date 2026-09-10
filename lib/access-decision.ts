@@ -45,22 +45,48 @@ function hasText(value: string | undefined): boolean {
   return typeof value === "string" && value.trim().length > 0;
 }
 
-function hasReachedOperationalCertificatePhase(record: OnboardingRecord): boolean {
-  return (
-    record.currentStep === "phase_9_operational_certificate" ||
-    record.currentStep === "joker_c2_access" ||
-    record.currentStep === "completed" ||
-    record.latestPhaseNumber === 9 ||
-    record.latestPhaseCertificateFileName ===
-      "hbce-ipr-09-operational-certificate.hbce.json"
-  );
+/**
+ * Canonical JOKER-C2 access decision input.
+ *
+ * Only canonical trusted-ingress state may affect the access decision.
+ * Legacy workflow fields may remain optional diagnostic context but
+ * cannot alter ALLOW / DENY / PENDING.
+ */
+export type JokerC2AccessDecisionInput = Readonly<
+  Pick<
+    OnboardingRecord,
+    | "subjectId"
+    | "iprId"
+    | "iprStatus"
+    | "iprCardStatus"
+    | "certificateStatus"
+    | "revocationState"
+    | "jokerC2AccessStatus"
+    | "latestPhaseNumber"
+    | "latestPhaseCertificateHash"
+  >
+> &
+  Readonly<
+    Partial<
+      Pick<
+        OnboardingRecord,
+        | "currentStep"
+        | "latestPhaseCertificateFileName"
+        | "onboardingStatus"
+        | "reviewStatus"
+      >
+    >
+  >;
+
+function hasReachedOperationalCertificatePhase(record: JokerC2AccessDecisionInput): boolean {
+  return record.latestPhaseNumber === 9;
 }
 
-function hasOperationalCertificateHash(record: OnboardingRecord): boolean {
+function hasOperationalCertificateHash(record: JokerC2AccessDecisionInput): boolean {
   return hasText(record.latestPhaseCertificateHash);
 }
 
-function hasBlockingRevocationState(record: OnboardingRecord): boolean {
+function hasBlockingRevocationState(record: JokerC2AccessDecisionInput): boolean {
   return (
     record.revocationState === "revoked" ||
     record.revocationState === "suspended" ||
@@ -68,7 +94,7 @@ function hasBlockingRevocationState(record: OnboardingRecord): boolean {
   );
 }
 
-function hasBlockingIprState(record: OnboardingRecord): boolean {
+function hasBlockingIprState(record: JokerC2AccessDecisionInput): boolean {
   return (
     record.iprStatus === "revoked" ||
     record.iprStatus === "suspended" ||
@@ -77,7 +103,7 @@ function hasBlockingIprState(record: OnboardingRecord): boolean {
   );
 }
 
-function hasBlockingCardState(record: OnboardingRecord): boolean {
+function hasBlockingCardState(record: JokerC2AccessDecisionInput): boolean {
   return (
     record.iprCardStatus === "revoked" ||
     record.iprCardStatus === "suspended" ||
@@ -85,7 +111,7 @@ function hasBlockingCardState(record: OnboardingRecord): boolean {
   );
 }
 
-function hasBlockingCertificateState(record: OnboardingRecord): boolean {
+function hasBlockingCertificateState(record: JokerC2AccessDecisionInput): boolean {
   return (
     record.certificateStatus === "revoked" ||
     record.certificateStatus === "suspended" ||
@@ -93,21 +119,17 @@ function hasBlockingCertificateState(record: OnboardingRecord): boolean {
   );
 }
 
-function isPendingOperationalState(record: OnboardingRecord): boolean {
+function isPendingOperationalState(record: JokerC2AccessDecisionInput): boolean {
   return (
-    record.onboardingStatus === "in_progress" ||
-    record.onboardingStatus === "pending_review" ||
+    record.jokerC2AccessStatus === "pending" ||
     record.iprStatus === "pending" ||
     record.iprCardStatus === "pending" ||
     record.certificateStatus === "pending" ||
-    record.reviewStatus === "pending" ||
-    record.reviewStatus === "in_review" ||
-    record.reviewStatus === "manual_review" ||
     record.revocationState === "under_review"
   );
 }
 
-export function evaluateJokerC2Access(record: OnboardingRecord): AccessGateResult {
+export function evaluateJokerC2Access(record: JokerC2AccessDecisionInput): AccessGateResult {
   const decisionPayload = evaluateAccessDecision(record);
 
   return {
@@ -127,7 +149,7 @@ export function evaluateJokerC2Access(record: OnboardingRecord): AccessGateResul
   };
 }
 
-export function evaluateAccessDecision(record: OnboardingRecord): DecisionPayload {
+export function evaluateAccessDecision(record: JokerC2AccessDecisionInput): DecisionPayload {
   if (!hasText(record.subjectId)) {
     return deny("Subject identifier is missing. Access is blocked.");
   }
@@ -188,26 +210,26 @@ export function evaluateAccessDecision(record: OnboardingRecord): DecisionPayloa
     return deny("Revocation state is not clear.");
   }
 
-  if (!hasReachedOperationalCertificatePhase(record)) {
-    return deny(
-      "Final operational certificate phase has not been reached. Certificate 09 is required before JOKER-C2 access."
-    );
-  }
-
   if (!hasOperationalCertificateHash(record)) {
     return deny(
       "Operational certificate hash reference is missing. Certificate 09 hash evidence is required before JOKER-C2 access."
     );
   }
 
+  if (!hasReachedOperationalCertificatePhase(record)) {
+    return deny(
+      "Final operational certificate phase has not been reached. Certificate 09 is required before JOKER-C2 access."
+    );
+  }
+
   return allow();
 }
 
-export function canAccessJokerC2(record: OnboardingRecord): boolean {
+export function canAccessJokerC2(record: JokerC2AccessDecisionInput): boolean {
   return evaluateAccessDecision(record).decision === "allow_governed_access";
 }
 
-export function buildCurrentConditions(record: OnboardingRecord): string[] {
+export function buildCurrentConditions(record: JokerC2AccessDecisionInput): string[] {
   return [
     `Subject ID: ${record.subjectId || "missing"}`,
     `IPR ID: ${record.iprId || "missing"}`,
