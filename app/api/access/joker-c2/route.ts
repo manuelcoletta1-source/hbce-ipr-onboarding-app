@@ -1,136 +1,190 @@
-import { NextResponse, type NextRequest } from "next/server";
-
-import { evaluateJokerC2Access } from "@/lib/access-decision";
 import {
-  demoOnboardingRecords,
-  type DemoOnboardingMode
-} from "@/lib/mock-onboarding";
+  NextResponse,
+  type NextRequest
+} from "next/server";
 
-const allowedModes: DemoOnboardingMode[] = [
-  "approved",
-  "pending",
-  "denied",
-  "revoked"
-];
+import {
+  evaluateJokerC2Access
+} from "@/lib/access-decision";
 
-function isDemoMode(
-  value: string | null | undefined
-): value is DemoOnboardingMode {
-  return (
-    value !== null &&
-    value !== undefined &&
-    allowedModes.includes(value as DemoOnboardingMode)
+import {
+  buildOnboardingTrustedIngressEvidence
+} from "@/lib/onboarding-canonical-subject-state";
+
+import {
+  createNeonCanonicalSubjectStateRepository
+} from "@/lib/server/neon-canonical-subject-state-repository";
+
+import {
+  createNeonOnboardingSessionRepository
+} from "@/lib/server/neon-onboarding-session-repository";
+
+import {
+  createNeonOnboardingSessionLifecycleCommands
+} from "@/lib/server/neon-onboarding-session-lifecycle-commands";
+
+import {
+  OnboardingSessionRuntimeOrchestrator
+} from "@/lib/server/onboarding-session-runtime";
+
+import {
+  OnboardingNextHttpTrustAdapter,
+  OnboardingNextHttpTrustAdapterError
+} from "@/lib/server/onboarding-next-http-trust-adapter";
+
+type JokerC2BridgeFailureCode =
+  | "SESSION_TRUST_FAILURE"
+  | "CANONICAL_REPOSITORY_FAILURE"
+  | "CANONICAL_STATE_NOT_FOUND"
+  | "CANONICAL_BINDING_MISMATCH"
+  | "TRUSTED_INGRESS_PROJECTION_FAILURE";
+
+const sessionRuntime =
+  new OnboardingSessionRuntimeOrchestrator(
+    createNeonOnboardingSessionRepository(),
+    createNeonOnboardingSessionLifecycleCommands()
   );
-}
 
-function getRecordByMode(mode: DemoOnboardingMode) {
-  return demoOnboardingRecords[mode];
-}
+const httpTrustAdapter =
+  new OnboardingNextHttpTrustAdapter(
+    sessionRuntime
+  );
 
-function buildModeError(
-  code: "MISSING_MODE" | "INVALID_MODE",
+const canonicalRepository =
+  createNeonCanonicalSubjectStateRepository();
+
+function buildBridgeFailure(
+  httpStatus: 401 | 403 | 503,
+  code: JokerC2BridgeFailureCode,
   details: string
 ) {
   return NextResponse.json(
     {
       ok: false,
       status: "error",
-      message: "JOKER-C2 access evaluation request rejected.",
+      message:
+        "JOKER-C2 trusted access evaluation failed closed.",
       data: null,
       error: {
         code,
         details
       }
     },
-    { status: 400 }
+    {
+      status: httpStatus
+    }
   );
 }
 
-function evaluateExplicitMode(mode: DemoOnboardingMode) {
-  const record = getRecordByMode(mode);
-  const result = evaluateJokerC2Access(record);
+async function evaluateTrustedRequest(
+  request: NextRequest
+) {
+  let authority;
+
+  try {
+    authority =
+      await httpTrustAdapter.authorize({
+        request,
+        requestPolicy: "SAFE_READ",
+        requiredState: "CONTACT_VERIFIED"
+      });
+  } catch (error) {
+    if (
+      error instanceof
+      OnboardingNextHttpTrustAdapterError
+    ) {
+      return buildBridgeFailure(
+        error.httpStatus,
+        "SESSION_TRUST_FAILURE",
+        "Server-owned onboarding session trust did not authorize this request."
+      );
+    }
+
+    return buildBridgeFailure(
+      503,
+      "SESSION_TRUST_FAILURE",
+      "Onboarding session trust dependency failed."
+    );
+  }
+
+  let canonicalState;
+
+  try {
+    canonicalState =
+      await canonicalRepository.getBySubjectId(
+        authority.subjectId
+      );
+  } catch {
+    return buildBridgeFailure(
+      503,
+      "CANONICAL_REPOSITORY_FAILURE",
+      "Canonical onboarding state could not be loaded."
+    );
+  }
+
+  if (!canonicalState) {
+    return buildBridgeFailure(
+      503,
+      "CANONICAL_STATE_NOT_FOUND",
+      "Canonical onboarding state is unavailable."
+    );
+  }
+
+  if (
+    canonicalState.subjectId !==
+      authority.subjectId ||
+    canonicalState.onboardingId !==
+      authority.onboardingId
+  ) {
+    return buildBridgeFailure(
+      503,
+      "CANONICAL_BINDING_MISMATCH",
+      "Session authority does not match canonical onboarding state."
+    );
+  }
+
+  const projection =
+    buildOnboardingTrustedIngressEvidence(
+      canonicalState
+    );
+
+  if (!projection.ok) {
+    return buildBridgeFailure(
+      503,
+      "TRUSTED_INGRESS_PROJECTION_FAILURE",
+      "Canonical onboarding state could not produce trusted ingress evidence."
+    );
+  }
+
+  const result =
+    evaluateJokerC2Access(
+      projection.evidence
+    );
 
   return NextResponse.json({
     ok: true,
     status: "success",
-    message: "JOKER-C2 access decision evaluated.",
+    message:
+      "JOKER-C2 access decision evaluated from trusted onboarding evidence.",
     data: {
-      mode,
       result
     },
     error: null
   });
 }
 
-export async function GET(request: NextRequest) {
-  const modeParam = request.nextUrl.searchParams.get("mode");
-
-  if (modeParam === null || modeParam.trim().length === 0) {
-    return buildModeError(
-      "MISSING_MODE",
-      "An explicit demo access mode is required."
-    );
-  }
-
-  if (!isDemoMode(modeParam)) {
-    return buildModeError(
-      "INVALID_MODE",
-      "The supplied demo access mode is not supported."
-    );
-  }
-
-  return evaluateExplicitMode(modeParam);
+export async function GET(
+  request: NextRequest
+) {
+  return evaluateTrustedRequest(
+    request
+  );
 }
 
-export async function POST(request: NextRequest) {
-  let body: unknown;
-
-  try {
-    body = await request.json();
-  } catch {
-    return NextResponse.json(
-      {
-        ok: false,
-        status: "error",
-        message: "Invalid request body.",
-        data: null,
-        error: {
-          code: "INVALID_JSON",
-          details: "Request body must be valid JSON."
-        }
-      },
-      { status: 400 }
-    );
-  }
-
-  const modeInput =
-    typeof body === "object" &&
-    body !== null &&
-    !Array.isArray(body) &&
-    "mode" in body
-      ? (body as { mode?: unknown }).mode
-      : undefined;
-
-  if (
-    modeInput === undefined ||
-    (typeof modeInput === "string" &&
-      modeInput.trim().length === 0)
-  ) {
-    return buildModeError(
-      "MISSING_MODE",
-      "An explicit demo access mode is required."
-    );
-  }
-
-  if (
-    typeof modeInput !== "string" ||
-    !isDemoMode(modeInput)
-  ) {
-    return buildModeError(
-      "INVALID_MODE",
-      "The supplied demo access mode is not supported."
-    );
-  }
-
-  return evaluateExplicitMode(modeInput);
+export async function POST(
+  request: NextRequest
+) {
+  return evaluateTrustedRequest(
+    request
+  );
 }
