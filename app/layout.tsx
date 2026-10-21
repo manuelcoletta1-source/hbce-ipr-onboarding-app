@@ -71,14 +71,11 @@ export const viewport: Viewport = {
 };
 
 const navItems = [
-  { href: ROUTES.onboardingStart, label: "Start IPR" },
-  { href: ROUTES.onboarding, label: "Continue" },
-  { href: ROUTES.iprCard, label: "IPR Card" },
-  { href: ROUTES.certificate, label: "Certificate" },
-  { href: ROUTES.jokerC2Access, label: "JOKER-C2" },
-  { href: ROUTES.legal, label: "Legal" },
-  { href: ROUTES.privacy, label: "Privacy" },
-  { href: ROUTES.security, label: "Security" }
+  { href: ROUTES.onboardingStart, label: "Avvia IPR" },
+  { href: ROUTES.onboarding, label: "Continua" },
+  { href: ROUTES.iprCard, label: "Carta IPR" },
+  { href: ROUTES.certificate, label: "Certificato" },
+  { href: ROUTES.jokerC2Access, label: "JOKER-C2" }
 ] as const;
 
 export default function RootLayout({
@@ -97,9 +94,10 @@ export default function RootLayout({
                 href={ROUTES.home}
                 aria-label="HBCE IPR Onboarding App home"
               >
-                <span className="hbce-brand__title">{APP_NAME}</span>
-                <span className="hbce-brand__subtitle">
-                  Identity verified first. Governed AI access after.
+                <span className="hbce-brand__sigil" aria-hidden="true">🜏</span>
+                <span className="hbce-brand__copy">
+                  <span className="hbce-brand__title">HERMETICUM B.C.E.</span>
+                  <span className="hbce-brand__subtitle">IPR · {APP_NAME}</span>
                 </span>
               </Link>
 
