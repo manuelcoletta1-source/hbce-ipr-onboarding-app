@@ -13,22 +13,22 @@ import {
 import { BoundaryNotice } from "@/components/BoundaryNotice";
 
 const LEGAL_SCOPE_ITEMS = [
-  "Internal operational identity record",
-  "IPR Verified status inside the HBCE framework",
-  "IPR Card as internal operational credential",
-  "Operational certificate reference",
-  "Governed JOKER-C2 access evaluation",
-  "Audit-oriented continuity references"
+  "Registro interno di identità operativa",
+  "Stato IPR verificata nel sistema H.B.C.E.",
+  "Carta IPR come credenziale operativa interna",
+  "Riferimento al certificato operativo",
+  "Valutazione dell’accesso governato a JOKER-C2",
+  "Riferimenti di continuità per le verifiche di audit"
 ] as const;
 
 const NOT_A_SERVICE_ITEMS = [
-  "No banking account issuance",
-  "No payment account issuance",
-  "No deposits",
-  "No lending",
-  "No custody of financial assets",
-  "No regulated financial product",
-  "No qualified trust service claim"
+  "Nessuna apertura di conti bancari",
+  "Nessuna apertura di conti di pagamento",
+  "Nessuna raccolta di depositi",
+  "Nessuna concessione di prestiti",
+  "Nessuna custodia di attività finanziarie",
+  "Nessun prodotto finanziario regolamentato",
+  "Nessuna dichiarazione di erogazione di servizi fiduciari qualificati"
 ] as const;
 
 export default function LegalPage() {
@@ -38,14 +38,15 @@ export default function LegalPage() {
         <p className="hbce-kicker">Limiti giuridici</p>
 
         <h1 className="hbce-title">
-          Operational identity, not public identity.
+          Identità operativa, non identità pubblica.
         </h1>
 
         <p className="hbce-lead">
-          HBCE IPR Onboarding App creates an internal verifiable operational
-          identity record for governed access inside the HBCE ecosystem. It does
-          not issue official public identity credentials, state identity
-          documents, regulated financial services or qualified trust services.
+          HBCE IPR Onboarding App crea un registro interno verificabile di identità
+          operativa per l’accesso governato nell’ecosistema H.B.C.E. Non
+          emette credenziali pubbliche ufficiali, documenti di identità
+          statali, servizi finanziari regolamentati o servizi fiduciari
+          qualificati.
         </p>
       </section>
 
@@ -58,7 +59,7 @@ export default function LegalPage() {
       <section className="hbce-section">
         <div className="hbce-grid hbce-grid--2">
           <div className="hbce-card hbce-card--soft">
-            <p className="hbce-kicker">Correct claim</p>
+            <p className="hbce-kicker">Dichiarazione corretta</p>
             <h2>Identità operativa verificabile</h2>
             <p>{CORRECT_LEGAL_CLAIM}</p>
 
@@ -72,16 +73,17 @@ export default function LegalPage() {
           </div>
 
           <div className="hbce-card">
-            <p className="hbce-kicker">Incorrect claim</p>
+            <p className="hbce-kicker">Dichiarazione non corretta</p>
             <h2>Nessuna emissione di documenti pubblici di identità</h2>
             <p>{INCORRECT_LEGAL_CLAIM}</p>
 
             <div className="hbce-divider" />
 
             <p>
-              HBCE does not replace national identity systems, public identity
-              authorities, regulated digital identity providers, recognized
-              trust service providers or public-sector identity issuance.
+              H.B.C.E. non sostituisce i sistemi nazionali di identità, le autorità
+              pubbliche competenti, i fornitori regolamentati di identità
+              digitale, i prestatori riconosciuti di servizi fiduciari o le
+              procedure pubbliche di rilascio dell’identità.
             </p>
           </div>
         </div>
@@ -93,8 +95,8 @@ export default function LegalPage() {
           <h2>Sistemi e servizi non sostituiti dalla Carta IPR</h2>
 
           <p>
-            HBCE IPR Onboarding App does not replace the following official,
-            public or regulated systems.
+            HBCE IPR Onboarding App non sostituisce i seguenti sistemi ufficiali, pubblici
+            o regolamentati.
           </p>
 
           <ul className="hbce-list">
@@ -110,23 +112,25 @@ export default function LegalPage() {
           <div className="hbce-card">
             <h3>IPR</h3>
             <p>
-              IPR means Identity Primary Record. It is an internal operational
-              identity record that links subject, verification state, access
-              scope and audit continuity. It is not a state identity document.
+              In questa applicazione IPR indica Identity Primary Record. È un registro
+              interno che collega soggetto, stato della verifica, ambito di
+              accesso e continuità delle evidenze di audit. Non è un documento
+              di identità statale.
             </p>
           </div>
 
           <div className="hbce-card">
             <h3>IPR Card</h3>
             <p>
-              IPR Card is the internal operational key for HBCE access. It can
-              represent verified operational status inside the HBCE framework,
-              but it does not replace public identity documents.
+              La Carta IPR è una credenziale operativa interna per l’accesso ai servizi
+              H.B.C.E. Può rappresentare uno stato operativo verificato nel
+              sistema H.B.C.E., ma non sostituisce i documenti pubblici di
+              identità.
             </p>
           </div>
 
           <div className="hbce-card">
-            <h3>Operational Certificate</h3>
+            <h3>Certificato operativo</h3>
             <p>{CERTIFICATE_BOUNDARY_TEXT}</p>
           </div>
         </div>
@@ -151,11 +155,11 @@ export default function LegalPage() {
           <h2>Verifiche di livello bancario non significano servizi bancari.</h2>
 
           <p>
-            The application may use a bank-grade onboarding posture because it
-            requires structured identity verification before governed AI access.
-            This does not mean that HBCE provides bank accounts, deposits,
-            payment services, financial products, lending, custody or regulated
-            financial services.
+            L’applicazione può adottare procedure strutturate di verifica dell’identità
+            prima dell’accesso all’AI governata. Questo non significa che
+            H.B.C.E. offra conti bancari, depositi, servizi di pagamento,
+            prodotti finanziari, prestiti, custodia di attività o servizi
+            finanziari regolamentati.
           </p>
 
           <div className="hbce-divider" />
