@@ -120,16 +120,16 @@ const POSITIONING_POINTS = [
 ] as const;
 
 const SECURITY_BOUNDARIES = [
-  "No verified IPR, no governed JOKER-C2 access.",
-  "One certificate unlocks only the next required phase.",
-  "The latest valid `.hbce.json` certificate is the continuation key.",
-  "Invalid protocol, issuer, phase or payload hash blocks continuation.",
-  "Official documents are uploaded only in the official document phase.",
-  "Fiscal documents are uploaded only in the fiscal identity phase.",
-  "Photo, selfie and video liveness references are handled only in the liveness phase.",
-  "The onboarding page is a continuation gateway, not a document intake page.",
-  "IPR does not replace CIE, SPID, EUDI Wallet, passport or official state identity.",
-  "JOKER-C2 access remains denied until the operational certificate is valid."
+  "Senza IPR verificata, nessun accesso governato a JOKER-C2.",
+  "Ogni certificato abilita soltanto la fase successiva prevista.",
+  "Il certificato `.hbce.json` valido più recente consente la continuazione.",
+  "Protocollo, emittente, fase o hash non validi bloccano la continuazione.",
+  "I documenti ufficiali si caricano soltanto nella fase documentale.",
+  "I documenti fiscali si caricano soltanto nella fase fiscale.",
+  "Foto, selfie e video si gestiscono soltanto nella fase di verifica della presenza.",
+  "Questa pagina serve a continuare il percorso, non a caricare documenti personali.",
+  "L’IPR non sostituisce CIE, SPID, EUDI Wallet, passaporto o identità statale.",
+  "L’accesso a JOKER-C2 rimane negato finché il certificato operativo non è valido."
 ] as const;
 
 function getSafeNextPhase(upload: AcceptedIprCertificateUpload): string {
@@ -186,15 +186,15 @@ export default function OnboardingPage() {
             className="hbce-btn hbce-btn--primary"
             href={ROUTES.onboardingStart}
           >
-            Start New IPR
+            Avvia una nuova IPR
           </Link>
 
           <a className="hbce-btn" href="#continue-ipr">
-            Continue Existing IPR
+            Continua una IPR esistente
           </a>
 
           <Link className="hbce-btn" href="/access/joker-c2">
-            Access JOKER-C2
+            Accedi a JOKER-C2
           </Link>
         </div>
       </section>
@@ -203,7 +203,7 @@ export default function OnboardingPage() {
         <div className="hbce-grid hbce-grid--2">
           <div className="hbce-card hbce-card--soft">
             <p className="hbce-kicker">Regola fondamentale</p>
-            <h2>No verified IPR, no governed JOKER-C2 access.</h2>
+            <h2>Senza IPR verificata, l’accesso a JOKER-C2 resta negato.</h2>
 
             <p>
               L’accesso a JOKER-C2 non dipende soltanto da email e password.
@@ -230,8 +230,8 @@ export default function OnboardingPage() {
         <IprCertificateUploader
           mode="read_any"
           required={false}
-          title="Continue with Existing HBCE IPR Certificate"
-          description="Upload the latest HBCE-IPR `.hbce.json` certificate you own. The app will read the chain state and open the next required phase."
+          title="Continua con un certificato HBCE-IPR esistente"
+          description="Carica il certificato `.hbce.json` più recente. Il sistema legge lo stato della catena e apre la fase successiva prevista."
           onCertificateAccepted={(upload) => {
             setAcceptedUpload(upload);
           }}
@@ -249,10 +249,7 @@ export default function OnboardingPage() {
             <h2>Certificato accettato.</h2>
 
             <p>
-              The uploaded HBCE-IPR certificate is valid. Continue to the next
-              required onboarding phase. If no continuation route is available,
-              the chain has either reached a terminal state or the phase map
-              must be updated.
+              Il certificato HBCE-IPR caricato è valido. Procedi alla fase successiva. Se non è disponibile un percorso, la catena potrebbe essere terminata oppure richiedere un aggiornamento della mappa.
             </p>
 
             <div className="hbce-card-preview__meta">

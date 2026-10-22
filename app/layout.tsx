@@ -119,8 +119,8 @@ export default function RootLayout({
                 <strong>{ORG_NAME}</strong>
                 <div className="hbce-small">{CANONICAL_TRADEMARK}</div>
                 <div className="hbce-small">
-                  HBCE-IPR Certificate Chain · IPR Card · Operational
-                  Certificate · JOKER-C2 Access Gate
+                  Catena dei certificati HBCE-IPR · Carta IPR ·
+                  Certificato operativo · Accesso JOKER-C2
                 </div>
               </div>
 

@@ -79,33 +79,33 @@ const CERTIFICATE_CHAIN = [
 ] as const;
 
 const OPERATIONAL_BOUNDARIES = [
-  "The app does not issue IBANs, bank accounts, payment accounts or electronic money.",
-  "The app does not replace CIE, SPID, EUDI Wallet, passport, tax ID or official state identity.",
-  "Official documents are verification inputs. IPR is the internal HBCE operational output.",
-  "The portable certificate stores private fields, hashes, references, states and metadata, not raw document files.",
-  "Raw photos, raw videos, face templates and biometric templates must remain outside portable certificates and public routes.",
-  "Real production verification requires backend infrastructure, protected storage, server-side validation and signing.",
-  "JOKER-C2 access remains denied unless the final operational certificate is valid."
+  "L’applicazione non emette IBAN, conti bancari, conti di pagamento o moneta elettronica.",
+  "L’applicazione non sostituisce CIE, SPID, EUDI Wallet, passaporto, codice fiscale o identità statale.",
+  "I documenti ufficiali sono evidenze di verifica. L’IPR è un risultato operativo interno H.B.C.E.",
+  "Il certificato portabile contiene campi privati, hash, riferimenti, stati e metadati, non i documenti originali.",
+  "Fotografie, video originali e modelli biometrici devono restare fuori dai certificati portabili e dalle interfacce pubbliche.",
+  "La verifica reale in produzione richiede infrastruttura backend, archiviazione protetta, validazione lato server e firma.",
+  "L’accesso a JOKER-C2 rimane negato senza un certificato operativo finale valido."
 ] as const;
 
 const PRODUCT_RULES = [
   {
-    title: "IPR Onboarding Gateway",
+    title: "Portale di registrazione IPR",
     text:
       "Il portale raccoglie e collega le informazioni del richiedente prima della valutazione dell'accesso al runtime governato. Non è una semplice registrazione AI."
   },
   {
-    title: "Carta IPR as operational key",
+    title: "Carta IPR come credenziale operativa",
     text:
       "La Carta IPR è la credenziale operativa interna H.B.C.E. emessa soltanto dopo la catena di revisione e approvazione."
   },
   {
-    title: "JOKER-C2 as governed runtime",
+    title: "JOKER-C2 come runtime governato",
     text:
       "L'accesso a JOKER-C2 richiede un certificato operativo valido. Email, password e abbonamento non sono sufficienti."
   },
   {
-    title: "Fail-closed certificate logic",
+    title: "Blocco preventivo dei certificati non validi",
     text:
       "Protocollo, emittente, fase, ambito o hash non validi impediscono di proseguire e mantengono l'accesso negato."
   }
@@ -113,24 +113,24 @@ const PRODUCT_RULES = [
 
 const COMPARISON_ROWS = [
   {
-    classic: "Email registration",
-    hbce: "Subject creation with email OTP and phone SMS OTP"
+    classic: "Registrazione tramite email",
+    hbce: "Registrazione con OTP email e SMS"
   },
   {
-    classic: "Password or OAuth login",
-    hbce: "Progressive certificate chain continuation"
+    classic: "Accesso con password o OAuth",
+    hbce: "Continuazione mediante certificati progressivi"
   },
   {
-    classic: "Payment or subscription",
-    hbce: "Fiscal identity, official document and liveness evidence"
+    classic: "Pagamento o abbonamento",
+    hbce: "Identità fiscale, documento ufficiale e verifica della presenza"
   },
   {
-    classic: "Direct model access",
-    hbce: "Carta IPR and operational certificate before JOKER-C2"
+    classic: "Accesso diretto al modello",
+    hbce: "Carta IPR e certificato operativo prima di JOKER-C2"
   },
   {
-    classic: "Account-based access",
-    hbce: "Operational identity, event continuity and audit-oriented access"
+    classic: "Accesso basato su account",
+    hbce: "Identità operativa, continuità degli eventi e tracciabilità"
   }
 ] as const;
 
@@ -209,11 +209,7 @@ export default function HomePage() {
             <h2>Prima verifica la tua identità. Poi accedi all’AI operativa.</h2>
 
             <p>
-              Classic AI access usually follows email, password, payment and
-              direct model access. HBCE follows a different rule: subject
-              onboarding, fiscal identity, official evidence, liveness check,
-              privacy and compliance, review, Carta IPR, operational certificate
-              and only then JOKER-C2 access evaluation.
+              Nei servizi AI tradizionali l’accesso può dipendere da email, password e pagamento. H.B.C.E. richiede invece registrazione, identità fiscale, documenti ufficiali, verifica della presenza, privacy, revisione, Carta IPR e certificato operativo prima di valutare l’accesso a JOKER-C2.
             </p>
           </div>
 
@@ -223,10 +219,7 @@ export default function HomePage() {
             <h2>Senza IPR verificata, l’accesso a JOKER-C2 resta negato.</h2>
 
             <p>
-              JOKER-C2 is not an AI runtime opened by a normal account. It is
-              accessed through an IPR-verified operational certificate. Until
-              that certificate exists and passes validation, the access gate
-              remains closed.
+              Un semplice account non autorizza l’accesso a JOKER-C2. È necessario un certificato operativo collegato a una IPR verificata. Finché il certificato non supera la validazione, l’accesso rimane bloccato.
             </p>
           </div>
         </div>
@@ -236,8 +229,8 @@ export default function HomePage() {
         <IprCertificateUploader
           mode="read_any"
           required={false}
-          title="Continue with Existing HBCE IPR Certificate"
-          description="Upload the latest HBCE-IPR `.hbce.json` certificate generated by the app. The system reads the certificate phase and opens the next required step."
+          title="Continua con un certificato HBCE-IPR esistente"
+          description="Carica il certificato `.hbce.json` più recente. Il sistema verifica la fase e determina il passaggio successivo."
           onCertificateAccepted={(upload) => {
             setAcceptedUpload(upload);
           }}
@@ -255,9 +248,7 @@ export default function HomePage() {
             <h2>Puoi continuare il percorso HBCE-IPR.</h2>
 
             <p>
-              The uploaded certificate is valid. Continue to the next required
-              onboarding phase. If no route is available, the certificate is
-              either terminal or the phase map must be updated.
+              Il certificato caricato è valido. Procedi alla fase successiva. Se non esiste un percorso disponibile, il certificato potrebbe essere terminale oppure la mappa delle fasi richiede un aggiornamento.
             </p>
 
             <div className="hbce-card-preview__meta">
@@ -360,10 +351,7 @@ export default function HomePage() {
           <h2>Ogni certificato abilita la fase successiva.</h2>
 
           <p>
-            The app works through downloadable `.hbce.json` files. Each file
-            contains the hash of the previous phase and the hash of its own
-            canonical payload. The final operational certificate is the only
-            file accepted by the JOKER-C2 access gate.
+            La procedura utilizza certificati `.hbce.json` scaricabili. Ogni file contiene l’hash della fase precedente e quello del proprio contenuto canonico. Il certificato operativo finale è necessario per valutare l’accesso a JOKER-C2.
           </p>
 
           <div className="hbce-grid hbce-grid--3">
