@@ -39,6 +39,18 @@ const CONSENT_LABELS = {
     "I accept that the HBCE-IPR certificate is an internal HBCE operational identity certificate."
 } as const;
 
+const UI_CONSENT_LABELS_IT: Record<keyof typeof CONSENT_LABELS, string> = {
+  privacy_consent: "Acconsento al trattamento dei dati per la verifica IPR.",
+  hash_only_acknowledgement: "Accetto la logica del certificato portabile basata su riferimenti hash.",
+  data_accuracy_confirmation: "Confermo che i dati inseriti sono corretti.",
+  document_authenticity_confirmation: "Confermo che i documenti caricati sono autentici.",
+  hbce_policy_acceptance: "Accetto la politica operativa H.B.C.E.",
+  biometric_liveness_verification_consent: "Acconsento all'utilizzo dei riferimenti a foto, volto e video per la verifica IPR e il controllo contro la sostituzione di persona.",
+  joker_c2_custody_acknowledgement: "Accetto che AI JOKER-C2 sia il custode operativo controllato dei riferimenti minimizzati relativi a identità, conformità e verifica della presenza nei processi governati H.B.C.E.",
+  no_state_identity_claim_acknowledgement: "Riconosco che IPR non sostituisce CIE, SPID, EUDI Wallet o i documenti d'identità ufficiali.",
+  internal_operational_identity_acknowledgement: "Riconosco che il certificato HBCE-IPR è un certificato di identità operativa interna H.B.C.E."
+};
+
 type ConsentFieldName = keyof typeof CONSENT_LABELS;
 
 type Phase5ConsentRecord = JsonObject & {
@@ -100,66 +112,66 @@ const LIVENESS_REVIEW_STATUSES = [
 const fields: IprPhaseFieldDefinition[] = [
   {
     name: "privacy_consent",
-    label: CONSENT_LABELS.privacy_consent,
+    label: UI_CONSENT_LABELS_IT.privacy_consent,
     type: "checkbox",
     helperText:
-      "This consent is included in the private HBCE-IPR certificate and hashed for audit verification."
+      "Il consenso viene registrato nel certificato privato HBCE-IPR e associato a un hash per le verifiche."
   },
   {
     name: "hash_only_acknowledgement",
-    label: CONSENT_LABELS.hash_only_acknowledgement,
+    label: UI_CONSENT_LABELS_IT.hash_only_acknowledgement,
     type: "checkbox",
     helperText:
-      "The downloadable certificate may contain private fields, hashes and metadata. Public registry references remain hash-only."
+      "Il certificato scaricabile può contenere dati privati, hash e metadati. Nel registro pubblico devono comparire soltanto riferimenti basati su hash."
   },
   {
     name: "data_accuracy_confirmation",
-    label: CONSENT_LABELS.data_accuracy_confirmation,
+    label: UI_CONSENT_LABELS_IT.data_accuracy_confirmation,
     type: "checkbox",
     helperText:
-      "This confirmation is included in the private HBCE-IPR certificate and hashed for audit verification."
+      "La conferma viene registrata nel certificato privato HBCE-IPR e associata a un hash per le verifiche."
   },
   {
     name: "document_authenticity_confirmation",
-    label: CONSENT_LABELS.document_authenticity_confirmation,
+    label: UI_CONSENT_LABELS_IT.document_authenticity_confirmation,
     type: "checkbox",
     helperText:
-      "This confirmation is included in the private HBCE-IPR certificate and hashed for audit verification."
+      "La conferma viene registrata nel certificato privato HBCE-IPR e associata a un hash per le verifiche."
   },
   {
     name: "hbce_policy_acceptance",
-    label: CONSENT_LABELS.hbce_policy_acceptance,
+    label: UI_CONSENT_LABELS_IT.hbce_policy_acceptance,
     type: "checkbox",
     helperText:
-      "This acceptance is included in the private HBCE-IPR certificate and hashed for audit verification."
+      "L'accettazione viene registrata nel certificato privato HBCE-IPR e associata a un hash per le verifiche."
   },
   {
     name: "biometric_liveness_verification_consent",
-    label: CONSENT_LABELS.biometric_liveness_verification_consent,
+    label: UI_CONSENT_LABELS_IT.biometric_liveness_verification_consent,
     type: "checkbox",
     helperText:
-      "This consent covers minimized photo, face and liveness references only. Raw photos, raw videos and biometric templates are not stored in the portable certificate."
+      "Il consenso riguarda i riferimenti minimizzati a foto, volto e verifica della presenza. Fotografie, video originali e modelli biometrici non vengono inseriti nel certificato portabile."
   },
   {
     name: "joker_c2_custody_acknowledgement",
-    label: CONSENT_LABELS.joker_c2_custody_acknowledgement,
+    label: UI_CONSENT_LABELS_IT.joker_c2_custody_acknowledgement,
     type: "checkbox",
     helperText:
-      "This acknowledgement records that JOKER-C2 acts as the controlled operational custodian for minimized identity and liveness references in governed runtime workflows."
+      "La dichiarazione riguarda il ruolo operativo controllato di JOKER-C2 nella gestione dei riferimenti minimizzati relativi a identità e verifica della presenza."
   },
   {
     name: "no_state_identity_claim_acknowledgement",
-    label: CONSENT_LABELS.no_state_identity_claim_acknowledgement,
+    label: UI_CONSENT_LABELS_IT.no_state_identity_claim_acknowledgement,
     type: "checkbox",
     helperText:
-      "This boundary is included in the private HBCE-IPR certificate and hashed for audit verification."
+      "La dichiarazione viene registrata nel certificato privato HBCE-IPR e associata a un hash per le verifiche."
   },
   {
     name: "internal_operational_identity_acknowledgement",
-    label: CONSENT_LABELS.internal_operational_identity_acknowledgement,
+    label: UI_CONSENT_LABELS_IT.internal_operational_identity_acknowledgement,
     type: "checkbox",
     helperText:
-      "This boundary is included in the private HBCE-IPR certificate and hashed for audit verification."
+      "La dichiarazione viene registrata nel certificato privato HBCE-IPR e associata a un hash per le verifiche."
   }
 ];
 
@@ -1081,9 +1093,9 @@ export default function Phase5PrivacyCompliancePage() {
         phase={phase}
         fields={fields}
         buildPhaseData={buildPhase5PrivacyComplianceData}
-        submitLabel="Generate HBCE IPR Certificate 05"
-        successTitle="HBCE IPR Certificate 05 generated"
-        successDescription="The private privacy and compliance certificate has been generated and downloaded. It links Certificate 04 to accepted consent statements, identity verification consent, biometric liveness consent, JOKER-C2 custody acknowledgement and their hash references. Use this file in Phase 6 — HBCE Review Submission."
+        submitLabel="Genera il Certificato HBCE-IPR 05"
+        successTitle="Certificato HBCE-IPR 05 generato"
+        successDescription="Il certificato privato relativo a privacy e conformità è stato generato e scaricato. Collega il Certificato 04 ai consensi accettati e ai relativi hash. Utilizza questo file nella Fase 6: invio alla revisione H.B.C.E."
       />
     </div>
   );

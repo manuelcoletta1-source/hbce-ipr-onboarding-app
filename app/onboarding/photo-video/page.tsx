@@ -637,14 +637,14 @@ export default function PhotoVideoLivenessPage() {
     <div className="hbce-container">
       <main className="hbce-main">
         <section className="hbce-hero">
-          <p className="hbce-kicker">HBCE IPR Onboarding · Phase 04</p>
+          <p className="hbce-kicker">HBCE IPR · Fase 04</p>
 
           <h1>{phase.title}</h1>
 
           <p>
-            Upload a clear face photo and a liveness video. In the video, the
-            subject must show the face, say the declared full name aloud and
-            turn the head according to the selected challenge.
+            Carica una fotografia nitida del volto e un video di verifica.
+            Nel video devi mostrare il volto, pronunciare nome e cognome
+            e ruotare la testa secondo le istruzioni indicate.
           </p>
         </section>
 
@@ -652,16 +652,16 @@ export default function PhotoVideoLivenessPage() {
           <section className="hbce-card hbce-card--soft">
             <p className="hbce-kicker">
               {previousUpload.source === "session"
-                ? "Official document certificate loaded from session"
-                : "Official document certificate accepted"}
+                ? "Certificato del documento recuperato dalla sessione"
+                : "Certificato del documento accettato"}
             </p>
 
-            <h2>Certificate 03 ready for photo/video liveness.</h2>
+            <h2>Certificato 03 pronto per la verifica con foto e video.</h2>
 
             <p>
-              The required official document certificate is available. You can
-              now submit face photo and liveness video evidence for Certificate
-              04.
+              Il certificato del documento richiesto è disponibile.
+              Ora puoi caricare la fotografia e il video necessari
+              per il Certificato 04.
             </p>
 
             <p className="hbce-mono">file_name: {previousUpload.fileName}</p>
@@ -690,7 +690,7 @@ export default function PhotoVideoLivenessPage() {
                 type="button"
                 onClick={clearPreviousUpload}
               >
-                Use another Certificate 03
+                Utilizza un altro Certificato 03
               </button>
             </div>
           </section>
@@ -698,8 +698,8 @@ export default function PhotoVideoLivenessPage() {
           <IprCertificateUploader
             expectedPreviousPhase={EXPECTED_PREVIOUS_PHASE}
             expectedNextPhase={EXPECTED_NEXT_PHASE}
-            title="Upload Official Document Certificate"
-            description="Upload hbce-ipr-03-official-document.hbce.json. The app verifies Certificate 03 before enabling photo/video liveness submission."
+            title="Carica il certificato del documento d’identità"
+            description="Carica hbce-ipr-03-official-document.hbce.json. L’applicazione verifica il Certificato 03 prima di consentire il caricamento di foto e video."
             onCertificateAccepted={(upload) => {
               setPreviousUpload(buildActiveUploadFromAcceptedUpload(upload));
               setError("");
@@ -715,17 +715,17 @@ export default function PhotoVideoLivenessPage() {
         <section className="hbce-card">
           <div className="hbce-stack">
             <div>
-              <p className="hbce-kicker">Face photo</p>
-              <h2>Upload a clear front face photo.</h2>
+              <p className="hbce-kicker">Fotografia del volto</p>
+              <h2>Carica una fotografia frontale nitida del volto.</h2>
               <p className="hbce-muted">
-                The certificate stores only the SHA-256 hash and a protected
-                local reference. The raw photo is not written inside the HBCE-IPR
-                certificate.
+                Il certificato contiene soltanto l&apos;hash SHA-256 e un
+                riferimento locale. La fotografia originale non viene
+                inserita nel certificato HBCE-IPR.
               </p>
             </div>
 
             <label className="hbce-field">
-              <span>Face photo file</span>
+              <span>File della fotografia del volto</span>
               <input
                 type="file"
                 accept="image/*"
@@ -743,21 +743,21 @@ export default function PhotoVideoLivenessPage() {
         <section className="hbce-card">
           <div className="hbce-stack">
             <div>
-              <p className="hbce-kicker">Liveness video</p>
-              <h2>Upload a video saying the name and turning the head.</h2>
+              <p className="hbce-kicker">Video di verifica della presenza</p>
+              <h2>Carica un video in cui pronunci il nome e ruoti la testa.</h2>
               <p className="hbce-muted">
-                The video must show the subject&apos;s face, contain the spoken
-                full name and include the selected head-turn challenge. The raw
-                video is not written inside the HBCE-IPR certificate.
+                Il video deve mostrare il volto, contenere nome e cognome
+                pronunciati ad alta voce e il movimento richiesto della testa.
+                Il video originale non viene inserito nel certificato HBCE-IPR.
               </p>
             </div>
 
             <label className="hbce-field">
-              <span>Declared spoken full name</span>
+              <span>Nome e cognome pronunciati nel video</span>
               <input
                 type="text"
                 value={declaredSpokenName}
-                placeholder="Full name spoken aloud in the video"
+                placeholder="Nome e cognome pronunciati ad alta voce"
                 onChange={(event) => {
                   setDeclaredSpokenName(event.target.value);
                   setGeneratedCertificate(null);
@@ -765,13 +765,13 @@ export default function PhotoVideoLivenessPage() {
                 }}
               />
               <small>
-                This text must match the name spoken aloud inside the uploaded
-                liveness video.
+                Il nome inserito deve corrispondere a quello pronunciato
+                nel video caricato.
               </small>
             </label>
 
             <label className="hbce-field">
-              <span>Liveness challenge</span>
+              <span>Movimento richiesto per la verifica</span>
               <select
                 value={livenessChallenge}
                 onChange={(event) => {
@@ -790,7 +790,7 @@ export default function PhotoVideoLivenessPage() {
             </label>
 
             <label className="hbce-field">
-              <span>Liveness video file</span>
+              <span>File del video di verifica</span>
               <input
                 type="file"
                 accept="video/*"
@@ -814,8 +814,8 @@ export default function PhotoVideoLivenessPage() {
                 }}
               />
               <span>
-                I confirm that the uploaded liveness video includes the subject
-                saying the declared full name aloud.
+                Confermo che nel video caricato vengono pronunciati
+                ad alta voce il nome e il cognome dichiarati.
               </span>
             </label>
 
@@ -830,8 +830,8 @@ export default function PhotoVideoLivenessPage() {
                 }}
               />
               <span>
-                I confirm that the uploaded liveness video includes the required
-                head movement challenge.
+                Confermo che il video caricato contiene il movimento
+                della testa richiesto.
               </span>
             </label>
 
@@ -846,22 +846,22 @@ export default function PhotoVideoLivenessPage() {
                 }}
               />
               <span>
-                I accept biometric/liveness verification references for HBCE IPR
-                onboarding. Raw photos, raw videos and biometric templates are
-                not stored inside the portable certificate.
+                Accetto l&apos;utilizzo dei riferimenti per la verifica biometrica
+                e della presenza nel percorso HBCE-IPR. Fotografie, video
+                originali e modelli biometrici non sono inseriti nel certificato portabile.
               </span>
             </label>
           </div>
         </section>
 
         <section className="hbce-card hbce-card--soft">
-          <p className="hbce-kicker">Certificate content boundary</p>
-          <h2>Only hashes and references enter Certificate 04.</h2>
+          <p className="hbce-kicker">Limiti del contenuto del certificato</p>
+          <h2>Il Certificato 04 contiene soltanto hash e riferimenti.</h2>
 
           <p>
-            The app computes local SHA-256 hashes for the face photo and the
-            liveness video. Certificate 04 stores protected references, hashes,
-            liveness declarations and review states only.
+            L&apos;applicazione calcola localmente gli hash SHA-256 della
+            fotografia e del video. Il Certificato 04 conserva soltanto
+            riferimenti, hash, dichiarazioni e stati di revisione.
           </p>
 
           <p className="hbce-mono">raw_photo_in_certificate: false</p>
@@ -882,12 +882,13 @@ export default function PhotoVideoLivenessPage() {
 
         {generatedCertificate ? (
           <section className="hbce-card hbce-card--success">
-            <p className="hbce-kicker">Certificate generated</p>
+            <p className="hbce-kicker">Certificato generato</p>
             <h2>{generatedCertificate.file_name}</h2>
 
             <p>
-              The private photo/video liveness certificate has been generated
-              and downloaded. Use this file in Phase 05 — Privacy & Compliance.
+              Il certificato privato relativo alla verifica con foto e video
+              è stato generato e scaricato. Utilizza questo file nella
+              Fase 05: Privacy e conformità.
             </p>
 
             <p className="hbce-mono">
@@ -919,8 +920,8 @@ export default function PhotoVideoLivenessPage() {
             onClick={generateLivenessCertificate}
           >
             {isGenerating
-              ? "Generating HBCE IPR Certificate 04"
-              : "Generate HBCE IPR Certificate 04"}
+              ? "Generazione del Certificato HBCE-IPR 04"
+              : "Genera il Certificato HBCE-IPR 04"}
           </button>
         </section>
       </main>

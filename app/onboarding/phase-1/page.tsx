@@ -83,46 +83,46 @@ const fields: IprPhaseFieldDefinition[] = [
     type: "email",
     placeholder: "name@example.com",
     helperText:
-      "Customer email. It must be verified by one-time code before Certificate 01 can be generated."
+      "L'email deve essere verificata con un codice temporaneo prima di generare il Certificato 01."
   },
   {
     name: "phone_number",
-    label: "Phone number",
+    label: "Numero di telefono",
     type: "tel",
     placeholder: "+39 000 000 0000",
     helperText:
-      "Customer phone number. It must be verified by SMS one-time code before Certificate 01 can be generated."
+      "Il numero di telefono deve essere verificato tramite SMS prima di generare il Certificato 01."
   },
   {
     name: "first_name",
-    label: "First name",
+    label: "Nome",
     type: "text",
     placeholder: "Mario",
     helperText:
-      "Customer first name. It is included in the private portable certificate and hashed for audit verification."
+      "Il nome viene inserito nel certificato privato e associato a un hash per le verifiche."
   },
   {
     name: "last_name",
-    label: "Last name",
+    label: "Cognome",
     type: "text",
     placeholder: "Rossi",
     helperText:
-      "Customer last name. It is included in the private portable certificate and hashed for audit verification."
+      "Il cognome viene inserito nel certificato privato e associato a un hash per le verifiche."
   },
   {
     name: "country",
-    label: "Country",
+    label: "Paese",
     type: "text",
     placeholder: "Italy / IT",
     helperText:
-      "Customer country or country code. It is included in the private portable certificate and hashed."
+      "Il Paese o il relativo codice viene inserito nel certificato privato e associato a un hash."
   },
   {
     name: "date_of_birth",
-    label: "Date of birth",
+    label: "Data di nascita",
     type: "date",
     helperText:
-      "Customer date of birth. It is included in the private portable certificate and hashed."
+      "La data di nascita viene inserita nel certificato privato e associata a un hash."
   }
 ];
 
@@ -587,8 +587,8 @@ export default function Phase1SubjectCreatedPage() {
         phase={phase}
         fields={fields}
         buildPhaseData={buildPhase1SubjectData}
-        submitLabel="Generate HBCE IPR Certificate 01"
-        successTitle="HBCE IPR Certificate 01 generated"
+        submitLabel="Genera il Certificato HBCE-IPR 01"
+        successTitle="Certificato HBCE-IPR 01 generato"
         successDescription="The first private HBCE-IPR certificate has been generated and downloaded after email OTP and phone SMS OTP verification. It records the customer profile creation, initial identity snapshot, contact verification references and the corresponding hash references. It does not verify the identity yet. Use this file in Phase 2 — Fiscal Identity."
       />
     </div>

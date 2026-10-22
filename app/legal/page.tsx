@@ -35,7 +35,7 @@ export default function LegalPage() {
   return (
     <div className="hbce-container">
       <section className="hbce-hero">
-        <p className="hbce-kicker">Legal Boundary</p>
+        <p className="hbce-kicker">Limiti giuridici</p>
 
         <h1 className="hbce-title">
           Operational identity, not public identity.
@@ -50,7 +50,7 @@ export default function LegalPage() {
       </section>
 
       <section className="hbce-section">
-        <BoundaryNotice title="Primary legal boundary">
+        <BoundaryNotice title="Limiti giuridici fondamentali">
           {LEGAL_BOUNDARY_TEXT}
         </BoundaryNotice>
       </section>
@@ -59,7 +59,7 @@ export default function LegalPage() {
         <div className="hbce-grid hbce-grid--2">
           <div className="hbce-card hbce-card--soft">
             <p className="hbce-kicker">Correct claim</p>
-            <h2>Verifiable operational identity</h2>
+            <h2>Identità operativa verificabile</h2>
             <p>{CORRECT_LEGAL_CLAIM}</p>
 
             <div className="hbce-divider" />
@@ -73,7 +73,7 @@ export default function LegalPage() {
 
           <div className="hbce-card">
             <p className="hbce-kicker">Incorrect claim</p>
-            <h2>No official public identity issuance</h2>
+            <h2>Nessuna emissione di documenti pubblici di identità</h2>
             <p>{INCORRECT_LEGAL_CLAIM}</p>
 
             <div className="hbce-divider" />
@@ -89,8 +89,8 @@ export default function LegalPage() {
 
       <section className="hbce-section">
         <div className="hbce-card">
-          <p className="hbce-kicker">Non-replacement boundary</p>
-          <h2>Systems and services not replaced by HBCE IPR Card</h2>
+          <p className="hbce-kicker">Limiti di sostituzione</p>
+          <h2>Sistemi e servizi non sostituiti dalla Carta IPR</h2>
 
           <p>
             HBCE IPR Onboarding App does not replace the following official,
@@ -134,8 +134,8 @@ export default function LegalPage() {
 
       <section className="hbce-section">
         <div className="hbce-card hbce-card--soft">
-          <p className="hbce-kicker">Product formula</p>
-          <h2>HBCE access sequence</h2>
+          <p className="hbce-kicker">Struttura del prodotto</p>
+          <h2>Sequenza di accesso H.B.C.E.</h2>
 
           <ul className="hbce-list">
             {PRODUCT_FORMULA.map((item) => (
@@ -147,8 +147,8 @@ export default function LegalPage() {
 
       <section className="hbce-section">
         <div className="hbce-card">
-          <p className="hbce-kicker">Bank-grade boundary</p>
-          <h2>Bank-grade onboarding does not mean banking service.</h2>
+          <p className="hbce-kicker">Limiti del modello di verifica di livello bancario</p>
+          <h2>Verifiche di livello bancario non significano servizi bancari.</h2>
 
           <p>
             The application may use a bank-grade onboarding posture because it
@@ -171,15 +171,15 @@ export default function LegalPage() {
       <section className="hbce-section">
         <div className="hbce-actions">
           <Link className="hbce-btn" href={ROUTES.privacy}>
-            View Privacy Boundary
+            Consulta la sezione Privacy
           </Link>
 
           <Link className="hbce-btn" href={ROUTES.security}>
-            View Security Boundary
+            Consulta la sezione Sicurezza
           </Link>
 
           <Link className="hbce-btn hbce-btn--primary" href={ROUTES.onboarding}>
-            Return to Onboarding
+            Torna alla registrazione IPR
           </Link>
         </div>
       </section>

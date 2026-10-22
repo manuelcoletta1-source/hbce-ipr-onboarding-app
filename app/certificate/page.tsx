@@ -1250,7 +1250,7 @@ export default function CertificatePage() {
                 : "IPR Card certificate accepted"}
             </p>
 
-            <h2>Certificate 08 ready for operational certificate issuance.</h2>
+            <h2>Certificato 08 pronto per l’emissione del certificato operativo.</h2>
 
             <p>
               The required IPR Card certificate is already available for this
@@ -1309,7 +1309,7 @@ export default function CertificatePage() {
           <div className="hbce-stack">
             <div>
               <p className="hbce-kicker">Certificate activation data</p>
-              <h2>Issue the HBCE operational certificate.</h2>
+              <h2>Emetti il certificato operativo H.B.C.E.</h2>
               <p className="hbce-muted">
                 The app generates a deterministic certificate ID and binds it to
                 the IPR ID, subject ID, IPR Card serial and JOKER-C2 access
@@ -1320,7 +1320,7 @@ export default function CertificatePage() {
 
             <div className="hbce-form-grid">
               <label className="hbce-field">
-                <span>HBCE issuer/operator reference</span>
+                <span>Riferimento dell’operatore H.B.C.E.</span>
                 <input
                   type="text"
                   value={operatorReference}
@@ -1334,7 +1334,7 @@ export default function CertificatePage() {
               </label>
 
               <label className="hbce-field">
-                <span>Valid until</span>
+                <span>Valido fino al</span>
                 <input
                   type="datetime-local"
                   value={validUntil.slice(0, 16)}
@@ -1359,7 +1359,7 @@ export default function CertificatePage() {
         {generatedPreview ? (
           <section className="hbce-card hbce-card--soft">
             <p className="hbce-kicker">Generated certificate preview</p>
-            <h2>Operational certificate identifiers</h2>
+            <h2>Identificativi del certificato operativo</h2>
 
             <p className="hbce-mono">
               certificate_id: {generatedPreview.certificateId}
@@ -1381,7 +1381,7 @@ export default function CertificatePage() {
         {previousIdentitySnapshot ? (
           <section className="hbce-card hbce-card--soft">
             <p className="hbce-kicker">Inherited identity snapshot</p>
-            <h2>Biological identity inherited from Certificate 08.</h2>
+            <h2>Dati di identità acquisiti dal Certificato 08.</h2>
 
             <p>
               Certificate 09 will inherit the identity, physical descriptor and
@@ -1412,7 +1412,7 @@ export default function CertificatePage() {
         {physicalDescriptorProfile ? (
           <section className="hbce-card hbce-card--soft">
             <p className="hbce-kicker">Inherited physical descriptor profile</p>
-            <h2>Physical descriptor layer ready for Certificate 09.</h2>
+            <h2>Descrittori fisici disponibili per il Certificato 09.</h2>
 
             <p className="hbce-mono">
               height_cm: {physicalDescriptorProfile.height_cm ?? "unavailable"}
@@ -1443,7 +1443,7 @@ export default function CertificatePage() {
         {biometricLivenessSnapshot ? (
           <section className="hbce-card hbce-card--soft">
             <p className="hbce-kicker">Inherited liveness snapshot</p>
-            <h2>Photo/video liveness ready for Certificate 09.</h2>
+            <h2>Evidenze foto e video disponibili per il Certificato 09.</h2>
 
             <p className="hbce-mono">
               document_face_reference:{" "}
@@ -1477,7 +1477,7 @@ export default function CertificatePage() {
 
         <section className="hbce-card">
           <p className="hbce-kicker">Certificate boundary</p>
-          <h2>The certificate enables access evaluation, not automatic trust.</h2>
+          <h2>Il certificato consente la valutazione dell’accesso, non un’autorizzazione automatica.</h2>
           <p>
             The HBCE operational certificate is the internal authorization file
             used by the JOKER-C2 gate. JOKER-C2 must still validate protocol,
@@ -1495,7 +1495,7 @@ export default function CertificatePage() {
 
         {generatedCertificate ? (
           <section className="hbce-card hbce-card--success">
-            <p className="hbce-kicker">Certificate generated</p>
+            <p className="hbce-kicker">Certificato generato</p>
             <h2>{generatedCertificate.file_name}</h2>
 
             <p>

@@ -69,9 +69,9 @@ export default function SecurityPage() {
   return (
     <div className="hbce-container">
       <section className="hbce-hero">
-        <p className="hbce-kicker">Security Boundary</p>
+        <p className="hbce-kicker">Limiti di sicurezza</p>
 
-        <h1 className="hbce-title">Fail-closed access by design.</h1>
+        <h1 className="hbce-title">Accesso bloccato per impostazione predefinita.</h1>
 
         <p className="hbce-lead">
           HBCE IPR Onboarding App denies JOKER-C2 access by default. Access is
@@ -82,7 +82,7 @@ export default function SecurityPage() {
       </section>
 
       <section className="hbce-section">
-        <BoundaryNotice title="Core security rule" tone="danger">
+        <BoundaryNotice title="Regola fondamentale di sicurezza" tone="danger">
           {SECURITY_BOUNDARY_TEXT}
         </BoundaryNotice>
       </section>
@@ -90,8 +90,8 @@ export default function SecurityPage() {
       <section className="hbce-section">
         <div className="hbce-grid hbce-grid--2">
           <div className="hbce-card hbce-card--soft">
-            <p className="hbce-kicker">Access requirements</p>
-            <h2>Required access conditions</h2>
+            <p className="hbce-kicker">Requisiti di accesso</p>
+            <h2>Condizioni necessarie per l’accesso</h2>
 
             <p>
               These conditions must all be valid before governed JOKER-C2 access
@@ -106,8 +106,8 @@ export default function SecurityPage() {
           </div>
 
           <div className="hbce-card">
-            <p className="hbce-kicker">Security principles</p>
-            <h2>MVP security posture</h2>
+            <p className="hbce-kicker">Principi di sicurezza</p>
+            <h2>Misure di sicurezza della versione MVP</h2>
 
             <p>
               The MVP must already behave like a security-oriented onboarding
@@ -127,8 +127,8 @@ export default function SecurityPage() {
       <section className="hbce-section">
         <div className="hbce-grid hbce-grid--2">
           <div className="hbce-card">
-            <p className="hbce-kicker">Fail-closed reasons</p>
-            <h2>When access must remain blocked</h2>
+            <p className="hbce-kicker">Motivi del blocco preventivo</p>
+            <h2>Quando l’accesso deve rimanere bloccato</h2>
 
             <p>
               If any required identity, card, certificate or revocation state is
@@ -144,8 +144,8 @@ export default function SecurityPage() {
           </div>
 
           <div className="hbce-card">
-            <p className="hbce-kicker">Forbidden repository data</p>
-            <h2>Materials that must never be committed</h2>
+            <p className="hbce-kicker">Dati vietati nel repository</p>
+            <h2>Materiali da non inserire nel repository</h2>
 
             <p>
               These materials must never be committed to the repository, included
@@ -163,8 +163,8 @@ export default function SecurityPage() {
 
       <section className="hbce-section">
         <div className="hbce-card hbce-card--soft">
-          <p className="hbce-kicker">Access gate validation</p>
-          <h2>Only the approved operational identity opens JOKER-C2.</h2>
+          <p className="hbce-kicker">Verifica delle condizioni di accesso</p>
+          <h2>Solo un’identità operativa autorizzata può accedere a JOKER-C2.</h2>
 
           <p>
             The following synthetic states demonstrate that the access gate is a
@@ -227,8 +227,8 @@ export default function SecurityPage() {
 
       <section className="hbce-section">
         <div className="hbce-card">
-          <p className="hbce-kicker">Authority boundary</p>
-          <h2>Frontend is not authority.</h2>
+          <p className="hbce-kicker">Limiti dell’autorità applicativa</p>
+          <h2>L’interfaccia non costituisce un’autorità di verifica.</h2>
 
           <p>
             Future production implementation must enforce the access decision on

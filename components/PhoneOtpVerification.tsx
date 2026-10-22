@@ -448,11 +448,11 @@ export default function PhoneOtpVerification({
     <section className="hbce-card hbce-card--soft">
       <div className="hbce-stack">
         <div>
-          <p className="hbce-kicker">Phone verification</p>
-          <h2>Verify the customer phone before Certificate 01.</h2>
+          <p className="hbce-kicker">Verifica telefono</p>
+          <h2>Verifica il telefono prima di generare il Certificato 01.</h2>
           <p className="hbce-muted">
-            The first HBCE-IPR certificate can be generated only after the phone
-            number has been verified through a one-time SMS code.
+            Il primo certificato HBCE-IPR può essere generato soltanto dopo
+            la verifica del telefono tramite un codice SMS temporaneo.
           </p>
         </div>
 
@@ -465,12 +465,12 @@ export default function PhoneOtpVerification({
             disabled={disabled || isSending || !normalizedPhone}
             onClick={sendCode}
           >
-            {isSending ? "Sending SMS code" : "Send SMS code"}
+            {isSending ? "Invio del codice SMS" : "Invia codice SMS"}
           </button>
         </div>
 
         <label className="hbce-field">
-          <span>SMS verification code</span>
+          <span>Codice di verifica SMS</span>
           <input
             type="text"
             inputMode="numeric"
@@ -486,8 +486,8 @@ export default function PhoneOtpVerification({
             onChange={(event) => setCode(event.target.value)}
           />
           <small>
-            Enter the code received by SMS. The code is never written inside the
-            HBCE-IPR certificate.
+            Inserisci il codice ricevuto via SMS. Il codice non viene mai
+            inserito nel certificato HBCE-IPR.
           </small>
         </label>
 
@@ -503,7 +503,7 @@ export default function PhoneOtpVerification({
             }
             onClick={verifyCode}
           >
-            {isVerifying ? "Verifying SMS code" : "Verify phone"}
+            {isVerifying ? "Verifica del codice SMS" : "Verifica telefono"}
           </button>
         </div>
 
@@ -520,7 +520,7 @@ export default function PhoneOtpVerification({
         {isVerified ? (
           <div className="hbce-upload-status hbce-upload-status--valid">
             <strong>PHONE_VERIFIED</strong>
-            <p>The customer phone number has been verified for Certificate 01.</p>
+            <p>Il numero di telefono è stato verificato per il Certificato 01.</p>
           </div>
         ) : null}
       </div>

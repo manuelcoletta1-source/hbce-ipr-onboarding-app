@@ -560,7 +560,7 @@ export default function IprPhaseForm({
     }
 
     if (requiresPreviousCertificate && !previousCertificate) {
-      setError("Upload the required previous HBCE IPR certificate first.");
+      setError("Carica prima il certificato HBCE-IPR precedente richiesto.");
       return;
     }
 
@@ -575,21 +575,21 @@ export default function IprPhaseForm({
 
     if (!fieldValidation.valid || !uploadValidation.valid) {
       setError(
-        "Complete all required fields and uploads before generating the certificate."
+        "Completa tutti i campi e i caricamenti obbligatori prima di generare il certificato."
       );
       return;
     }
 
     if (requiresEmailVerification && !emailIsVerifiedForCurrentValue) {
       setError(
-        "Verify the customer email with the one-time code before generating Certificate 01."
+        "Verifica l'email tramite codice temporaneo prima di generare il Certificato 01."
       );
       return;
     }
 
     if (requiresPhoneVerification && !phoneIsVerifiedForCurrentValue) {
       setError(
-        "Verify the customer phone with the SMS one-time code before generating Certificate 01."
+        "Verifica il telefono tramite codice SMS prima di generare il Certificato 01."
       );
       return;
     }
@@ -654,7 +654,7 @@ export default function IprPhaseForm({
       setError(
         generationError instanceof Error
           ? generationError.message
-          : "Certificate generation failed."
+          : "Generazione certificato non riuscita."
       );
     } finally {
       setIsGenerating(false);
@@ -673,10 +673,10 @@ export default function IprPhaseForm({
         <section className="hbce-card hbce-card--soft">
           <p className="hbce-kicker">
             {previousCertificateSource === "session"
-              ? "Previous certificate loaded from session"
-              : "Previous certificate accepted"}
+              ? "Certificato precedente recuperato dalla sessione"
+              : "Certificato precedente accettato"}
           </p>
-          <h2>Certificate chain continuity ready.</h2>
+          <h2>Continuità della catena dei certificati pronta.</h2>
           <p>
             The required previous HBCE-IPR certificate is already available for
             this phase. You can now complete the phase data and required
@@ -702,7 +702,7 @@ export default function IprPhaseForm({
               type="button"
               onClick={clearPreviousCertificate}
             >
-              Use another certificate
+              Utilizza un altro certificato
             </button>
           </div>
         </section>
@@ -727,8 +727,8 @@ export default function IprPhaseForm({
       <section className="hbce-card">
         <div className="hbce-stack">
           <div>
-            <p className="hbce-kicker">Phase data</p>
-            <h2>Required information</h2>
+            <p className="hbce-kicker">Dati della fase</p>
+            <h2>Informazioni obbligatorie</h2>
             <p className="hbce-muted">
               Complete the required fields for this phase. Sensitive values are
               used to generate private certificate data and hash-only audit
@@ -774,7 +774,7 @@ export default function IprPhaseForm({
                         updateValue(field.name, event.target.value)
                       }
                     >
-                      <option value="">Select</option>
+                      <option value="">Seleziona</option>
                       {(field.options ?? []).map((option) => (
                         <option key={option.value} value={option.value}>
                           {option.label}
@@ -783,7 +783,7 @@ export default function IprPhaseForm({
                     </select>
                     {field.helperText ? <small>{field.helperText}</small> : null}
                     {hasError ? (
-                      <small className="hbce-error-text">Required field.</small>
+                      <small className="hbce-error-text">Campo obbligatorio.</small>
                     ) : null}
                   </label>
                 );
@@ -802,7 +802,7 @@ export default function IprPhaseForm({
                   />
                   {field.helperText ? <small>{field.helperText}</small> : null}
                   {hasError ? (
-                    <small className="hbce-error-text">Required field.</small>
+                    <small className="hbce-error-text">Campo obbligatorio.</small>
                   ) : null}
                 </label>
               );
@@ -839,8 +839,8 @@ export default function IprPhaseForm({
         <section className="hbce-card">
           <div className="hbce-stack">
             <div>
-              <p className="hbce-kicker">Evidence upload</p>
-              <h2>Required phase evidence</h2>
+              <p className="hbce-kicker">Caricamento documenti</p>
+              <h2>Documentazione richiesta</h2>
               <p className="hbce-muted">
                 Uploaded evidence is hashed locally for the portable
                 certificate. Raw files must belong to protected backend storage
@@ -878,7 +878,7 @@ export default function IprPhaseForm({
                     ) : null}
                     {hasError ? (
                       <small className="hbce-error-text">
-                        Required upload.
+                        Caricamento obbligatorio.
                       </small>
                     ) : null}
                   </label>
@@ -898,7 +898,7 @@ export default function IprPhaseForm({
 
       {generatedCertificate ? (
         <section className="hbce-card hbce-card--success">
-          <p className="hbce-kicker">Certificate generated</p>
+          <p className="hbce-kicker">Certificato generato</p>
           <h2>{successTitle ?? generatedCertificate.file_name}</h2>
           <p>
             {successDescription ??
@@ -941,7 +941,7 @@ export default function IprPhaseForm({
           onClick={generateCertificate}
         >
           {isGenerating
-            ? "Generating certificate"
+            ? "Generazione certificato"
             : submitLabel ?? `Generate ${phase.file_name}`}
         </button>
       </section>

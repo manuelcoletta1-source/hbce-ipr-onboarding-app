@@ -63,9 +63,9 @@ export const HBCE_IPR_PHASE_DEFINITIONS: readonly HbceIprPhaseDefinition[] = [
     expected_previous_phase: null,
     expected_previous_file_name: null,
     next_required_phase: "FISCAL_IDENTITY",
-    title: "Phase 1 — Subject Created",
+    title: "Fase 1 — Registrazione del soggetto",
     description:
-      "Create the first private HBCE-IPR intake certificate after email OTP and phone SMS OTP verification. This step records the subject profile, contact verification state, creation timestamp, identity snapshot and hash references. It does not verify official identity, issue an IPR Card or grant JOKER-C2 access.",
+      "Crea il primo certificato privato HBCE-IPR dopo la verifica di email e telefono tramite OTP. Registra il profilo, lo stato dei contatti, la data di creazione, i dati dichiarati e i riferimenti hash. Non verifica ufficialmente l'identità, non emette la Carta IPR e non autorizza JOKER-C2.",
     requires_previous_certificate: false,
     requires_hbce_operator: false,
     required_fields: [
@@ -86,9 +86,9 @@ export const HBCE_IPR_PHASE_DEFINITIONS: readonly HbceIprPhaseDefinition[] = [
     expected_previous_phase: "SUBJECT_CREATED",
     expected_previous_file_name: "hbce-ipr-01-subject-created.hbce.json",
     next_required_phase: "OFFICIAL_ID_DOCUMENT",
-    title: "Phase 2 — Fiscal Identity",
+    title: "Fase 2 — Identità fiscale",
     description:
-      "Upload Certificate 01 and collect fiscal identity evidence: codice fiscale, tessera sanitaria, tax ID, national tax identifier or equivalent fiscal document. This step links the subject profile to fiscal identity evidence and produces a fiscal identity snapshot.",
+      "Carica il Certificato 01 e fornisci le evidenze fiscali: codice fiscale, tessera sanitaria o documento fiscale equivalente. Questa fase collega il profilo ai riferimenti fiscali e produce una registrazione dei dati fiscali.",
     requires_previous_certificate: true,
     requires_hbce_operator: false,
     required_fields: [
@@ -107,9 +107,9 @@ export const HBCE_IPR_PHASE_DEFINITIONS: readonly HbceIprPhaseDefinition[] = [
     expected_previous_phase: "FISCAL_IDENTITY_COLLECTED",
     expected_previous_file_name: "hbce-ipr-02-fiscal-identity.hbce.json",
     next_required_phase: "LIVENESS_CHECK",
-    title: "Phase 3 — Official ID Document",
+    title: "Fase 3 — Documento d’identità ufficiale",
     description:
-      "Upload Certificate 02 and collect official identity evidence: CIE, driving licence, passport, EU identity card or another authorized official document. This step creates the official document snapshot required by the liveness phase.",
+      "Carica il Certificato 02 e presenta un documento ufficiale: CIE, patente, passaporto, carta d'identità UE o altro documento autorizzato. I dati e i riferimenti del documento saranno utilizzati nella successiva fase di verifica della presenza.",
     requires_previous_certificate: true,
     requires_hbce_operator: false,
     required_fields: [
@@ -130,9 +130,9 @@ export const HBCE_IPR_PHASE_DEFINITIONS: readonly HbceIprPhaseDefinition[] = [
     expected_previous_phase: "OFFICIAL_DOCUMENT_SUBMITTED",
     expected_previous_file_name: "hbce-ipr-03-official-document.hbce.json",
     next_required_phase: "PRIVACY_COMPLIANCE",
-    title: "Phase 4 — Photo / Video Liveness",
+    title: "Fase 4 — Verifica presenza con foto e video",
     description:
-      "Upload Certificate 03 and submit protected document-face, selfie and liveness-video references, SHA-256 hashes, physical descriptor profile, consent state and liveness review state. This step connects the applicant to the fiscal and official document evidence already submitted.",
+      "Carica il Certificato 03 e fornisci una fotografia del volto e un video di verifica. Il sistema registra riferimenti, hash SHA-256, dichiarazioni e stato della revisione. La presentazione dei file non equivale all'approvazione dell'identità.",
     requires_previous_certificate: true,
     requires_hbce_operator: false,
     required_fields: [
@@ -156,9 +156,9 @@ export const HBCE_IPR_PHASE_DEFINITIONS: readonly HbceIprPhaseDefinition[] = [
     expected_previous_phase: "LIVENESS_SUBMITTED",
     expected_previous_file_name: "hbce-ipr-04-liveness-submitted.hbce.json",
     next_required_phase: "REVIEW_SUBMISSION",
-    title: "Phase 5 — Privacy & Compliance",
+    title: "Fase 5 — Privacy e conformità",
     description:
-      "Upload Certificate 04 and accept privacy, hash-only, data accuracy, document authenticity, biometric/liveness verification consent, JOKER-C2 custody acknowledgement and HBCE internal operational identity conditions.",
+      "Carica il Certificato 04 e consulta i consensi relativi a privacy, riferimenti hash, correttezza dei dati, autenticità dei documenti, verifica biometrica, ruolo di JOKER-C2 e condizioni operative interne H.B.C.E.",
     requires_previous_certificate: true,
     requires_hbce_operator: false,
     required_fields: [
@@ -182,9 +182,9 @@ export const HBCE_IPR_PHASE_DEFINITIONS: readonly HbceIprPhaseDefinition[] = [
     expected_previous_phase: "COMPLIANCE_ACCEPTED",
     expected_previous_file_name: "hbce-ipr-05-privacy-compliance.hbce.json",
     next_required_phase: "HBCE_APPROVAL",
-    title: "Phase 6 — HBCE Review Submission",
+    title: "Fase 6 — Invio alla revisione H.B.C.E.",
     description:
-      "Upload Certificate 05 and submit the complete onboarding package for HBCE review. This phase records that the subject file is ready for approval evaluation. It does not self-approve the IPR.",
+      "Carica il Certificato 05 e presenta la documentazione per la revisione H.B.C.E. Il fascicolo viene sottoposto a valutazione: questa operazione non approva automaticamente l'IPR.",
     requires_previous_certificate: true,
     requires_hbce_operator: false,
     required_fields: ["submit_for_review"],
@@ -198,9 +198,9 @@ export const HBCE_IPR_PHASE_DEFINITIONS: readonly HbceIprPhaseDefinition[] = [
     expected_previous_phase: "PENDING_REVIEW",
     expected_previous_file_name: "hbce-ipr-06-review-pending.hbce.json",
     next_required_phase: "IPR_CARD_ISSUANCE",
-    title: "Phase 7 — HBCE Approval",
+    title: "Fase 7 — Approvazione H.B.C.E.",
     description:
-      "HBCE operator approval phase. This certificate must not be freely generated by the subject. It records the HBCE approval decision required before IPR Card issuance.",
+      "Fase riservata all'approvazione dell'operatore H.B.C.E. Il richiedente non può approvare autonomamente la propria IPR. La decisione è necessaria prima dell'emissione della Carta IPR.",
     requires_previous_certificate: true,
     requires_hbce_operator: true,
     required_fields: [
@@ -218,9 +218,9 @@ export const HBCE_IPR_PHASE_DEFINITIONS: readonly HbceIprPhaseDefinition[] = [
     expected_previous_phase: "IPR_APPROVED",
     expected_previous_file_name: "hbce-ipr-07-ipr-approved.hbce.json",
     next_required_phase: "OPERATIONAL_CERTIFICATE",
-    title: "Phase 8 — IPR Card Issued",
+    title: "Fase 8 — Emissione carta IPR",
     description:
-      "Upload Certificate 07 and issue the virtual IPR Card. This step creates the internal HBCE operational identity credential used before the final operational certificate.",
+      "Carica il Certificato 07 e procedi all'emissione della Carta IPR virtuale. La carta costituisce una credenziale operativa interna H.B.C.E. e precede il certificato operativo finale.",
     requires_previous_certificate: true,
     requires_hbce_operator: false,
     required_fields: [
@@ -241,9 +241,9 @@ export const HBCE_IPR_PHASE_DEFINITIONS: readonly HbceIprPhaseDefinition[] = [
     expected_previous_phase: "IPR_CARD_ISSUED",
     expected_previous_file_name: "hbce-ipr-08-ipr-card.hbce.json",
     next_required_phase: "JOKER_C2_ACCESS",
-    title: "Phase 9 — HBCE Operational Certificate",
+    title: "Fase 9 — Certificato operativo H.B.C.E.",
     description:
-      "Upload Certificate 08 and issue the final HBCE Operational Certificate for governed JOKER-C2 access evaluation.",
+      "Carica il Certificato 08 e procedi all'emissione del certificato operativo finale H.B.C.E., necessario per la valutazione dell'accesso governato a JOKER-C2.",
     requires_previous_certificate: true,
     requires_hbce_operator: false,
     required_fields: [

@@ -854,9 +854,9 @@ export default function OnboardingReviewPage() {
         phase={phase}
         fields={fields}
         buildPhaseData={buildPhase6ReviewPendingData}
-        submitLabel="Generate HBCE IPR Certificate 06"
-        successTitle="HBCE IPR Certificate 06 generated"
-        successDescription="The private review pending certificate has been generated and downloaded. It links Certificate 05 to the HBCE review submission state and preserves the minimized identity/liveness snapshot for HBCE approval. HBCE approval is now required before IPR Card issuance."
+        submitLabel="Genera il Certificato HBCE-IPR 06"
+        successTitle="Certificato HBCE-IPR 06 generato"
+        successDescription="Il certificato privato in attesa di revisione è stato generato e scaricato. Collega il Certificato 05 allo stato della richiesta e conserva i riferimenti minimizzati necessari alla revisione H.B.C.E. Prima di emettere la Carta IPR è necessaria l’approvazione dell’operatore."
       />
     </div>
   );

@@ -616,16 +616,16 @@ export default function EmailOtpVerification({
       <div className="hbce-stack">
         <div>
           <p className="hbce-kicker">
-            Email verification
+            Verifica email
           </p>
 
           <h2>
-            Verify the customer email before Certificate 01.
+            Verifica l&apos;email prima di generare il Certificato 01.
           </h2>
 
           <p className="hbce-muted">
-            The first HBCE-IPR certificate can be generated only after the email
-            address has been verified through a one-time code.
+            Il primo certificato HBCE-IPR può essere generato soltanto dopo
+            la verifica dell&apos;email tramite un codice temporaneo.
           </p>
         </div>
 
@@ -647,16 +647,16 @@ export default function EmailOtpVerification({
             onClick={sendCode}
           >
             {isSending
-              ? "Sending code"
+              ? "Invio del codice"
               : hasCurrentChallenge
-                ? "Send new email code"
-                : "Send email code"}
+                ? "Invia un nuovo codice email"
+                : "Invia codice email"}
           </button>
         </div>
 
         <label className="hbce-field">
           <span>
-            Email verification code
+            Codice di verifica email
           </span>
 
           <input
@@ -681,8 +681,8 @@ export default function EmailOtpVerification({
           />
 
           <small>
-            Enter the 6-digit code received by email. The code is never written
-            inside the HBCE-IPR certificate.
+            Inserisci il codice a 6 cifre ricevuto via email.
+            Il codice non viene mai inserito nel certificato HBCE-IPR.
           </small>
         </label>
 
@@ -700,8 +700,8 @@ export default function EmailOtpVerification({
             onClick={verifyCode}
           >
             {isVerifying
-              ? "Verifying code"
-              : "Verify email"}
+              ? "Verifica del codice"
+              : "Verifica email"}
           </button>
         </div>
 
@@ -730,7 +730,7 @@ export default function EmailOtpVerification({
             </strong>
 
             <p>
-              The customer email has been verified for Certificate 01.
+              L&apos;email è stata verificata per il Certificato 01.
             </p>
           </div>
         ) : null}

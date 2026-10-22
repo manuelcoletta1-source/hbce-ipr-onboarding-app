@@ -1227,9 +1227,9 @@ export default function JokerC2AccessPage() {
     <div className="hbce-container">
       <main className="hbce-main">
         <section className="hbce-hero">
-          <p className="hbce-kicker">JOKER-C2 Verified Access</p>
+          <p className="hbce-kicker">Accesso verificato JOKER-C2</p>
 
-          <h1>Upload the HBCE Operational Certificate.</h1>
+          <h1>Carica il certificato operativo H.B.C.E.</h1>
 
           <p>
             JOKER-C2 does not open through a simple email login or subscription.
@@ -1239,11 +1239,11 @@ export default function JokerC2AccessPage() {
 
           <div className="hbce-actions">
             <Link className="hbce-btn" href={ROUTES.certificate}>
-              Back to Certificate
+              Torna al certificato
             </Link>
 
             <Link className="hbce-btn" href={ROUTES.onboarding}>
-              Continue Onboarding
+              Continua la registrazione IPR
             </Link>
           </div>
         </section>
@@ -1252,11 +1252,11 @@ export default function JokerC2AccessPage() {
           <section className="hbce-card hbce-card--soft">
             <p className="hbce-kicker">
               {acceptedUpload.source === "session"
-                ? "Operational certificate loaded from session"
-                : "Operational certificate accepted"}
+                ? "Certificato operativo recuperato dalla sessione"
+                : "Certificato operativo accettato"}
             </p>
 
-            <h2>Certificate 09 ready for JOKER-C2 gate evaluation.</h2>
+            <h2>Certificato 09 pronto per la verifica di accesso JOKER-C2.</h2>
 
             <p>
               The final HBCE operational certificate is available. The gate has
@@ -1269,7 +1269,7 @@ export default function JokerC2AccessPage() {
                 type="button"
                 onClick={clearAcceptedCertificate}
               >
-                Use another Certificate 09
+                Utilizza un altro Certificato 09
               </button>
             </div>
           </section>
@@ -1277,7 +1277,7 @@ export default function JokerC2AccessPage() {
           <IprCertificateUploader
             expectedPreviousPhase="IPR_VERIFIED"
             expectedNextPhase="JOKER_C2_ACCESS"
-            title="Upload HBCE Operational Certificate"
+            title="Carica il certificato operativo H.B.C.E."
             description={`Upload ${FINAL_CERTIFICATE_FILE_NAME}. The gate verifies protocol, issuer, kind, phase, status, scope, previous hash and payload hash before allowing governed JOKER-C2 access.`}
             onCertificateAccepted={(upload) => {
               void evaluateAccess(buildActiveUploadFromAcceptedUpload(upload));
@@ -1293,9 +1293,9 @@ export default function JokerC2AccessPage() {
 
         {isAccessGranted ? (
           <section className="hbce-card hbce-card--success">
-            <p className="hbce-kicker">IPR Verified</p>
+            <p className="hbce-kicker">IPR verificata</p>
 
-            <h2>HBCE IPR Verified · JOKER-C2 Access Granted</h2>
+            <h2>IPR verificata · Accesso JOKER-C2 autorizzato</h2>
 
             <p>
               The subject has completed the HBCE IPR onboarding chain. The IPR
@@ -1305,7 +1305,7 @@ export default function JokerC2AccessPage() {
 
             <div className="hbce-grid hbce-grid--3">
               <div className="hbce-card hbce-card--soft">
-                <p className="hbce-kicker">IPR status</p>
+                <p className="hbce-kicker">Stato IPR</p>
                 <h3>VERIFIED</h3>
                 <p className="hbce-muted">
                   The operational identity chain reached the final verified
@@ -1379,11 +1379,11 @@ export default function JokerC2AccessPage() {
                 rel="noopener noreferrer"
                 target="_blank"
               >
-                Open JOKER-C2 Runtime with IPR Handoff
+                Apri JOKER-C2 con il trasferimento IPR
               </a>
 
               <Link className="hbce-btn" href={ROUTES.onboarding}>
-                Start another IPR onboarding
+                Avvia una nuova registrazione IPR
               </Link>
             </div>
           </section>
@@ -1391,9 +1391,9 @@ export default function JokerC2AccessPage() {
 
         {jokerC2IdentityHandoff ? (
           <section className="hbce-card hbce-card--soft">
-            <p className="hbce-kicker">JOKER-C2 identity handoff</p>
+            <p className="hbce-kicker">Trasferimento controllato dell’identità a JOKER-C2</p>
 
-            <h2>IPR biological and liveness handoff prepared.</h2>
+            <h2>Riferimenti di identità e verifica della presenza predisposti.</h2>
 
             <p>
               The access gate has prepared a minimized identity handoff for
@@ -1462,8 +1462,8 @@ export default function JokerC2AccessPage() {
         ) : null}
 
         <section className="hbce-card">
-          <p className="hbce-kicker">Access requirements</p>
-          <h2>JOKER-C2 remains closed unless every condition is valid.</h2>
+          <p className="hbce-kicker">Requisiti di accesso</p>
+          <h2>JOKER-C2 rimane bloccato finché tutte le condizioni non sono valide.</h2>
 
           <p>
             This gate is fail-closed. A malformed certificate, wrong phase,
@@ -1481,8 +1481,8 @@ export default function JokerC2AccessPage() {
 
         {isChecking ? (
           <section className="hbce-card hbce-card--soft">
-            <p className="hbce-kicker">Checking certificate</p>
-            <h2>Evaluating JOKER-C2 access.</h2>
+            <p className="hbce-kicker">Verifica del certificato</p>
+            <h2>Valutazione dell’accesso a JOKER-C2.</h2>
             <p>
               The certificate is being checked against the HBCE operational
               access requirements.
@@ -1492,8 +1492,8 @@ export default function JokerC2AccessPage() {
 
         {acceptedUpload ? (
           <section className="hbce-card hbce-card--soft">
-            <p className="hbce-kicker">Uploaded certificate</p>
-            <h2>HBCE operational certificate received.</h2>
+            <p className="hbce-kicker">Certificato caricato</p>
+            <h2>Certificato operativo H.B.C.E. ricevuto.</h2>
 
             <p className="hbce-mono">file_name: {acceptedUpload.fileName}</p>
 
@@ -1546,8 +1546,8 @@ export default function JokerC2AccessPage() {
 
         {privateFields ? (
           <section className="hbce-card">
-            <p className="hbce-kicker">Private certificate fields</p>
-            <h2>Operational identity data read from the private certificate.</h2>
+            <p className="hbce-kicker">Campi del certificato privato</p>
+            <h2>Dati di identità operativa letti dal certificato privato.</h2>
 
             {biologicalIdentity.display_name ? (
               <p className="hbce-mono">

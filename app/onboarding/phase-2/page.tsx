@@ -77,7 +77,7 @@ const fields: IprPhaseFieldDefinition[] = [
   },
   {
     name: "citizenship",
-    label: "Citizenship",
+    label: "Cittadinanza",
     type: "text",
     placeholder: "IT",
     helperText:
@@ -85,7 +85,7 @@ const fields: IprPhaseFieldDefinition[] = [
   },
   {
     name: "fiscal_country",
-    label: "Fiscal country",
+    label: "Paese fiscale",
     type: "text",
     placeholder: "IT",
     helperText:
@@ -93,7 +93,7 @@ const fields: IprPhaseFieldDefinition[] = [
   },
   {
     name: "fiscal_document_type",
-    label: "Fiscal document type",
+    label: "Tipo di documento fiscale",
     type: "select",
     options: [
       {
@@ -105,15 +105,15 @@ const fields: IprPhaseFieldDefinition[] = [
         value: "ITALIAN_CODICE_FISCALE"
       },
       {
-        label: "EU tax ID document",
+        label: "Documento fiscale UE",
         value: "EU_TAX_ID_DOCUMENT"
       },
       {
-        label: "National fiscal document",
+        label: "Documento fiscale nazionale",
         value: "NATIONAL_FISCAL_DOCUMENT"
       },
       {
-        label: "Other authorized fiscal document",
+        label: "Altro documento fiscale autorizzato",
         value: "OTHER_AUTHORIZED_FISCAL_DOCUMENT"
       }
     ],
@@ -125,7 +125,7 @@ const fields: IprPhaseFieldDefinition[] = [
 const evidenceInputs: IprPhaseEvidenceInputDefinition[] = [
   {
     kind: "TAX_ID_DOCUMENT_FRONT",
-    label: "Upload tessera sanitaria / tax ID document front",
+    label: "Carica il fronte della tessera sanitaria o del documento fiscale",
     description:
       "Upload the front side of the tessera sanitaria, codice fiscale card or equivalent fiscal document. The file itself is not embedded in the certificate; only its SHA-256 hash is stored.",
     accept: "image/*,.pdf",
@@ -133,7 +133,7 @@ const evidenceInputs: IprPhaseEvidenceInputDefinition[] = [
   },
   {
     kind: "TAX_ID_DOCUMENT_BACK",
-    label: "Upload tessera sanitaria / tax ID document back",
+    label: "Carica il retro della tessera sanitaria o del documento fiscale",
     description:
       "Upload the back side of the tessera sanitaria, codice fiscale card or equivalent fiscal document. The file itself is not embedded in the certificate; only its SHA-256 hash is stored.",
     accept: "image/*,.pdf",
@@ -141,7 +141,7 @@ const evidenceInputs: IprPhaseEvidenceInputDefinition[] = [
   },
   {
     kind: "TAX_ID_DOCUMENT_SINGLE",
-    label: "Optional single fiscal certificate",
+    label: "Certificato fiscale singolo facoltativo",
     description:
       "Use this only when the fiscal evidence is a single-page certificate instead of a front/back card. The file itself is not embedded in the certificate; only its SHA-256 hash is stored.",
     accept: "image/*,.pdf",

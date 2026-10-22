@@ -75,9 +75,9 @@ export default function PrivacyPage() {
   return (
     <div className="hbce-container">
       <section className="hbce-hero">
-        <p className="hbce-kicker">Privacy Boundary</p>
+        <p className="hbce-kicker">Tutela dei dati personali</p>
 
-        <h1 className="hbce-title">Minimized data for operational identity.</h1>
+        <h1 className="hbce-title">Minimizzazione dei dati per l’identità operativa.</h1>
 
         <p className="hbce-lead">
           HBCE IPR Onboarding App follows data minimization. The MVP must use
@@ -88,7 +88,7 @@ export default function PrivacyPage() {
       </section>
 
       <section className="hbce-section">
-        <BoundaryNotice title="Core privacy rule">
+        <BoundaryNotice title="Regola fondamentale sulla privacy">
           {PRIVACY_BOUNDARY_TEXT}
         </BoundaryNotice>
       </section>
@@ -96,8 +96,8 @@ export default function PrivacyPage() {
       <section className="hbce-section">
         <div className="hbce-grid hbce-grid--2">
           <div className="hbce-card">
-            <p className="hbce-kicker">Protected categories</p>
-            <h2>Data that must remain controlled</h2>
+            <p className="hbce-kicker">Categorie protette</p>
+            <h2>Dati soggetti a protezione</h2>
 
             <p>
               These categories may exist in a future real implementation, but
@@ -113,8 +113,8 @@ export default function PrivacyPage() {
           </div>
 
           <div className="hbce-card hbce-card--soft">
-            <p className="hbce-kicker">Privacy principles</p>
-            <h2>Operational usefulness without unnecessary exposure</h2>
+            <p className="hbce-kicker">Principi di tutela dei dati</p>
+            <h2>Utilità operativa senza esposizione superflua</h2>
 
             <p>
               The app should preserve verification value while reducing the
@@ -134,8 +134,8 @@ export default function PrivacyPage() {
       <section className="hbce-section">
         <div className="hbce-grid hbce-grid--2">
           <div className="hbce-card">
-            <p className="hbce-kicker">Public-safe fields</p>
-            <h2>Allowed minimized operational fields</h2>
+            <p className="hbce-kicker">Campi ammessi alla visualizzazione pubblica</p>
+            <h2>Campi operativi minimizzati consentiti</h2>
 
             <p>
               Public or semi-public UI areas may display minimized operational
@@ -151,8 +151,8 @@ export default function PrivacyPage() {
           </div>
 
           <div className="hbce-card">
-            <p className="hbce-kicker">Forbidden repository data</p>
-            <h2>Materials that must never be committed</h2>
+            <p className="hbce-kicker">Dati vietati nel repository</p>
+            <h2>Materiali da non inserire nel repository</h2>
 
             <p>
               These materials must not be committed to the repository or used in
@@ -171,8 +171,8 @@ export default function PrivacyPage() {
 
       <section className="hbce-section">
         <div className="hbce-card hbce-card--soft">
-          <p className="hbce-kicker">Hash and masking model</p>
-          <h2>Verification without unnecessary exposure.</h2>
+          <p className="hbce-kicker">Modello di hash e oscuramento dei dati</p>
+          <h2>Verifica senza esposizione superflua.</h2>
 
           <p>
             The app should prefer hash references, masked values and protected
@@ -195,8 +195,8 @@ export default function PrivacyPage() {
 
       <section className="hbce-section">
         <div className="hbce-card">
-          <p className="hbce-kicker">JOKER-C2 privacy boundary</p>
-          <h2>Governed runtime does not need raw identity material.</h2>
+          <p className="hbce-kicker">Limiti privacy di JOKER-C2</p>
+          <h2>Il runtime governato non richiede i documenti di identità originali.</h2>
 
           <p>
             The access gate should pass only minimized authorization state to

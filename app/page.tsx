@@ -15,65 +15,65 @@ import type { AcceptedIprCertificateUpload } from "@/components/IprCertificateUp
 const CERTIFICATE_CHAIN = [
   {
     code: "01",
-    title: "Subject Created",
+    title: "Soggetto registrato",
     text:
-      "Email OTP, phone SMS OTP, name, country and date of birth create the first private HBCE-IPR subject certificate.",
+      "La verifica OTP di email e telefono, insieme ai dati anagrafici, permette di creare il primo certificato privato HBCE-IPR.",
     route: "/onboarding/phase-1"
   },
   {
     code: "02",
-    title: "Fiscal Identity",
+    title: "Identità fiscale",
     text:
-      "Codice fiscale, tax ID, fiscal country and tessera sanitaria or equivalent fiscal evidence are linked through hash-only references.",
+      "Il codice fiscale, il Paese fiscale e la documentazione fiscale vengono collegati al profilo mediante riferimenti hash.",
     route: "/onboarding/phase-2"
   },
   {
     code: "03",
-    title: "Official ID Document",
+    title: "Documento d’identità ufficiale",
     text:
-      "CIE, driving licence, passport, EU identity card or another authorized official document is recorded through metadata and evidence hashes.",
+      "I dati della CIE, della patente, del passaporto o di altro documento autorizzato vengono registrati con i relativi hash.",
     route: "/onboarding/phase-3"
   },
   {
     code: "04",
-    title: "Photo / Video Liveness",
+    title: "Verifica presenza con foto e video",
     text:
-      "Selfie, document-face reference, liveness video reference and physical descriptor profile prepare anti-impersonation review.",
+      "Fotografia del volto, video e riferimenti biometrici preparano la successiva revisione contro la sostituzione di persona.",
     route: "/onboarding/photo-video"
   },
   {
     code: "05",
-    title: "Privacy & Compliance",
+    title: "Privacy e conformità",
     text:
-      "Privacy consent, hash-only acknowledgement, biometric/liveness consent, policy acceptance and JOKER-C2 custody acknowledgement are recorded.",
+      "Vengono registrati i consensi relativi a privacy, conformità, verifiche biometriche e ruolo operativo di JOKER-C2.",
     route: "/onboarding/phase-5"
   },
   {
     code: "06",
-    title: "Review Pending",
+    title: "In attesa di revisione",
     text:
-      "The onboarding package is submitted for HBCE review. The subject cannot self-approve the IPR.",
+      "Il fascicolo viene inviato alla revisione H.B.C.E. Il richiedente non può approvare autonomamente la propria IPR.",
     route: "/onboarding/review"
   },
   {
     code: "07",
-    title: "IPR Approved",
+    title: "IPR approvata",
     text:
-      "HBCE approval certificate is generated through admin/operator workflow after review.",
+      "Il certificato di approvazione viene emesso tramite il procedimento riservato agli operatori H.B.C.E.",
     route: "/admin/review"
   },
   {
     code: "08",
-    title: "IPR Card",
+    title: "Carta IPR",
     text:
-      "The virtual IPR Card is issued as the internal HBCE operational identity key.",
+      "La Carta IPR virtuale viene emessa come credenziale di identità operativa interna H.B.C.E.",
     route: "/ipr-card"
   },
   {
     code: "09",
-    title: "Operational Certificate",
+    title: "Certificato operativo",
     text:
-      "The final HBCE operational certificate activates JOKER_C2_ACCESS scope for the governed access gate.",
+      "Il certificato operativo finale consente di valutare l'autorizzazione all'accesso governato a JOKER-C2.",
     route: "/certificate"
   }
 ] as const;
@@ -92,22 +92,22 @@ const PRODUCT_RULES = [
   {
     title: "IPR Onboarding Gateway",
     text:
-      "The app registers, links and verifies the subject before governed runtime access. It is not a static brochure and not a normal AI signup page."
+      "Il portale raccoglie e collega le informazioni del richiedente prima della valutazione dell'accesso al runtime governato. Non è una semplice registrazione AI."
   },
   {
-    title: "IPR Card as operational key",
+    title: "Carta IPR as operational key",
     text:
-      "The IPR Card is the internal HBCE operational identity key issued only after the review and approval chain."
+      "La Carta IPR è la credenziale operativa interna H.B.C.E. emessa soltanto dopo la catena di revisione e approvazione."
   },
   {
     title: "JOKER-C2 as governed runtime",
     text:
-      "JOKER-C2 is opened only through a valid operational certificate. Email, password and subscription are not enough."
+      "L'accesso a JOKER-C2 richiede un certificato operativo valido. Email, password e abbonamento non sono sufficienti."
   },
   {
     title: "Fail-closed certificate logic",
     text:
-      "Wrong protocol, wrong issuer, wrong phase, wrong scope or payload mismatch blocks continuation and access."
+      "Protocollo, emittente, fase, ambito o hash non validi impediscono di proseguire e mantengono l'accesso negato."
   }
 ] as const;
 
@@ -126,7 +126,7 @@ const COMPARISON_ROWS = [
   },
   {
     classic: "Direct model access",
-    hbce: "IPR Card and operational certificate before JOKER-C2"
+    hbce: "Carta IPR and operational certificate before JOKER-C2"
   },
   {
     classic: "Account-based access",
@@ -172,15 +172,15 @@ export default function HomePage() {
         <p className="hbce-kicker">HBCE IPR Onboarding Gateway</p>
 
         <h1 className="hbce-title">
-          Verify the subject before opening governed AI access.
+          Verifica l’identità prima di autorizzare l’accesso all’AI governata.
         </h1>
 
         <p className="hbce-lead">
-          HBCE IPR Onboarding App is the operational identity gateway for
-          progressive HBCE-IPR certificate release, IPR Card issuance,
-          operational certificate activation and governed JOKER-C2 access. An
-          email is not enough. A subscription is not enough. Access to
-          operational AI requires a verified operational identity chain.
+          Il portale HBCE-IPR gestisce il percorso di registrazione
+          dell&apos;identità operativa: emissione progressiva dei certificati,
+          Carta IPR e valutazione dell&apos;accesso governato a JOKER-C2.
+          Email e abbonamento non sono sufficienti per autorizzare
+          l&apos;accesso. È necessaria una catena di certificati valida.
         </p>
 
         <div className="hbce-actions">
@@ -188,15 +188,15 @@ export default function HomePage() {
             className="hbce-btn hbce-btn--primary"
             href={ROUTES.onboardingStart}
           >
-            Start New IPR
+            Avvia una nuova IPR
           </Link>
 
           <a className="hbce-btn" href="#continue-ipr">
-            Continue Existing IPR
+            Continua una IPR esistente
           </a>
 
           <Link className="hbce-btn" href="/access/joker-c2">
-            Access JOKER-C2
+            Accedi a JOKER-C2
           </Link>
         </div>
       </section>
@@ -204,23 +204,23 @@ export default function HomePage() {
       <section className="hbce-section">
         <div className="hbce-grid hbce-grid--2">
           <div className="hbce-card hbce-card--soft">
-            <p className="hbce-kicker">Core product rule</p>
+            <p className="hbce-kicker">Regola fondamentale del prodotto</p>
 
-            <h2>First verify who you are. Then access operational AI.</h2>
+            <h2>Prima verifica la tua identità. Poi accedi all’AI operativa.</h2>
 
             <p>
               Classic AI access usually follows email, password, payment and
               direct model access. HBCE follows a different rule: subject
               onboarding, fiscal identity, official evidence, liveness check,
-              privacy and compliance, review, IPR Card, operational certificate
+              privacy and compliance, review, Carta IPR, operational certificate
               and only then JOKER-C2 access evaluation.
             </p>
           </div>
 
           <div className="hbce-card hbce-card--danger">
-            <p className="hbce-kicker">Access boundary</p>
+            <p className="hbce-kicker">Limite di accesso</p>
 
-            <h2>No verified IPR, no governed JOKER-C2 access.</h2>
+            <h2>Senza IPR verificata, l’accesso a JOKER-C2 resta negato.</h2>
 
             <p>
               JOKER-C2 is not an AI runtime opened by a normal account. It is
@@ -250,9 +250,9 @@ export default function HomePage() {
 
         {acceptedUpload ? (
           <div className="hbce-card hbce-card--success">
-            <p className="hbce-kicker">Certificate accepted</p>
+            <p className="hbce-kicker">Certificato accettato</p>
 
-            <h2>Ready to continue the HBCE-IPR chain.</h2>
+            <h2>Puoi continuare il percorso HBCE-IPR.</h2>
 
             <p>
               The uploaded certificate is valid. Continue to the next required
@@ -306,7 +306,7 @@ export default function HomePage() {
                 type="button"
                 onClick={continueFromCertificate}
               >
-                Continue to next phase
+                Continua alla fase successiva
               </button>
             </div>
           </div>
@@ -316,14 +316,14 @@ export default function HomePage() {
       <section className="hbce-section">
         <div className="hbce-grid hbce-grid--2">
           <div className="hbce-card">
-            <p className="hbce-kicker">Classic AI model</p>
+            <p className="hbce-kicker">Modello AI tradizionale</p>
 
-            <h2>Email, payment and model access.</h2>
+            <h2>Email, pagamento e accesso al modello.</h2>
 
             <p>
-              Generic AI systems usually expose access after account creation,
-              authentication and subscription. The access condition is mainly
-              commercial or account-based.
+              Nei servizi AI tradizionali, l’accesso dipende generalmente
+              dalla creazione di un account, dall’autenticazione e
+              dall’eventuale abbonamento.
             </p>
 
             <ul className="hbce-list">
@@ -334,14 +334,14 @@ export default function HomePage() {
           </div>
 
           <div className="hbce-card hbce-card--soft">
-            <p className="hbce-kicker">HBCE model</p>
+            <p className="hbce-kicker">Modello H.B.C.E.</p>
 
-            <h2>Operational identity before governed AI.</h2>
+            <h2>Identità operativa prima dell’accesso all’AI governata.</h2>
 
             <p>
-              HBCE separates ordinary login from operational authorization. The
-              subject must produce a verifiable certificate chain before JOKER-C2
-              can be opened.
+              H.B.C.E. distingue il semplice accesso a un account
+              dall’autorizzazione operativa. Prima di accedere a JOKER-C2
+              è necessario disporre di una catena di certificati valida.
             </p>
 
             <ul className="hbce-list">
@@ -355,9 +355,9 @@ export default function HomePage() {
 
       <section className="hbce-section">
         <div className="hbce-card">
-          <p className="hbce-kicker">Certificate chain</p>
+          <p className="hbce-kicker">Catena dei certificati</p>
 
-          <h2>Every certificate unlocks the next phase.</h2>
+          <h2>Ogni certificato abilita la fase successiva.</h2>
 
           <p>
             The app works through downloadable `.hbce.json` files. Each file
@@ -369,7 +369,7 @@ export default function HomePage() {
           <div className="hbce-grid hbce-grid--3">
             {CERTIFICATE_CHAIN.map((step) => (
               <article className="hbce-card hbce-card--soft" key={step.code}>
-                <p className="hbce-kicker">Certificate {step.code}</p>
+                <p className="hbce-kicker">Certificato {step.code}</p>
 
                 <h3>{step.title}</h3>
 
@@ -377,7 +377,7 @@ export default function HomePage() {
 
                 <div className="hbce-actions">
                   <Link className="hbce-btn" href={step.route}>
-                    Open phase
+                    Apri la fase
                   </Link>
                 </div>
               </article>
@@ -389,28 +389,27 @@ export default function HomePage() {
       <section className="hbce-section">
         <div className="hbce-grid hbce-grid--2">
           <div className="hbce-card">
-            <p className="hbce-kicker">IPR upload rule</p>
+            <p className="hbce-kicker">Regole di caricamento IPR</p>
 
-            <h2>Certificates are uploaded in one logical point.</h2>
+            <h2>I certificati si caricano attraverso un unico procedimento.</h2>
 
             <p>
-              The HBCE-IPR certificate upload is always the same logical action:
-              upload the previous `.hbce.json` certificate, validate it, then
-              continue to the next phase. CIE, driving licence, passport,
-              tessera sanitaria, codice fiscale, selfie and video are
-              phase-specific evidence, not continuation certificates.
+              Per proseguire, carica il precedente certificato `.hbce.json`.
+              Il sistema verifica il file e determina la fase successiva.
+              CIE, patente, passaporto, tessera sanitaria, fotografie e video
+              sono evidenze delle rispettive fasi, non certificati di continuazione.
             </p>
           </div>
 
           <div className="hbce-card hbce-card--danger">
-            <p className="hbce-kicker">Fail-closed boundary</p>
+            <p className="hbce-kicker">Blocco di sicurezza</p>
 
-            <h2>Invalid certificates do not continue.</h2>
+            <h2>I certificati non validi non consentono di proseguire.</h2>
 
             <p>
-              Wrong protocol, wrong issuer, wrong phase, wrong next phase,
-              missing previous hash, payload hash mismatch, inactive status or
-              invalid scope blocks continuation and access.
+              Un protocollo, un emittente, una fase, uno stato o un ambito
+              non validi, oppure un hash mancante o incoerente,
+              impediscono la continuazione e bloccano l’accesso.
             </p>
           </div>
         </div>
@@ -418,9 +417,9 @@ export default function HomePage() {
 
       <section className="hbce-section">
         <div className="hbce-card">
-          <p className="hbce-kicker">Product architecture</p>
+          <p className="hbce-kicker">Architettura del prodotto</p>
 
-          <h2>IPR Onboarding Gateway · IPR Card · JOKER-C2.</h2>
+          <h2>Portale HBCE-IPR · Carta IPR · JOKER-C2.</h2>
 
           <div className="hbce-grid hbce-grid--2">
             {PRODUCT_RULES.map((rule) => (
@@ -435,16 +434,15 @@ export default function HomePage() {
 
       <section className="hbce-section">
         <div className="hbce-card">
-          <p className="hbce-kicker">Legal and operational boundary</p>
+          <p className="hbce-kicker">Limiti legali e operativi</p>
 
-          <h2>IPR is an internal operational identity layer.</h2>
+          <h2>IPR è un sistema di identità operativa interna.</h2>
 
           <p>
-            HBCE IPR is a verifiable operational identity layer linked to
-            official evidence. It is not a state identity system and does not
-            replace public identity documents or regulated trust services unless
-            future integrations with recognized providers are formally
-            activated.
+            HBCE-IPR è un sistema interno di identità operativa collegato
+            a evidenze documentali. Non costituisce un sistema di identità
+            statale e non sostituisce i documenti ufficiali o i servizi
+            fiduciari regolamentati.
           </p>
 
           <ul className="hbce-list">
@@ -455,15 +453,15 @@ export default function HomePage() {
 
           <div className="hbce-actions">
             <Link className="hbce-btn hbce-btn--primary" href="/onboarding">
-              Open Onboarding Gateway
+              Apri la registrazione IPR
             </Link>
 
             <Link className="hbce-btn" href="/certificate">
-              Operational Certificate
+              Certificato operativo
             </Link>
 
             <Link className="hbce-btn" href="/access/joker-c2">
-              JOKER-C2 Access Gate
+              Controllo accesso JOKER-C2
             </Link>
           </div>
         </div>

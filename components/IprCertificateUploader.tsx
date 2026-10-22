@@ -47,10 +47,10 @@ const ACCEPTED_CERTIFICATE_EXTENSIONS = [".json", ".hbce"] as const;
 
 function getDefaultTitle(mode: IprCertificateUploaderMode): string {
   if (mode === "read_any") {
-    return "Continue with Existing HBCE IPR Certificate";
+    return "Continua con un certificato HBCE-IPR esistente";
   }
 
-  return "Upload Previous HBCE IPR Certificate";
+  return "Carica il precedente certificato HBCE-IPR";
 }
 
 function getDefaultDescription(mode: IprCertificateUploaderMode): string {
@@ -224,7 +224,7 @@ export default function IprCertificateUploader({
         validation: createValidationResult({
           valid: false,
           reason: "INVALID_JSON",
-          message: "Certificate rejected. The uploaded file is not valid JSON."
+          message: "Certificato rifiutato. Il file non contiene un JSON valido."
         })
       };
     }
@@ -236,7 +236,7 @@ export default function IprCertificateUploader({
           valid: false,
           reason: "INVALID_JSON",
           message:
-            "Certificate rejected. The uploaded file is not a valid HBCE IPR certificate."
+            "Certificato rifiutato. Il file non è un certificato HBCE-IPR valido."
         })
       };
     }
@@ -264,7 +264,7 @@ export default function IprCertificateUploader({
       certificate: parsed,
       validation: createValidationResult({
         valid: true,
-        message: "HBCE IPR certificate accepted.",
+        message: "Certificato HBCE-IPR accettato.",
         received_phase: parsed.phase.code,
         received_next_phase: parsed.next.next_phase,
         payload_sha256: parsed.hash_integrity.payload_sha256,
@@ -345,7 +345,7 @@ export default function IprCertificateUploader({
       <div className="hbce-stack">
         <div>
           <p className="hbce-kicker">
-            {required ? "Required IPR input" : "Optional IPR input"}
+            {required ? "Certificato IPR obbligatorio" : "Certificato IPR facoltativo"}
           </p>
           <h2>{resolvedTitle}</h2>
           <p className="hbce-muted">{resolvedDescription}</p>
@@ -353,10 +353,10 @@ export default function IprCertificateUploader({
 
         <label className="hbce-upload-zone" htmlFor={inputId}>
           <span className="hbce-upload-zone__title">
-            Select HBCE-IPR `.hbce.json` certificate
+            Seleziona un certificato HBCE-IPR `.hbce.json`
           </span>
           <span className="hbce-upload-zone__text">
-            {selectedFileLabel || "No certificate selected"}
+            {selectedFileLabel || "Nessun certificato selezionato"}
           </span>
           <input
             ref={inputRef}
@@ -370,7 +370,7 @@ export default function IprCertificateUploader({
 
         {isReading ? (
           <div className="hbce-upload-status">
-            Reading and validating HBCE IPR certificate.
+            Lettura e verifica del certificato HBCE-IPR.
           </div>
         ) : null}
 
@@ -438,7 +438,7 @@ export default function IprCertificateUploader({
             disabled={disabled || isReading}
             onClick={() => inputRef.current?.click()}
           >
-            Upload certificate
+            Carica certificato
           </button>
 
           <button
@@ -447,7 +447,7 @@ export default function IprCertificateUploader({
             disabled={disabled || isReading || !selectedFileLabel}
             onClick={resetUploader}
           >
-            Reset
+            Reimposta
           </button>
         </div>
       </div>

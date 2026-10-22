@@ -1175,7 +1175,7 @@ export default function IPRCardPage() {
                 : "Approved certificate accepted"}
             </p>
 
-            <h2>Certificate 07 ready for IPR Card issuance.</h2>
+            <h2>Certificato 07 pronto per l’emissione della Carta IPR.</h2>
 
             <p>
               The required approved certificate is already available for this
@@ -1234,7 +1234,7 @@ export default function IPRCardPage() {
           <div className="hbce-stack">
             <div>
               <p className="hbce-kicker">Card issuance data</p>
-              <h2>Issue the virtual IPR Card.</h2>
+              <h2>Emetti la Carta IPR virtuale.</h2>
               <p className="hbce-muted">
                 The app generates a deterministic IPR ID, subject ID and card
                 serial from the approved certificate hash. These values are
@@ -1245,7 +1245,7 @@ export default function IPRCardPage() {
 
             <div className="hbce-form-grid">
               <label className="hbce-field">
-                <span>HBCE issuer/operator reference</span>
+                <span>Riferimento dell’operatore H.B.C.E.</span>
                 <input
                   type="text"
                   value={operatorReference}
@@ -1259,7 +1259,7 @@ export default function IPRCardPage() {
               </label>
 
               <label className="hbce-field">
-                <span>Valid until</span>
+                <span>Valido fino al</span>
                 <input
                   type="datetime-local"
                   value={validUntil.slice(0, 16)}
@@ -1284,7 +1284,7 @@ export default function IPRCardPage() {
         {generatedPreview ? (
           <section className="hbce-card hbce-card--soft">
             <p className="hbce-kicker">Generated card preview</p>
-            <h2>IPR Card identifiers</h2>
+            <h2>Identificativi della Carta IPR</h2>
 
             <p className="hbce-mono">ipr_id: {generatedPreview.iprId}</p>
             <p className="hbce-mono">subject_id: {generatedPreview.subjectId}</p>
@@ -1300,7 +1300,7 @@ export default function IPRCardPage() {
         {previousIdentitySnapshot ? (
           <section className="hbce-card hbce-card--soft">
             <p className="hbce-kicker">Inherited identity snapshot</p>
-            <h2>Biological identity ready for IPR Card issuance.</h2>
+            <h2>Dati di identità disponibili per l’emissione della Carta IPR.</h2>
 
             <p>
               Certificate 08 will inherit the biological identity, physical
@@ -1331,7 +1331,7 @@ export default function IPRCardPage() {
         {physicalDescriptorProfile ? (
           <section className="hbce-card hbce-card--soft">
             <p className="hbce-kicker">Inherited physical descriptor profile</p>
-            <h2>Physical descriptor layer ready for IPR Card.</h2>
+            <h2>Descrittori fisici disponibili per la Carta IPR.</h2>
 
             <p className="hbce-mono">
               height_cm: {physicalDescriptorProfile.height_cm ?? "unavailable"}
@@ -1362,7 +1362,7 @@ export default function IPRCardPage() {
         {biometricLivenessSnapshot ? (
           <section className="hbce-card hbce-card--soft">
             <p className="hbce-kicker">Inherited liveness snapshot</p>
-            <h2>Photo/video liveness ready for IPR Card.</h2>
+            <h2>Evidenze foto e video disponibili per la Carta IPR.</h2>
 
             <p className="hbce-mono">
               document_face_reference:{" "}
@@ -1396,7 +1396,7 @@ export default function IPRCardPage() {
 
         <section className="hbce-card">
           <p className="hbce-kicker">Legal boundary</p>
-          <h2>The IPR Card is not a state identity document.</h2>
+          <h2>La Carta IPR non è un documento di identità statale.</h2>
           <p>
             HBCE IPR Card does not replace CIE, SPID, EUDI Wallet, passport,
             driving licence, public identity card, qualified eIDAS certificate or
@@ -1414,7 +1414,7 @@ export default function IPRCardPage() {
 
         {generatedCertificate ? (
           <section className="hbce-card hbce-card--success">
-            <p className="hbce-kicker">Certificate generated</p>
+            <p className="hbce-kicker">Certificato generato</p>
             <h2>{generatedCertificate.file_name}</h2>
 
             <p>

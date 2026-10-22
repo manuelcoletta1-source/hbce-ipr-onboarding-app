@@ -1141,7 +1141,7 @@ export default function AdminReviewPage() {
                 : "Review pending certificate accepted"}
             </p>
 
-            <h2>Certificate 06 ready for HBCE approval.</h2>
+            <h2>Certificato 06 pronto per la revisione H.B.C.E.</h2>
 
             <p>
               The required review pending certificate is available for this
@@ -1199,8 +1199,8 @@ export default function AdminReviewPage() {
         <section className="hbce-card">
           <div className="hbce-stack">
             <div>
-              <p className="hbce-kicker">Approval decision</p>
-              <h2>HBCE operator decision</h2>
+              <p className="hbce-kicker">Decisione di approvazione</p>
+              <h2>Decisione dell’operatore H.B.C.E.</h2>
               <p className="hbce-muted">
                 Only APPROVE generates the next certificate in this MVP. Other
                 decisions must be handled by a protected backend/admin workflow.
@@ -1209,7 +1209,7 @@ export default function AdminReviewPage() {
 
             <div className="hbce-form-grid">
               <label className="hbce-field">
-                <span>Approved by</span>
+                <span>Approvato da</span>
                 <input
                   type="text"
                   value={approvedBy}
@@ -1223,7 +1223,7 @@ export default function AdminReviewPage() {
               </label>
 
               <label className="hbce-field">
-                <span>Review decision</span>
+                <span>Decisione della revisione</span>
                 <select
                   value={approvalDecision}
                   onChange={(event) => {
@@ -1244,7 +1244,7 @@ export default function AdminReviewPage() {
               </label>
 
               <label className="hbce-field">
-                <span>Approval note</span>
+                <span>Nota di approvazione</span>
                 <input
                   type="text"
                   value={approvalNote}
@@ -1264,7 +1264,7 @@ export default function AdminReviewPage() {
         {previousIdentitySnapshot ? (
           <section className="hbce-card hbce-card--soft">
             <p className="hbce-kicker">Inherited identity snapshot</p>
-            <h2>Biological identity ready for HBCE approval.</h2>
+            <h2>Dati di identità disponibili per la revisione H.B.C.E.</h2>
 
             <p>
               Certificate 07 will inherit the identity, physical descriptor and
@@ -1295,7 +1295,7 @@ export default function AdminReviewPage() {
         {physicalDescriptorProfile ? (
           <section className="hbce-card hbce-card--soft">
             <p className="hbce-kicker">Inherited physical descriptor profile</p>
-            <h2>Physical descriptor layer ready for approval.</h2>
+            <h2>Descrittori fisici disponibili per la revisione.</h2>
 
             <p className="hbce-mono">
               height_cm: {physicalDescriptorProfile.height_cm ?? "unavailable"}
@@ -1326,7 +1326,7 @@ export default function AdminReviewPage() {
         {biometricLivenessSnapshot ? (
           <section className="hbce-card hbce-card--soft">
             <p className="hbce-kicker">Inherited liveness snapshot</p>
-            <h2>Photo/video liveness ready for approval.</h2>
+            <h2>Evidenze foto e video disponibili per la revisione.</h2>
 
             <p className="hbce-mono">
               document_face_reference:{" "}
@@ -1367,7 +1367,7 @@ export default function AdminReviewPage() {
 
         {generatedCertificate ? (
           <section className="hbce-card hbce-card--success">
-            <p className="hbce-kicker">Certificate generated</p>
+            <p className="hbce-kicker">Certificato generato</p>
             <h2>{generatedCertificate.file_name}</h2>
 
             <p>

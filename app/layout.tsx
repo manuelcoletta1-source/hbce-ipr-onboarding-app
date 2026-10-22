@@ -59,7 +59,7 @@ export const metadata: Metadata = {
     description: APP_DESCRIPTION,
     siteName: APP_NAME,
     type: "website",
-    locale: "en_US",
+    locale: "it_IT",
     url: "/"
   }
 };
@@ -84,7 +84,7 @@ export default function RootLayout({
   children: ReactNode;
 }>) {
   return (
-    <html lang="en">
+    <html lang="it">
       <body>
         <div className="hbce-page">
           <header className="hbce-header">
@@ -92,7 +92,7 @@ export default function RootLayout({
               <Link
                 className="hbce-brand"
                 href={ROUTES.home}
-                aria-label="HBCE IPR Onboarding App home"
+                aria-label="Torna alla pagina iniziale IPR"
               >
                 <span className="hbce-brand__sigil" aria-hidden="true">🜏</span>
                 <span className="hbce-brand__copy">
@@ -101,7 +101,7 @@ export default function RootLayout({
                 </span>
               </Link>
 
-              <nav className="hbce-nav" aria-label="Main navigation">
+              <nav className="hbce-nav" aria-label="Navigazione principale">
                 {navItems.map((item) => (
                   <Link href={item.href} key={item.href}>
                     {item.label}
@@ -125,9 +125,9 @@ export default function RootLayout({
               </div>
 
               <div className="hbce-footer__links">
-                <Link href={ROUTES.legal}>Legal Boundary</Link>
+                <Link href={ROUTES.legal}>Limiti legali</Link>
                 <Link href={ROUTES.privacy}>Privacy</Link>
-                <Link href={ROUTES.security}>Security</Link>
+                <Link href={ROUTES.security}>Sicurezza</Link>
                 <a
                   href={JOKER_C2_GATEWAY_URL}
                   rel="noopener noreferrer"

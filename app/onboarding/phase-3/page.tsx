@@ -78,7 +78,7 @@ const phase = getPhaseDefinitionByNumber(3);
 const fields: IprPhaseFieldDefinition[] = [
   {
     name: "document_type",
-    label: "Official document type",
+    label: "Tipo di documento d’identità",
     type: "select",
     options: [
       {
@@ -86,87 +86,87 @@ const fields: IprPhaseFieldDefinition[] = [
         value: "ITALIAN_CIE"
       },
       {
-        label: "Driving licence / Patente di guida",
+        label: "Patente di guida",
         value: "DRIVING_LICENCE"
       },
       {
-        label: "Passport / Passaporto",
+        label: "Passaporto",
         value: "PASSPORT"
       },
       {
-        label: "EU national identity card",
+        label: "Carta d’identità nazionale UE",
         value: "EU_IDENTITY_CARD"
       },
       {
-        label: "Other authorized official document",
+        label: "Altro documento ufficiale autorizzato",
         value: "OTHER_AUTHORIZED_OFFICIAL_DOCUMENT"
       }
     ],
     helperText:
-      "Official document type declared by the subject. It is included in the private certificate and hashed for audit verification."
+      "Tipo di documento dichiarato dal richiedente. Viene registrato nel certificato privato e associato a un hash per le verifiche."
   },
   {
     name: "document_number",
-    label: "Document number",
+    label: "Numero del documento",
     type: "text",
     placeholder: "CA000000X",
     helperText:
-      "Official document number. It is included in the private certificate and hashed for audit verification."
+      "Numero del documento ufficiale. Viene inserito nel certificato privato e associato a un hash."
   },
   {
     name: "document_country",
-    label: "Document country",
+    label: "Paese del documento",
     type: "text",
     placeholder: "IT",
     helperText:
-      "Country or jurisdiction of the official document. It is included in the private certificate and hashed."
+      "Paese o giurisdizione del documento ufficiale. Il valore viene inserito nel certificato privato e associato a un hash."
   },
   {
     name: "document_issuer",
-    label: "Issuing authority",
+    label: "Autorità che ha rilasciato il documento",
     type: "text",
-    placeholder: "Comune / Ministry / Issuing authority",
+    placeholder: "Comune / Ministero / Autorità competente",
     helperText:
-      "Authority that issued the document. It is included in the private certificate and hashed."
+      "Ente che ha rilasciato il documento. Il valore viene inserito nel certificato privato e associato a un hash."
   },
   {
     name: "document_issue_date",
-    label: "Issue date",
+    label: "Data di rilascio",
     type: "date",
     helperText:
-      "Document issue date. It is included in the private certificate and hashed."
+      "Data di rilascio del documento, registrata nel certificato privato e associata a un hash."
   },
   {
     name: "document_expiry_date",
-    label: "Expiry date",
+    label: "Data di scadenza",
     type: "date",
     helperText:
-      "Document expiry date. It is included in the private certificate and hashed."
+      "Data di scadenza del documento, registrata nel certificato privato e associata a un hash."
   }
 ];
 
 const evidenceInputs: IprPhaseEvidenceInputDefinition[] = [
   {
     kind: "OFFICIAL_DOCUMENT_FRONT",
-    label: "Upload official document front / CIE front / licence front",
+    label: "Carica il fronte del documento / CIE / patente",
     description:
-      "Upload the front side of the CIE, driving licence, EU identity card or other official document. The file itself is not embedded in the certificate; only its SHA-256 hash is stored.",
+      "Carica il fronte della CIE, della patente o di un altro documento ufficiale. Il file non viene inserito nel certificato: viene registrato soltanto il relativo hash SHA-256.",
     accept: "image/*,.pdf",
     required: true
   },
   {
     kind: "OFFICIAL_DOCUMENT_BACK",
-    label: "Upload official document back / CIE back / licence back",
+    label: "Carica il retro del documento / CIE / patente",
     description:
-      "Upload the back side when the selected document has two sides. The file itself is not embedded in the certificate; only its SHA-256 hash is stored.",
+      "Carica il retro se il documento ha due facciate. Il file non viene inserito nel certificato: viene registrato soltanto il relativo hash SHA-256.",
     accept: "image/*,.pdf",
     required: false
   },
   {
     kind: "PASSPORT_DATA_PAGE",
-    label: "Upload passport data page",
+    label: "Carica la pagina dei dati del passaporto",
     description:
-      "Use this field when the selected official document is a passport. The file itself is not embedded in the certificate; only its SHA-256 hash is stored.",
+      "Utilizza questo campo se il documento selezionato è un passaporto. Il file non viene inserito nel certificato: viene registrato soltanto il relativo hash SHA-256.",
     accept: "image/*,.pdf",
     required: false
   }
@@ -784,9 +784,9 @@ export default function Phase3OfficialDocumentPage() {
         fields={fields}
         evidenceInputs={evidenceInputs}
         buildPhaseData={buildPhase3OfficialDocumentData}
-        submitLabel="Generate HBCE IPR Certificate 03"
-        successTitle="HBCE IPR Certificate 03 generated"
-        successDescription="The private official document certificate has been generated and downloaded. It links Certificate 02 to the submitted official document metadata, document hashes, minimized identity snapshot and protected evidence references. Use this file in Phase 4 — Liveness Check."
+        submitLabel="Genera il Certificato HBCE-IPR 03"
+        successTitle="Certificato HBCE-IPR 03 generato"
+        successDescription="Il certificato privato del documento d’identità è stato generato e scaricato. Collega il Certificato 02 ai metadati del documento, agli hash e alle evidenze disponibili. Utilizza questo file nella Fase 4: verifica di presenza."
       />
     </div>
   );
