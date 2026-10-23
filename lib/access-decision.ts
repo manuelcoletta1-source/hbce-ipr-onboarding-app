@@ -194,6 +194,12 @@ export function evaluateAccessDecision(record: JokerC2AccessDecisionInput): Deci
     );
   }
 
+  if (record.jokerC2AccessStatus !== "enabled") {
+    return deny(
+      "JOKER-C2 canonical access status is not enabled. Access is blocked."
+    );
+  }
+
   if (record.iprStatus !== "verified") {
     return deny("IPR status is not verified.");
   }

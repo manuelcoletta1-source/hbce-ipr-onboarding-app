@@ -110,6 +110,20 @@ describe("canonical JOKER-C2 access decision", () => {
     ).toBe(true);
   });
 
+  it("fails closed when JOKER-C2 status is denied", () => {
+    const record: OnboardingRecord = {
+      ...buildFullyQualifiedApprovedRecord(),
+      jokerC2AccessStatus: "denied"
+    };
+
+    const result = evaluateAccessDecision(record);
+
+    expect(result.decision).toBe("deny_access");
+    expect(result.jokerC2AccessStatus).toBe("denied");
+    expect(result.decisionReason).toContain("not enabled");
+    expect(canAccessJokerC2(record)).toBe(false);
+  });
+
   it("revocation overrides an otherwise fully qualified approved record", () => {
     const record: OnboardingRecord = {
       ...buildFullyQualifiedApprovedRecord(),
