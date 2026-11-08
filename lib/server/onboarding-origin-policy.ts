@@ -58,7 +58,13 @@ export function validateHbceAppOrigin(
   }
 
   if (
-    parsed.protocol !== "https:" ||
+    (
+      parsed.protocol !== "https:" &&
+      !(
+        process.env.NODE_ENV === "development" &&
+        value === "http://localhost:3000"
+      )
+    ) ||
     parsed.username !== "" ||
     parsed.password !== "" ||
     parsed.search !== "" ||
