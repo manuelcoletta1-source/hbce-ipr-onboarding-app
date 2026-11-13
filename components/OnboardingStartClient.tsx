@@ -20,7 +20,7 @@ type StartSuccessPayload = {
   readonly joker_c2_access_status:
     "denied";
   readonly next_route:
-    "/onboarding/identity";
+    "/onboarding/phase-1";
 };
 
 function isPlainObject(
@@ -65,7 +65,7 @@ function isValidStartSuccessPayload(
     value.joker_c2_access_status ===
       "denied" &&
     value.next_route ===
-      "/onboarding/identity"
+      "/onboarding/phase-1"
   );
 }
 
@@ -278,7 +278,7 @@ export function OnboardingStartClient() {
         null;
 
       router.push(
-        "/onboarding/identity"
+        "/onboarding/phase-1"
       );
     } catch {
       setErrorCode(

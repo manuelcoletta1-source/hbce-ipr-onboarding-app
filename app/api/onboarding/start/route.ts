@@ -306,7 +306,7 @@ export async function POST(
           joker_c2_access_status:
             "denied",
           next_route:
-            "/onboarding/identity"
+            "/onboarding/phase-1"
         },
         {
           status: 201

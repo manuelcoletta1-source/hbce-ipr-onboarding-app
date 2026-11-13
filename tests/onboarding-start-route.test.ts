@@ -588,7 +588,7 @@ describe(
           joker_c2_access_status:
             "denied",
           next_route:
-            "/onboarding/identity"
+            "/onboarding/phase-1"
         });
 
         expect(
