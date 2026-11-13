@@ -1056,8 +1056,7 @@ function buildCustodyFieldPresence(
     biometric_liveness_media:
       hasBiometricLivenessSnapshotContent(biometricSnapshot),
     face_match_verification: Boolean(
-      biometricSnapshot?.face_match_status === "MATCHED" ||
-        biometricSnapshot?.face_match_status === "MANUAL_REVIEW"
+      biometricSnapshot?.face_match_status === "MATCHED"
     ),
     document_face_comparison: Boolean(
       biometricSnapshot?.document_face_reference ||
@@ -1245,7 +1244,9 @@ function enrichOperationalCertificatePhaseData(params: {
     certificate_role: "FINAL_OPERATIONAL_CERTIFICATE",
     certificate_visibility: "PRIVATE_PORTABLE_CERTIFICATE",
     public_registry_mode: "HASH_ONLY",
-    joker_c2_access: "ACCESS_GRANTED",
+    joker_c2_access: "ELIGIBLE_FOR_GATE_VALIDATION",
+    joker_c2_access_granted: false,
+    joker_c2_gate_validation_required: true,
     joker_c2_runtime_binding: "IPR_VERIFIED_BIOLOGICAL_SUBJECT",
     custody_mode: "JOKER_C2_CONTROLLED_CUSTODY",
     certificate_fields: privateFields,
@@ -2122,6 +2123,34 @@ export async function validateJokerC2OperationalCertificate(
       decision: "ACCESS_DENIED",
       reason:
         "ACCESS_DENIED: operational certificate does not confirm biometric/liveness verification consent.",
+      certificate_status: certificate.certificate_status,
+      certificate_scope: certificate.certificate_scope,
+      payload_sha256: certificate.hash_integrity.payload_sha256,
+      previous_payload_sha256:
+        certificate.hash_integrity.previous_payload_sha256,
+      checked_at: checkedAt
+    };
+  }
+
+  if (biometricLivenessSnapshot.liveness_verified !== true) {
+    return {
+      decision: "ACCESS_DENIED",
+      reason:
+        "ACCESS_DENIED: liveness verification is not positively verified.",
+      certificate_status: certificate.certificate_status,
+      certificate_scope: certificate.certificate_scope,
+      payload_sha256: certificate.hash_integrity.payload_sha256,
+      previous_payload_sha256:
+        certificate.hash_integrity.previous_payload_sha256,
+      checked_at: checkedAt
+    };
+  }
+
+  if (biometricLivenessSnapshot.face_match_status !== "MATCHED") {
+    return {
+      decision: "ACCESS_DENIED",
+      reason:
+        "ACCESS_DENIED: face match verification is not positively matched.",
       certificate_status: certificate.certificate_status,
       certificate_scope: certificate.certificate_scope,
       payload_sha256: certificate.hash_integrity.payload_sha256,
